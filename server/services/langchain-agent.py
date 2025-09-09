@@ -130,8 +130,30 @@ class LangChainMCPAgent:
     async def test_connection(self) -> Dict[str, Any]:
         """Test connection to the LLM provider"""
         try:
-            if not await self.initialize():
-                return {"success": False, "message": "Failed to initialize agent"}
+            # Initialize only the LLM, not the full agent with MCP
+            if self.provider == "ollama":
+                base_url = self.endpoint_url if self.endpoint_url else "http://localhost:11434"
+                self.llm = ChatOllama(
+                    model=self.model,
+                    base_url=base_url,
+                    temperature=0.1
+                )
+            elif self.provider == "openai":
+                api_key = os.getenv("OPENAI_API_KEY")
+                if not api_key:
+                    return {"success": False, "message": "OpenAI API key not configured"}
+                self.llm = ChatOpenAI(
+                    model=self.model,
+                    api_key=api_key
+                )
+            elif self.provider == "anthropic":
+                api_key = os.getenv("ANTHROPIC_API_KEY") 
+                if not api_key:
+                    return {"success": False, "message": "Anthropic API key not configured"}
+                self.llm = ChatAnthropic(
+                    model_name=self.model,
+                    anthropic_api_key=api_key
+                )
             
             # Test with a simple message
             response = await self.llm.ainvoke([
@@ -146,7 +168,13 @@ class LangChainMCPAgent:
                 return {"success": False, "message": "Unexpected response from model"}
                 
         except Exception as e:
-            return {"success": False, "message": f"Connection failed: {str(e)}"}
+            error_msg = str(e)
+            if "connection" in error_msg.lower() and self.provider == "ollama":
+                return {"success": False, "message": "Ollama server not running. Please start Ollama or change provider."}
+            elif "api key" in error_msg.lower():
+                return {"success": False, "message": f"{self.provider.title()} API key invalid or missing"}
+            else:
+                return {"success": False, "message": f"Connection failed: {error_msg}"}
     
     async def process_message(self, content: str, selected_las_file: str = "") -> Dict[str, Any]:
         """Process a user message and return agent response"""
