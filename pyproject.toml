@@ -19,4 +19,5 @@ dependencies = [
     "mcp>=1.13.1",
     "fastmcp>=2.12.2",
     "lasio>=0.32",
+    "sendgrid>=6.12.4",
 ]

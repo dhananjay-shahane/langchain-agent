@@ -65,6 +65,11 @@ export default function FileBrowser({ onImageSelect }: FileBrowserProps) {
           <Folder className="w-4 h-4 text-muted-foreground" />
           <span className="text-sm font-medium text-foreground">data/</span>
           <span className="text-xs text-muted-foreground">({lasFiles.length} files)</span>
+          {lasFiles.some(f => f.source === "email") && (
+            <Badge variant="default" className="text-xs ml-2">
+              📧 New arrivals
+            </Badge>
+          )}
         </div>
         
         <ScrollArea className="ml-6 max-h-32">
