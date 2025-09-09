@@ -90,11 +90,18 @@ export default function FileBrowser({ onImageSelect }: FileBrowserProps) {
                 >
                   {getFileIcon(file.filename)}
                   <span className="flex-1 truncate">{file.filename}</span>
-                  <div className="flex items-center gap-2">
-                    {file.source === "email" && (
-                      <Badge variant="secondary" className="text-xs">new</Badge>
+                  <div className="flex flex-col items-end gap-1">
+                    <div className="flex items-center gap-2">
+                      {file.source === "email" && (
+                        <Badge variant="secondary" className="text-xs">email</Badge>
+                      )}
+                      <span className="text-xs text-muted-foreground">{formatFileSize(file.size)}</span>
+                    </div>
+                    {file.source === "email" && file.metadata?.emailFrom && (
+                      <span className="text-xs text-muted-foreground">
+                        📧 {file.metadata.emailFrom}
+                      </span>
                     )}
-                    <span className="text-xs text-muted-foreground">{formatFileSize(file.size)}</span>
                   </div>
                 </div>
               ))

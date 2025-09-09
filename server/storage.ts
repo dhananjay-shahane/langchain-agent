@@ -41,6 +41,23 @@ export class MemStorage implements IStorage {
       lastTested: null,
       createdAt: new Date(),
     };
+    
+    // Initialize with sample email-received LAS file
+    const emailFileId = randomUUID();
+    this.lasFiles.set(emailFileId, {
+      id: emailFileId,
+      filename: "email_well_data.las",
+      filepath: "/home/runner/workspace/data/email_well_data.las",
+      size: "125KB",
+      source: "email",
+      processed: false,
+      metadata: { 
+        emailFrom: "dhanushahane01@gmail.com",
+        emailSubject: "LAS File Analysis Request",
+        receivedAt: new Date().toISOString()
+      },
+      createdAt: new Date()
+    });
   }
 
   async getAgentConfig(): Promise<AgentConfig | undefined> {
