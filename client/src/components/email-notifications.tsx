@@ -273,7 +273,7 @@ export default function EmailNotifications({ onEmailReceived }: EmailNotificatio
                             {email.hasAttachments && (
                               <Badge variant="secondary" className="text-xs px-1.5 py-0.5">
                                 <FileText className="w-3 h-3 mr-1" />
-                                {email.relatedLasFiles.length}
+                                {email.relatedLasFiles?.length || 0}
                               </Badge>
                             )}
                           </div>
