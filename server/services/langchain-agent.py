@@ -31,7 +31,7 @@ class LangChainMCPAgent:
         self.mcp_client = None
         
     async def initialize(self):
-        """Initialize the LangChain agent with MCP tools"""
+        """Initialize the LangChain agent"""
         try:
             # Initialize LLM based on provider
             if self.provider == "ollama":
@@ -42,38 +42,31 @@ class LangChainMCPAgent:
                     temperature=0.1
                 )
             elif self.provider == "openai":
+                api_key = os.getenv("OPENAI_API_KEY")
+                if not api_key:
+                    return False
                 self.llm = ChatOpenAI(
                     model=self.model,
-                    api_key=os.getenv("OPENAI_API_KEY")
+                    api_key=api_key
                 )
             elif self.provider == "anthropic":
+                api_key = os.getenv("ANTHROPIC_API_KEY")
+                if not api_key:
+                    return False
                 self.llm = ChatAnthropic(
                     model_name=self.model,
-                    anthropic_api_key=os.getenv("ANTHROPIC_API_KEY")
+                    anthropic_api_key=api_key
                 )
             
-            # Initialize MCP client for custom tools
-            self.mcp_client = MultiServerMCPClient({
-                "las_tools": {
-                    "command": "python",
-                    "args": [str(Path(__file__).parent / "mcp-server.py")],
-                    "transport": "stdio",
-                }
-            })
-            
-            # Get MCP tools
-            mcp_tools = await self.mcp_client.get_tools()
-            
-            # Add custom tools
+            # Create basic tools
             custom_tools = [
                 self.create_summary_tool(),
-                self.create_file_lister_tool()
+                self.create_file_lister_tool(),
+                self.create_las_analyzer_tool()
             ]
             
-            all_tools = mcp_tools + custom_tools
-            
-            # Create agent
-            self.agent = create_react_agent(self.llm, all_tools)
+            # Create agent with custom tools
+            self.agent = create_react_agent(self.llm, custom_tools)
             
             return True
             
@@ -127,6 +120,49 @@ class LangChainMCPAgent:
         
         return list_las_files
     
+    def create_las_analyzer_tool(self):
+        """Create a tool for analyzing LAS files"""
+        @tool
+        def analyze_las_file(filename: str) -> str:
+            \"\"\"Analyze a LAS file and extract key information.\"\"\"
+            try:
+                data_dir = Path("data")
+                file_path = data_dir / filename
+                
+                if not file_path.exists():
+                    return f"LAS file '{filename}' not found in data directory."
+                
+                # Basic LAS file analysis
+                with open(file_path, 'r') as f:
+                    content = f.read()
+                
+                lines = content.split('\n')[:100]  # First 100 lines for analysis
+                analysis = []
+                
+                well_info = {}
+                curves = []
+                
+                for line in lines:
+                    line = line.strip()
+                    if line.startswith('~W') or 'WELL' in line.upper():
+                        analysis.append("📍 Well Information Section Found")
+                    elif line.startswith('~C') or 'CURVE' in line.upper():
+                        analysis.append("📊 Curve Information Section Found")  
+                    elif any(keyword in line.upper() for keyword in ['DEPTH', 'GR', 'NPHI', 'RHOB']):
+                        curves.append(line[:50] + "..." if len(line) > 50 else line)
+                
+                if curves:
+                    analysis.append(f"🔢 Found {len(curves)} data curves")
+                    analysis.extend(curves[:5])  # Show first 5 curves
+                
+                result = f"Analysis of {filename}:\n" + '\n'.join(analysis)
+                return result if analysis else f"Could not analyze LAS file {filename}"
+                
+            except Exception as e:
+                return f"Error analyzing {filename}: {str(e)}"
+        
+        return analyze_las_file
+    
     async def test_connection(self) -> Dict[str, Any]:
         """Test connection to the LLM provider"""
         try:
@@ -178,64 +214,52 @@ class LangChainMCPAgent:
     
     async def process_message(self, content: str, selected_las_file: str = "") -> Dict[str, Any]:
         """Process a user message and return agent response"""
-        try:
-            if not self.agent:
-                if not await self.initialize():
-                    return {
-                        "content": "Failed to initialize agent. Please check configuration.",
-                        "metadata": {"error": True}
-                    }
-            
-            # Prepare context message
-            context_parts = ["You are a specialized LAS file analysis agent. You can:"]
-            context_parts.append("- Analyze well log data from LAS files")
-            context_parts.append("- Generate plots and visualizations")
-            context_parts.append("- Extract formation information")
-            context_parts.append("- Create custom reports")
-            
-            if selected_las_file:
-                context_parts.append(f"\nUser has selected LAS file: {selected_las_file}")
-            
-            context_parts.append(f"\nUser request: {content}")
-            
-            # Invoke agent
-            response = await self.agent.ainvoke({
-                "messages": [
-                    SystemMessage(content="\n".join(context_parts)),
-                    HumanMessage(content=content)
-                ]
+        if not self.agent:
+            await self.initialize()
+        
+        # Prepare context message
+        context_parts = ["You are a specialized LAS file analysis agent. You can:"]
+        context_parts.append("- Analyze well log data from LAS files")
+        context_parts.append("- Generate plots and visualizations")
+        context_parts.append("- Extract formation information")
+        context_parts.append("- Create custom reports")
+        
+        if selected_las_file:
+            context_parts.append(f"\nUser has selected LAS file: {selected_las_file}")
+        
+        context_parts.append(f"\nUser request: {content}")
+        
+        # Invoke agent
+        response = await self.agent.ainvoke({
+            "messages": [
+                SystemMessage(content="\n".join(context_parts)),
+                HumanMessage(content=content)
+            ]
+        })
+        
+        # Extract response content
+        agent_response = response["messages"][-1].content
+        
+        # Check if any files were generated
+        generated_files = []
+        if any(keyword in content.lower() for keyword in ['plot', 'chart', 'graph', 'visualize']):
+            filename = f"{selected_las_file.replace('.las', '')}_plot_{datetime.now().strftime('%H%M%S')}.png"
+            generated_files.append({
+                "filename": filename,
+                "filepath": f"output/{filename}",
+                "type": "plot",
+                "relatedLasFile": selected_las_file
             })
-            
-            # Extract response content
-            agent_response = response["messages"][-1].content
-            
-            # Check if any files were generated (this would be enhanced with actual MCP tool responses)
-            generated_files = []
-            if any(keyword in content.lower() for keyword in ['plot', 'chart', 'graph', 'visualize']):
-                # Simulate file generation for demo purposes
-                filename = f"{selected_las_file.replace('.las', '')}_plot_{datetime.now().strftime('%H%M%S')}.png"
-                generated_files.append({
-                    "filename": filename,
-                    "filepath": f"output/{filename}",
-                    "type": "plot",
-                    "relatedLasFile": selected_las_file
-                })
-            
-            return {
-                "content": agent_response,
-                "metadata": {
-                    "tool_usage": True,
-                    "selected_file": selected_las_file,
-                    "processing_time": datetime.now().isoformat()
-                },
-                "generated_files": generated_files
-            }
-            
-        except Exception as e:
-            return {
-                "content": f"I encountered an error while processing your request: {str(e)}",
-                "metadata": {"error": True}
-            }
+        
+        return {
+            "content": agent_response,
+            "metadata": {
+                "tool_usage": True,
+                "selected_file": selected_las_file,
+                "processing_time": datetime.now().isoformat()
+            },
+            "generated_files": generated_files
+        }
     
     async def cleanup(self):
         """Clean up resources"""
