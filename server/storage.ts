@@ -1,5 +1,7 @@
-import { type AgentConfig, type ChatMessage, type LasFile, type OutputFile, type Email, type InsertAgentConfig, type InsertChatMessage, type InsertLasFile, type InsertOutputFile, type InsertEmail } from "@shared/schema";
+import { type AgentConfig, type ChatMessage, type LasFile, type OutputFile, type Email, type InsertAgentConfig, type InsertChatMessage, type InsertLasFile, type InsertOutputFile, type InsertEmail, agentConfigs, chatMessages, lasFiles, outputFiles, emails } from "@shared/schema";
 import { randomUUID } from "crypto";
+import { db } from "./db";
+import { eq, desc } from "drizzle-orm";
 
 export interface IStorage {
   // Agent Config
@@ -169,4 +171,96 @@ export class MemStorage implements IStorage {
   }
 }
 
-export const storage = new MemStorage();
+// Database Storage Implementation
+export class DbStorage implements IStorage {
+  async getAgentConfig(): Promise<AgentConfig | undefined> {
+    const result = await db.select().from(agentConfigs).limit(1);
+    return result[0];
+  }
+
+  async updateAgentConfig(config: InsertAgentConfig): Promise<AgentConfig> {
+    const existing = await this.getAgentConfig();
+    
+    if (existing) {
+      const [updated] = await db.update(agentConfigs)
+        .set({ ...config, lastTested: new Date() })
+        .where(eq(agentConfigs.id, existing.id))
+        .returning();
+      return updated;
+    } else {
+      const [created] = await db.insert(agentConfigs)
+        .values({ ...config, lastTested: new Date() })
+        .returning();
+      return created;
+    }
+  }
+
+  async getChatMessages(): Promise<ChatMessage[]> {
+    return db.select().from(chatMessages).orderBy(chatMessages.timestamp);
+  }
+
+  async addChatMessage(message: InsertChatMessage): Promise<ChatMessage> {
+    const [created] = await db.insert(chatMessages)
+      .values(message)
+      .returning();
+    return created;
+  }
+
+  async getLasFiles(): Promise<LasFile[]> {
+    return db.select().from(lasFiles).orderBy(desc(lasFiles.createdAt));
+  }
+
+  async addLasFile(file: InsertLasFile): Promise<LasFile> {
+    const [created] = await db.insert(lasFiles)
+      .values(file)
+      .returning();
+    return created;
+  }
+
+  async updateLasFile(id: string, updates: Partial<LasFile>): Promise<LasFile | undefined> {
+    const [updated] = await db.update(lasFiles)
+      .set(updates)
+      .where(eq(lasFiles.id, id))
+      .returning();
+    return updated;
+  }
+
+  async getOutputFiles(): Promise<OutputFile[]> {
+    return db.select().from(outputFiles).orderBy(desc(outputFiles.createdAt));
+  }
+
+  async addOutputFile(file: InsertOutputFile): Promise<OutputFile> {
+    const [created] = await db.insert(outputFiles)
+      .values(file)
+      .returning();
+    return created;
+  }
+
+  async getEmails(limit?: number): Promise<Email[]> {
+    const query = db.select().from(emails).orderBy(desc(emails.receivedAt));
+    const result = limit ? await query.limit(limit) : await query;
+    return result;
+  }
+
+  async addEmail(email: InsertEmail): Promise<Email> {
+    const [created] = await db.insert(emails)
+      .values(email)
+      .returning();
+    return created;
+  }
+
+  async updateEmail(id: string, updates: Partial<Email>): Promise<Email | undefined> {
+    const [updated] = await db.update(emails)
+      .set(updates)
+      .where(eq(emails.id, id))
+      .returning();
+    return updated;
+  }
+
+  async getEmailByUid(uid: string): Promise<Email | undefined> {
+    const result = await db.select().from(emails).where(eq(emails.uid, uid)).limit(1);
+    return result[0];
+  }
+}
+
+export const storage = new DbStorage();

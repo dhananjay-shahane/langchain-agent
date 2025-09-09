@@ -117,7 +117,7 @@ function startEmailMonitor() {
       EMAIL_USER: process.env.SMTP_USER || process.env.EMAIL_USER,
       EMAIL_PASS: process.env.SMTP_PASSWORD || process.env.EMAIL_PASS,
       IMAP_SERVER: process.env.IMAP_SERVER || 'imap.gmail.com',
-      FILTER_EMAIL: process.env.FILTER_EMAIL || ''
+      FILTER_EMAIL: process.env.FILTER_EMAIL || '' // Empty means process all emails
     };
     
     emailMonitorProcess = spawn("python", [
