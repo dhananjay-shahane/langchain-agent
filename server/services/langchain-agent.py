@@ -124,7 +124,7 @@ class LangChainMCPAgent:
         """Create a tool for analyzing LAS files"""
         @tool
         def analyze_las_file(filename: str) -> str:
-            \"\"\"Analyze a LAS file and extract key information.\"\"\"
+            """Analyze a LAS file and extract key information."""
             try:
                 data_dir = Path("data")
                 file_path = data_dir / filename
