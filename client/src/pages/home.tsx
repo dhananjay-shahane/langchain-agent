@@ -3,6 +3,7 @@ import AgentConfig from "@/components/agent-config";
 import ChatInterface from "@/components/chat-interface";
 import FileBrowser from "@/components/file-browser";
 import ImageViewer from "@/components/image-viewer";
+import EmailNotifications from "@/components/email-notifications";
 import { useSocket } from "@/hooks/use-socket";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Mail, Settings } from "lucide-react";
@@ -192,6 +193,11 @@ export default function Home() {
                   Test Email
                 </Button>
               </div>
+            </div>
+
+            {/* Email Notifications */}
+            <div className="p-4 border-b border-border">
+              <EmailNotifications />
             </div>
 
             {/* File Browser */}
