@@ -22,11 +22,11 @@ class EmailSender:
     def __init__(self):
         self.smtp_server = "smtp.gmail.com"
         self.smtp_port = 587
-        self.username = os.getenv('EMAIL_USER')
-        self.password = os.getenv('EMAIL_PASS')
+        self.username = os.getenv('SMTP_USER')
+        self.password = os.getenv('SMTP_PASSWORD')
         
         if not self.username or not self.password:
-            logger.error("Email credentials not found. Set EMAIL_USER and EMAIL_PASS environment variables.")
+            logger.error("Email credentials not found. Set SMTP_USER and SMTP_PASSWORD environment variables.")
     
     def send_reply(self, to_email: str, subject: str, body: str, attachment_path: str = None):
         """Send email reply with optional attachment"""
@@ -112,11 +112,12 @@ if __name__ == "__main__":
     if len(sys.argv) >= 4:
         to_email = sys.argv[1]
         subject = sys.argv[2]
-        las_file = sys.argv[3]
+        body = sys.argv[3]
         plot_path = sys.argv[4] if len(sys.argv) > 4 else None
         
-        success = send_analysis_reply(to_email, subject, las_file, plot_path)
+        sender = EmailSender()
+        success = sender.send_reply(to_email, subject, body, plot_path)
         sys.exit(0 if success else 1)
     else:
-        print("Usage: python smtp-sender.py <to_email> <subject> <las_file> [plot_path]")
+        print("Usage: python smtp-sender.py <to_email> <subject> <body> [plot_path]")
         sys.exit(1)

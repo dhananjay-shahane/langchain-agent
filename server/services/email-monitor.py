@@ -218,26 +218,6 @@ LAS Analysis System
             
         return False
     
-    def _send_analysis_reply(self, to_email, original_subject, las_filename, plot_path):
-        """Send automated reply email with analysis results"""
-        try:
-            smtp_script = Path(os.getcwd()) / "server" / "services" / "smtp-sender.py"
-            result = Popen([
-                "python", str(smtp_script), to_email, original_subject, las_filename, plot_path
-            ], stdout=PIPE, stderr=PIPE, text=True)
-            
-            stdout, stderr = result.communicate(timeout=30)
-            
-            if result.returncode == 0:
-                logger.info(f"📧 Reply sent to {to_email}")
-                return True
-            else:
-                logger.error(f"Failed to send reply: {stderr}")
-                return False
-                
-        except Exception as e:
-            logger.error(f"Error sending reply email: {e}")
-            return False
     
     def _update_email_processed(self, email_id, output_files):
         """Update email as processed with generated files"""
