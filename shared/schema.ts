@@ -40,6 +40,22 @@ export const outputFiles = pgTable("output_files", {
   createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`),
 });
 
+export const emails = pgTable("emails", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  uid: text("uid").notNull().unique(),
+  sender: text("sender").notNull(),
+  subject: text("subject").notNull(),
+  content: text("content"),
+  hasAttachments: boolean("has_attachments").default(false),
+  processed: boolean("processed").default(false),
+  autoProcessed: boolean("auto_processed").default(false),
+  relatedLasFiles: text("related_las_files").array(), // Array of LAS file IDs
+  relatedOutputFiles: text("related_output_files").array(), // Array of output file IDs
+  replyEmailSent: boolean("reply_email_sent").default(false),
+  receivedAt: timestamp("received_at").default(sql`CURRENT_TIMESTAMP`),
+  createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`),
+});
+
 export const insertAgentConfigSchema = createInsertSchema(agentConfigs).omit({
   id: true,
   createdAt: true,
@@ -60,12 +76,19 @@ export const insertOutputFileSchema = createInsertSchema(outputFiles).omit({
   createdAt: true,
 });
 
+export const insertEmailSchema = createInsertSchema(emails).omit({
+  id: true,
+  createdAt: true,
+});
+
 export type AgentConfig = typeof agentConfigs.$inferSelect;
 export type ChatMessage = typeof chatMessages.$inferSelect;
 export type LasFile = typeof lasFiles.$inferSelect;
 export type OutputFile = typeof outputFiles.$inferSelect;
+export type Email = typeof emails.$inferSelect;
 
 export type InsertAgentConfig = z.infer<typeof insertAgentConfigSchema>;
 export type InsertChatMessage = z.infer<typeof insertChatMessageSchema>;
 export type InsertLasFile = z.infer<typeof insertLasFileSchema>;
 export type InsertOutputFile = z.infer<typeof insertOutputFileSchema>;
+export type InsertEmail = z.infer<typeof insertEmailSchema>;

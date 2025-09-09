@@ -1,4 +1,4 @@
-import { type AgentConfig, type ChatMessage, type LasFile, type OutputFile, type InsertAgentConfig, type InsertChatMessage, type InsertLasFile, type InsertOutputFile } from "@shared/schema";
+import { type AgentConfig, type ChatMessage, type LasFile, type OutputFile, type Email, type InsertAgentConfig, type InsertChatMessage, type InsertLasFile, type InsertOutputFile, type InsertEmail } from "@shared/schema";
 import { randomUUID } from "crypto";
 
 export interface IStorage {
@@ -18,6 +18,12 @@ export interface IStorage {
   // Output Files
   getOutputFiles(): Promise<OutputFile[]>;
   addOutputFile(file: InsertOutputFile): Promise<OutputFile>;
+  
+  // Emails
+  getEmails(limit?: number): Promise<Email[]>;
+  addEmail(email: InsertEmail): Promise<Email>;
+  updateEmail(id: string, updates: Partial<Email>): Promise<Email | undefined>;
+  getEmailByUid(uid: string): Promise<Email | undefined>;
 }
 
 export class MemStorage implements IStorage {
@@ -25,11 +31,13 @@ export class MemStorage implements IStorage {
   private chatMessages: Map<string, ChatMessage>;
   private lasFiles: Map<string, LasFile>;
   private outputFiles: Map<string, OutputFile>;
+  private emails: Map<string, Email>;
 
   constructor() {
     this.chatMessages = new Map();
     this.lasFiles = new Map();
     this.outputFiles = new Map();
+    this.emails = new Map();
     
     // Initialize with default config
     this.agentConfig = {
@@ -119,6 +127,45 @@ export class MemStorage implements IStorage {
     };
     this.outputFiles.set(id, outputFile);
     return outputFile;
+  }
+
+  async getEmails(limit?: number): Promise<Email[]> {
+    const emails = Array.from(this.emails.values()).sort(
+      (a, b) => b.receivedAt!.getTime() - a.receivedAt!.getTime()
+    );
+    return limit ? emails.slice(0, limit) : emails;
+  }
+
+  async addEmail(email: InsertEmail): Promise<Email> {
+    const id = randomUUID();
+    const emailRecord: Email = {
+      ...email,
+      id,
+      createdAt: new Date(),
+      receivedAt: email.receivedAt || new Date(),
+      relatedLasFiles: email.relatedLasFiles || [],
+      relatedOutputFiles: email.relatedOutputFiles || [],
+      processed: email.processed || false,
+      autoProcessed: email.autoProcessed || false,
+      replyEmailSent: email.replyEmailSent || false,
+      hasAttachments: email.hasAttachments || false,
+      content: email.content || null,
+    };
+    this.emails.set(id, emailRecord);
+    return emailRecord;
+  }
+
+  async updateEmail(id: string, updates: Partial<Email>): Promise<Email | undefined> {
+    const existing = this.emails.get(id);
+    if (!existing) return undefined;
+    
+    const updated = { ...existing, ...updates };
+    this.emails.set(id, updated);
+    return updated;
+  }
+
+  async getEmailByUid(uid: string): Promise<Email | undefined> {
+    return Array.from(this.emails.values()).find(email => email.uid === uid);
   }
 }
 

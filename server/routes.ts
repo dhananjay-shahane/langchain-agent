@@ -2,7 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { Server as SocketIOServer } from "socket.io";
 import { storage } from "./storage";
-import { insertAgentConfigSchema, insertChatMessageSchema, insertLasFileSchema } from "@shared/schema";
+import { insertAgentConfigSchema, insertChatMessageSchema, insertLasFileSchema, insertEmailSchema } from "@shared/schema";
 import { spawn } from "child_process";
 import path from "path";
 import fs from "fs";
@@ -315,23 +315,51 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // API endpoint to get received emails and their attachments
   app.get("/api/emails/received", async (req, res) => {
     try {
-      // Get all LAS files that were received via email
-      const emailFiles = await storage.getLasFiles();
-      const receivedEmails = emailFiles.filter(file => file.source === "email").map(file => ({
-        id: file.id,
-        filename: file.filename,
-        receivedAt: file.createdAt,
-        size: file.size,
-        processed: file.processed,
-        source: "email"
-      }));
-
+      const limit = req.query.limit ? parseInt(req.query.limit as string) : 20;
+      const emails = await storage.getEmails(limit);
+      
       res.json({
-        totalEmails: receivedEmails.length,
-        emails: receivedEmails.sort((a, b) => new Date(b.receivedAt || 0).getTime() - new Date(a.receivedAt || 0).getTime())
+        totalEmails: emails.length,
+        emails: emails.map(email => ({
+          id: email.id,
+          uid: email.uid,
+          sender: email.sender,
+          subject: email.subject,
+          content: email.content,
+          hasAttachments: email.hasAttachments,
+          processed: email.processed,
+          autoProcessed: email.autoProcessed,
+          relatedLasFiles: email.relatedLasFiles,
+          relatedOutputFiles: email.relatedOutputFiles,
+          replyEmailSent: email.replyEmailSent,
+          receivedAt: email.receivedAt,
+        }))
       });
     } catch (error) {
       res.status(500).json({ error: "Failed to get received emails" });
+    }
+  });
+
+  // API endpoint to manually trigger email processing
+  app.post("/api/emails/process/:emailId", async (req, res) => {
+    try {
+      const emailId = req.params.emailId;
+      const email = await storage.updateEmail(emailId, { processed: true });
+      
+      if (!email) {
+        return res.status(404).json({ error: "Email not found" });
+      }
+
+      // Trigger email processing logic here
+      // This will be implemented with LangChain agent integration
+      
+      res.json({ 
+        success: true, 
+        message: "Email processing started",
+        email: email 
+      });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to process email" });
     }
   });
 
