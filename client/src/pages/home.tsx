@@ -72,7 +72,7 @@ export default function Home() {
   return (
     <div className="flex h-screen overflow-hidden bg-background">
       {/* Sidebar */}
-      <div className="w-96 bg-card border-r border-border flex flex-col">
+      <div className="w-96 bg-card border-r border-border flex flex-col min-h-0">
         {/* Header */}
         <div className="p-6 border-b border-border">
           <h1 className="text-xl font-semibold text-foreground">LangChain MCP Agent</h1>
@@ -80,12 +80,13 @@ export default function Home() {
         </div>
 
         {/* Scrollable Content */}
-        <ScrollArea className="flex-1">
-          {/* Agent Configuration */}
-          <AgentConfig />
+        <ScrollArea className="flex-1 overflow-y-auto">
+          <div className="min-h-0">
+            {/* Agent Configuration */}
+            <AgentConfig />
 
-          {/* Email Configuration */}
-          <div className="p-6 border-b border-border">
+            {/* Email Configuration */}
+            <div className="p-6 border-b border-border">
             <div className="flex items-center gap-2 mb-4">
               <Mail className="w-5 h-5 text-muted-foreground" />
               <h2 className="text-lg font-medium text-foreground">Email Configuration</h2>
@@ -181,8 +182,9 @@ export default function Home() {
             </div>
           </div>
 
-          {/* File Browser */}
-          <FileBrowser onImageSelect={setSelectedImage} />
+            {/* File Browser */}
+            <FileBrowser onImageSelect={setSelectedImage} />
+          </div>
         </ScrollArea>
       </div>
 
