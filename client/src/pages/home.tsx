@@ -4,9 +4,23 @@ import ChatInterface from "@/components/chat-interface";
 import FileBrowser from "@/components/file-browser";
 import ImageViewer from "@/components/image-viewer";
 import { useSocket } from "@/hooks/use-socket";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Mail, Settings } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
 
 export default function Home() {
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [emailConfig, setEmailConfig] = useState({
+    server: '',
+    port: '993',
+    username: '',
+    password: '',
+    folder: 'INBOX'
+  });
+  const [emailConnected, setEmailConnected] = useState(false);
   useSocket(); // Initialize socket connection
 
   return (
@@ -19,11 +33,111 @@ export default function Home() {
           <p className="text-sm text-muted-foreground mt-1">LAS File Processing System</p>
         </div>
 
-        {/* Agent Configuration */}
-        <AgentConfig />
+        {/* Scrollable Content */}
+        <ScrollArea className="flex-1">
+          {/* Agent Configuration */}
+          <AgentConfig />
 
-        {/* File Browser */}
-        <FileBrowser onImageSelect={setSelectedImage} />
+          {/* Email Configuration */}
+          <div className="p-6 border-b border-border">
+            <div className="flex items-center gap-2 mb-4">
+              <Mail className="w-5 h-5 text-muted-foreground" />
+              <h2 className="text-lg font-medium text-foreground">Email Configuration</h2>
+            </div>
+            
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label className="block text-sm font-medium text-foreground mb-1">Server</Label>
+                  <Input
+                    type="text"
+                    value={emailConfig.server}
+                    onChange={(e) => setEmailConfig({...emailConfig, server: e.target.value})}
+                    placeholder="imap.gmail.com"
+                    className="text-sm"
+                  />
+                </div>
+                <div>
+                  <Label className="block text-sm font-medium text-foreground mb-1">Port</Label>
+                  <Input
+                    type="number"
+                    value={emailConfig.port}
+                    onChange={(e) => setEmailConfig({...emailConfig, port: e.target.value})}
+                    placeholder="993"
+                    className="text-sm"
+                  />
+                </div>
+              </div>
+              
+              <div>
+                <Label className="block text-sm font-medium text-foreground mb-1">Username/Email</Label>
+                <Input
+                  type="email"
+                  value={emailConfig.username}
+                  onChange={(e) => setEmailConfig({...emailConfig, username: e.target.value})}
+                  placeholder="your.email@gmail.com"
+                  className="text-sm"
+                />
+              </div>
+              
+              <div>
+                <Label className="block text-sm font-medium text-foreground mb-1">Password/App Password</Label>
+                <Input
+                  type="password"
+                  value={emailConfig.password}
+                  onChange={(e) => setEmailConfig({...emailConfig, password: e.target.value})}
+                  placeholder="Your app password"
+                  className="text-sm"
+                />
+              </div>
+              
+              <div>
+                <Label className="block text-sm font-medium text-foreground mb-1">Folder</Label>
+                <Input
+                  type="text"
+                  value={emailConfig.folder}
+                  onChange={(e) => setEmailConfig({...emailConfig, folder: e.target.value})}
+                  placeholder="INBOX"
+                  className="text-sm"
+                />
+              </div>
+            </div>
+
+            {/* Connection Status */}
+            <div className="mt-4 p-3 bg-accent/10 rounded-md">
+              <div className="flex items-center gap-2">
+                <div className={`w-2 h-2 rounded-full ${emailConnected ? 'bg-green-500' : 'bg-red-500'}`}></div>
+                <span className="text-sm font-medium text-foreground">
+                  {emailConnected ? 'Connected' : 'Not Connected'}
+                </span>
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">
+                {emailConnected ? 'Monitoring for LAS files' : 'Configure email to receive files'}
+              </p>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex gap-2 mt-4">
+              <Button 
+                onClick={() => console.log('Save email config:', emailConfig)}
+                className="flex-1"
+                size="sm"
+              >
+                Save Config
+              </Button>
+              <Button 
+                variant="outline"
+                onClick={() => setEmailConnected(!emailConnected)}
+                size="sm"
+              >
+                Test
+              </Button>
+            </div>
+          </div>
+
+          {/* File Browser */}
+          <FileBrowser onImageSelect={setSelectedImage} />
+        </ScrollArea>
       </div>
 
       {/* Main Content */}
