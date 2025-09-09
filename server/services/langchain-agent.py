@@ -109,23 +109,26 @@ class LangChainMCPAgent:
         """Create a tool for listing available LAS files"""
         @tool
         def list_las_files() -> str:
-            """List all available LAS files in the data directory."""
+            """List all available LAS files in the data directory and subdirectories."""
             try:
                 data_dir = Path("data")
                 if not data_dir.exists():
                     return "Data directory not found."
                 
-                las_files = list(data_dir.glob("*.las"))
+                # Search recursively for LAS files
+                las_files = list(data_dir.glob("**/*.las"))
                 if not las_files:
                     return "No LAS files found in data directory."
                 
                 file_list = []
                 for file_path in las_files:
                     size = file_path.stat().st_size
-                    size_mb = size / (1024 * 1024)
-                    file_list.append(f"• {file_path.name} ({size_mb:.2f}MB)")
+                    size_kb = size / 1024
+                    # Show relative path from data directory
+                    rel_path = file_path.relative_to(data_dir)
+                    file_list.append(f"• {rel_path} ({size_kb:.1f}KB)")
                 
-                return f"Available LAS files:\n" + '\n'.join(file_list)
+                return f"📁 Available LAS files:\n" + '\n'.join(file_list)
             except Exception as e:
                 return f"Error listing files: {e}"
         
