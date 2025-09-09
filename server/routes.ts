@@ -181,7 +181,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         errorOutput += data.toString();
       });
       
+      let responseSet = false;
+      
       python.on("close", (code) => {
+        if (responseSet) {
+          return; // Response already sent
+        }
+        responseSet = true;
+        
         if (code === 0) {
           res.json({ 
             success: true, 
@@ -195,7 +202,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       });
       
-      setTimeout(() => {
+      const timeoutId = setTimeout(() => {
+        if (responseSet) {
+          return; // Response already sent
+        }
+        responseSet = true;
+        
         python.kill();
         res.json({ 
           success: false, 
