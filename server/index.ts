@@ -111,11 +111,21 @@ function startEmailMonitor() {
   }
 
   try {
+    // Set up environment variables for the email monitor process
+    const env = { 
+      ...process.env,
+      EMAIL_USER: process.env.SMTP_USER || process.env.EMAIL_USER,
+      EMAIL_PASS: process.env.SMTP_PASSWORD || process.env.EMAIL_PASS,
+      IMAP_SERVER: process.env.IMAP_SERVER || 'imap.gmail.com',
+      FILTER_EMAIL: process.env.FILTER_EMAIL || ''
+    };
+    
     emailMonitorProcess = spawn("python", [
       path.join(process.cwd(), "server/services/email-monitor.py")
     ], {
       stdio: ['ignore', 'pipe', 'pipe'],
-      detached: false
+      detached: false,
+      env: env
     });
 
     emailMonitorProcess.stdout.on("data", (data: Buffer) => {
