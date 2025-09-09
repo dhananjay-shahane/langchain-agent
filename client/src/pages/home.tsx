@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import AgentConfig from "@/components/agent-config";
 import ChatInterface from "@/components/chat-interface";
 import FileBrowser from "@/components/file-browser";
@@ -21,6 +21,52 @@ export default function Home() {
     folder: 'INBOX'
   });
   const [emailConnected, setEmailConnected] = useState(false);
+
+  // Load email config from localStorage on mount
+  useEffect(() => {
+    const savedEmailConfig = localStorage.getItem('emailConfig');
+    if (savedEmailConfig) {
+      try {
+        const parsedConfig = JSON.parse(savedEmailConfig);
+        setEmailConfig(parsedConfig.config || emailConfig);
+        setEmailConnected(parsedConfig.isConnected || false);
+      } catch (error) {
+        console.error('Error loading saved email config:', error);
+      }
+    }
+  }, []);
+
+  // Save email config to localStorage whenever it changes
+  const handleEmailConfigChange = (newConfig: any) => {
+    setEmailConfig(newConfig);
+    localStorage.setItem('emailConfig', JSON.stringify({
+      config: newConfig,
+      isConnected: emailConnected,
+      lastSaved: new Date().toISOString()
+    }));
+  };
+
+  const handleEmailTest = () => {
+    // Simulate connection test
+    const newConnectionStatus = !emailConnected;
+    setEmailConnected(newConnectionStatus);
+    
+    // Update localStorage
+    localStorage.setItem('emailConfig', JSON.stringify({
+      config: emailConfig,
+      isConnected: newConnectionStatus,
+      lastTested: new Date().toISOString()
+    }));
+  };
+
+  const handleSaveEmailConfig = () => {
+    localStorage.setItem('emailConfig', JSON.stringify({
+      config: emailConfig,
+      isConnected: emailConnected,
+      lastSaved: new Date().toISOString()
+    }));
+    console.log('Email configuration saved:', emailConfig);
+  };
   useSocket(); // Initialize socket connection
 
   return (
@@ -52,7 +98,7 @@ export default function Home() {
                   <Input
                     type="text"
                     value={emailConfig.server}
-                    onChange={(e) => setEmailConfig({...emailConfig, server: e.target.value})}
+                    onChange={(e) => handleEmailConfigChange({...emailConfig, server: e.target.value})}
                     placeholder="imap.gmail.com"
                     className="text-sm"
                   />
@@ -62,7 +108,7 @@ export default function Home() {
                   <Input
                     type="number"
                     value={emailConfig.port}
-                    onChange={(e) => setEmailConfig({...emailConfig, port: e.target.value})}
+                    onChange={(e) => handleEmailConfigChange({...emailConfig, port: e.target.value})}
                     placeholder="993"
                     className="text-sm"
                   />
@@ -74,7 +120,7 @@ export default function Home() {
                 <Input
                   type="email"
                   value={emailConfig.username}
-                  onChange={(e) => setEmailConfig({...emailConfig, username: e.target.value})}
+                  onChange={(e) => handleEmailConfigChange({...emailConfig, username: e.target.value})}
                   placeholder="your.email@gmail.com"
                   className="text-sm"
                 />
@@ -85,7 +131,7 @@ export default function Home() {
                 <Input
                   type="password"
                   value={emailConfig.password}
-                  onChange={(e) => setEmailConfig({...emailConfig, password: e.target.value})}
+                  onChange={(e) => handleEmailConfigChange({...emailConfig, password: e.target.value})}
                   placeholder="Your app password"
                   className="text-sm"
                 />
@@ -96,7 +142,7 @@ export default function Home() {
                 <Input
                   type="text"
                   value={emailConfig.folder}
-                  onChange={(e) => setEmailConfig({...emailConfig, folder: e.target.value})}
+                  onChange={(e) => handleEmailConfigChange({...emailConfig, folder: e.target.value})}
                   placeholder="INBOX"
                   className="text-sm"
                 />
@@ -119,7 +165,7 @@ export default function Home() {
             {/* Action Buttons */}
             <div className="flex gap-2 mt-4">
               <Button 
-                onClick={() => console.log('Save email config:', emailConfig)}
+                onClick={handleSaveEmailConfig}
                 className="flex-1"
                 size="sm"
               >
@@ -127,7 +173,7 @@ export default function Home() {
               </Button>
               <Button 
                 variant="outline"
-                onClick={() => setEmailConnected(!emailConnected)}
+                onClick={handleEmailTest}
                 size="sm"
               >
                 Test

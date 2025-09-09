@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,6 +20,23 @@ export default function AgentConfig() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [isTestingConnection, setIsTestingConnection] = useState(false);
+  const [localConnectionStatus, setLocalConnectionStatus] = useState(false);
+
+  // Load saved config from localStorage on mount
+  useEffect(() => {
+    const savedConfig = localStorage.getItem('agentConfig');
+    if (savedConfig) {
+      try {
+        const parsedConfig = JSON.parse(savedConfig);
+        if (parsedConfig.provider && parsedConfig.model && parsedConfig.endpointUrl) {
+          updateConfigMutation.mutate(parsedConfig);
+        }
+        setLocalConnectionStatus(parsedConfig.isConnected || false);
+      } catch (error) {
+        console.error('Error loading saved config:', error);
+      }
+    }
+  }, []);
 
   const { data: config, isLoading } = useQuery<AgentConfig>({
     queryKey: ["/api/agent/config"],
@@ -30,8 +47,10 @@ export default function AgentConfig() {
       const response = await apiRequest("POST", "/api/agent/config", newConfig);
       return response.json();
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["/api/agent/config"] });
+      // Save to localStorage
+      localStorage.setItem('agentConfig', JSON.stringify(data));
       toast({
         title: "Configuration saved",
         description: "Agent configuration has been updated successfully.",
@@ -53,6 +72,17 @@ export default function AgentConfig() {
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["/api/agent/config"] });
+      setLocalConnectionStatus(data.success);
+      
+      // Update localStorage with connection status
+      const savedConfig = localStorage.getItem('agentConfig');
+      if (savedConfig) {
+        const config = JSON.parse(savedConfig);
+        config.isConnected = data.success;
+        config.lastTested = new Date().toISOString();
+        localStorage.setItem('agentConfig', JSON.stringify(config));
+      }
+      
       if (data.success) {
         toast({
           title: "Connection successful",
@@ -194,13 +224,13 @@ export default function AgentConfig() {
       {/* Connection Status */}
       <div className="mb-4 p-3 bg-accent/10 rounded-md">
         <div className="flex items-center gap-2">
-          <div className={`w-2 h-2 rounded-full ${config?.isConnected ? 'bg-green-500' : 'bg-red-500'}`}></div>
+          <div className={`w-2 h-2 rounded-full ${localConnectionStatus || config?.isConnected ? 'bg-green-500' : 'bg-red-500'}`}></div>
           <span className="text-sm font-medium text-foreground">
-            {config?.isConnected ? 'Connected' : 'Disconnected'}
+            {localConnectionStatus || config?.isConnected ? 'Connected' : 'Disconnected'}
           </span>
         </div>
         <p className="text-xs text-muted-foreground mt-1">
-          {config?.isConnected ? 'Agent server responding' : 'Connection not tested'}
+          {localConnectionStatus || config?.isConnected ? 'Agent server responding' : 'Connection not tested'}
         </p>
       </div>
 
