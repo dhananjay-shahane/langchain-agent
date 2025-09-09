@@ -56,7 +56,7 @@ export default function FileBrowser({ onImageSelect }: FileBrowserProps) {
   };
 
   return (
-    <div className="flex-1 p-6 overflow-hidden">
+    <div className="p-6">
       <h3 className="text-sm font-medium text-foreground mb-3">File Browser</h3>
       
       {/* Data Folder */}
