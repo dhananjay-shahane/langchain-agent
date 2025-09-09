@@ -455,7 +455,7 @@ class LangChainMCPAgent:
             import subprocess
             try:
                 result = subprocess.run([
-                    "python", "scripts/simple_plotter.py", 
+                    "python", "scripts/simple_las_plotter.py", 
                     selected_las_file, plot_type
                 ], capture_output=True, text=True, timeout=30)
                 
