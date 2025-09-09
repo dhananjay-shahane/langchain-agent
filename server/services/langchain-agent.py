@@ -383,11 +383,18 @@ class LangChainMCPAgent:
                     anthropic_api_key=api_key
                 )
             
-            # Test with a simple message
-            response = await self.llm.ainvoke([
-                SystemMessage(content="You are a helpful assistant."),
-                HumanMessage(content="Hello, can you respond with 'Connection successful'?")
-            ])
+            # Test with a simple message with timeout
+            import asyncio
+            try:
+                response = await asyncio.wait_for(
+                    self.llm.ainvoke([
+                        SystemMessage(content="You are a helpful assistant."),
+                        HumanMessage(content="Hello, can you respond with 'Connection successful'?")
+                    ]),
+                    timeout=2.0  # 2 second timeout
+                )
+            except asyncio.TimeoutError:
+                return {"success": False, "message": "Connection timeout - server not responding"}
             
             response_content = response.content if hasattr(response, 'content') else str(response)
             if "successful" in str(response_content).lower():

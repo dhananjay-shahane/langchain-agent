@@ -441,7 +441,7 @@ async function testAgentConnection(config: any): Promise<{ success: boolean; mes
     setTimeout(() => {
       python.kill();
       resolve({ success: false, message: "Connection timeout" });
-    }, 10000);
+    }, 3000); // Reduced to 3 seconds
   });
 }
 
