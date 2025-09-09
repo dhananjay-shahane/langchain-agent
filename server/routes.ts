@@ -211,38 +211,17 @@ async function processUserMessage(content: string, selectedLasFile?: string) {
         
         global.io?.emit("agent_response", agentMessage);
         
-        // If files were generated, create them and update file lists
+        // If files were generated, update file lists
         if (response.generated_files) {
           for (const file of response.generated_files) {
-            // Generate actual plot file
-            if (file.type === "plot" && file.filename.endsWith('.png')) {
-              const plotScript = path.join(process.cwd(), "server/scripts/plot_generator.py");
-              const plotProcess = spawn("python", [
-                plotScript,
-                file.filename,
-                file.relatedLasFile || ""
-              ]);
-              
-              plotProcess.on("close", async (plotCode) => {
-                if (plotCode === 0) {
-                  await storage.addOutputFile({
-                    filename: file.filename,
-                    filepath: file.filepath,
-                    type: file.type,
-                    relatedLasFile: file.relatedLasFile
-                  });
-                  global.io?.emit("files_updated");
-                }
-              });
-            } else {
-              await storage.addOutputFile({
-                filename: file.filename,
-                filepath: file.filepath,
-                type: file.type,
-                relatedLasFile: file.relatedLasFile
-              });
-            }
+            await storage.addOutputFile({
+              filename: file.filename,
+              filepath: file.filepath,
+              type: file.type,
+              relatedLasFile: file.relatedLasFile
+            });
           }
+          global.io?.emit("files_updated");
         }
       } catch (error) {
         const errorMessage = await storage.addChatMessage({
