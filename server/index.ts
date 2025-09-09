@@ -3,6 +3,7 @@ import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { spawn } from "child_process";
 import path from "path";
+import fs from "fs";
 
 const app = express();
 app.use(express.json());
@@ -70,9 +71,20 @@ app.use((req, res, next) => {
   }, () => {
     log(`serving on port ${port}`);
     
-    // Start email monitor service if credentials are available
-    if (process.env.EMAIL_USER && process.env.EMAIL_PASS) {
-      startEmailMonitor();
+    // Load email credentials from config file and start monitor
+    try {
+      const configPath = path.join(process.cwd(), 'server', 'email-config.json');
+      if (fs.existsSync(configPath)) {
+        const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+        if (config.username && config.password) {
+          process.env.EMAIL_USER = config.username;
+          process.env.EMAIL_PASS = config.password;
+          log("Email credentials loaded from config");
+          startEmailMonitor();
+        }
+      }
+    } catch (error) {
+      log(`Could not load email config: ${error}`);
     }
   });
 })();

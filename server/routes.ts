@@ -190,13 +190,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
         responseSet = true;
         
         if (code === 0) {
-          // Email test successful, start the monitor service
+          // Email test successful, save credentials and start monitor
           try {
+            // Save credentials to config file
+            const fs = await import('fs');
+            const emailConfig = {
+              username: username,
+              password: password,
+              lastTested: new Date().toISOString()
+            };
+            fs.writeFileSync(path.join(process.cwd(), 'server', 'email-config.json'), JSON.stringify(emailConfig, null, 2));
+            
+            // Start the monitor service
             if ((global as any).startEmailMonitor) {
               (global as any).startEmailMonitor();
             }
           } catch (error) {
-            console.log("Could not start email monitor:", error);
+            console.log("Could not save email config or start monitor:", error);
           }
           
           res.json({ 
