@@ -1,0 +1,733 @@
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LangChain MCP Agent - LAS File Processing</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+    <script>
+    tailwind.config = {
+        theme: {
+            extend: {
+                borderRadius: {
+                    lg: "var(--radius)",
+                    md: "calc(var(--radius) - 2px)",
+                    sm: "calc(var(--radius) - 4px)",
+                },
+                colors: {
+                    background: "var(--background)",
+                    foreground: "var(--foreground)",
+                    card: {
+                        DEFAULT: "var(--card)",
+                        foreground: "var(--card-foreground)",
+                    },
+                    popover: {
+                        DEFAULT: "var(--popover)",
+                        foreground: "var(--popover-foreground)",
+                    },
+                    primary: {
+                        DEFAULT: "var(--primary)",
+                        foreground: "var(--primary-foreground)",
+                    },
+                    secondary: {
+                        DEFAULT: "var(--secondary)",
+                        foreground: "var(--secondary-foreground)",
+                    },
+                    muted: {
+                        DEFAULT: "var(--muted)",
+                        foreground: "var(--muted-foreground)",
+                    },
+                    accent: {
+                        DEFAULT: "var(--accent)",
+                        foreground: "var(--accent-foreground)",
+                    },
+                    destructive: {
+                        DEFAULT: "var(--destructive)",
+                        foreground: "var(--destructive-foreground)",
+                    },
+                    border: "var(--border)",
+                    input: "var(--input)",
+                    ring: "var(--ring)",
+                },
+                fontFamily: {
+                    sans: ["Inter", "ui-sans-serif", "system-ui"],
+                    mono: ["JetBrains Mono", "ui-monospace", "monospace"],
+                }
+            },
+        }
+    };
+    </script>
+    <style>
+        :root {
+            --background: hsl(210 40% 96%);
+            --foreground: hsl(210 20% 15%);
+            --card: hsl(0 0% 100%);
+            --card-foreground: hsl(210 20% 15%);
+            --popover: hsl(0 0% 100%);
+            --popover-foreground: hsl(210 20% 15%);
+            --primary: hsl(210 95% 50%);
+            --primary-foreground: hsl(0 0% 100%);
+            --secondary: hsl(210 15% 92%);
+            --secondary-foreground: hsl(210 20% 25%);
+            --muted: hsl(210 15% 92%);
+            --muted-foreground: hsl(210 15% 45%);
+            --accent: hsl(210 15% 92%);
+            --accent-foreground: hsl(210 20% 25%);
+            --destructive: hsl(0 85% 60%);
+            --destructive-foreground: hsl(0 0% 100%);
+            --border: hsl(210 20% 85%);
+            --input: hsl(210 20% 85%);
+            --ring: hsl(210 95% 50%);
+            --radius: 8px;
+        }
+
+        .dark {
+            --background: hsl(210 20% 8%);
+            --foreground: hsl(210 15% 95%);
+            --card: hsl(210 20% 12%);
+            --card-foreground: hsl(210 15% 95%);
+            --popover: hsl(210 20% 12%);
+            --popover-foreground: hsl(210 15% 95%);
+            --primary: hsl(210 95% 60%);
+            --primary-foreground: hsl(210 20% 8%);
+            --secondary: hsl(210 15% 18%);
+            --secondary-foreground: hsl(210 15% 85%);
+            --muted: hsl(210 15% 18%);
+            --muted-foreground: hsl(210 15% 65%);
+            --accent: hsl(210 15% 18%);
+            --accent-foreground: hsl(210 15% 85%);
+            --destructive: hsl(0 75% 55%);
+            --destructive-foreground: hsl(0 0% 100%);
+            --border: hsl(210 15% 25%);
+            --input: hsl(210 15% 25%);
+            --ring: hsl(210 95% 60%);
+        }
+
+        .message-bubble {
+            animation: slideIn 0.3s ease-out;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .file-item:hover {
+            background-color: var(--accent);
+        }
+
+        .status-pulse {
+            animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+
+        .resizer {
+            width: 4px;
+            background: var(--border);
+            cursor: col-resize;
+            transition: background-color 0.2s;
+        }
+
+        .resizer:hover {
+            background: var(--primary);
+        }
+
+        .code-block {
+            background: hsl(210 15% 8%);
+            color: hsl(210 15% 95%);
+        }
+
+        .scrollbar-thin {
+            scrollbar-width: thin;
+            scrollbar-color: var(--muted) var(--background);
+        }
+
+        .scrollbar-thin::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .scrollbar-thin::-webkit-scrollbar-track {
+            background: var(--background);
+        }
+
+        .scrollbar-thin::-webkit-scrollbar-thumb {
+            background-color: var(--muted);
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body class="bg-background text-foreground font-sans">
+    <!-- @COMPONENT: MainApplication -->
+    <div class="h-screen flex flex-col">
+        <!-- Header -->
+        <!-- @COMPONENT: Header -->
+        <header class="bg-card border-b border-border p-4 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
+                    <i data-lucide="brain-circuit" class="w-5 h-5 text-primary-foreground"></i>
+                </div>
+                <div>
+                    <h1 class="text-lg font-semibold">LangChain MCP Agent</h1>
+                    <p class="text-sm text-muted-foreground">LAS File Processing & Analysis</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-4">
+                <!-- Connection Status -->
+                <div class="flex items-center gap-2">
+                    <div class="w-2 h-2 bg-green-500 rounded-full status-pulse" data-mock="true"></div>
+                    <span class="text-sm text-muted-foreground">Ollama Connected</span>
+                </div>
+                <!-- MCP Server Status -->
+                <div class="flex items-center gap-2">
+                    <div class="w-2 h-2 bg-green-500 rounded-full status-pulse" data-mock="true"></div>
+                    <span class="text-sm text-muted-foreground">MCP Server Active</span>
+                </div>
+                <!-- Email Status -->
+                <div class="flex items-center gap-2">
+                    <div class="w-2 h-2 bg-yellow-500 rounded-full status-pulse" data-mock="true"></div>
+                    <span class="text-sm text-muted-foreground">Email Monitoring</span>
+                </div>
+                <!-- Settings Button -->
+                <button class="p-2 hover:bg-accent rounded-md transition-colors">
+                    <i data-lucide="settings" class="w-4 h-4"></i>
+                </button>
+            </div>
+        </header>
+        <!-- @END_COMPONENT: Header -->
+
+        <!-- Main Layout -->
+        <div class="flex-1 flex overflow-hidden">
+            <!-- Left Sidebar - File Management -->
+            <!-- @COMPONENT: FileSidebar -->
+            <div class="w-80 bg-card border-r border-border flex flex-col">
+                <!-- File Browser Header -->
+                <div class="p-4 border-b border-border">
+                    <h2 class="font-semibold text-sm text-foreground mb-3">File Management</h2>
+                    
+                    <!-- Email Files Section -->
+                    <div class="mb-4">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-xs font-medium text-muted-foreground uppercase tracking-wide">Incoming LAS Files</span>
+                            <span class="text-xs bg-primary/10 text-primary px-2 py-1 rounded" data-mock="true">3 New</span>
+                        </div>
+                        <div class="text-xs text-muted-foreground">Last sync: 2 minutes ago</div>
+                    </div>
+
+                    <!-- Quick Actions -->
+                    <div class="flex gap-2">
+                        <button class="flex-1 bg-primary text-primary-foreground px-3 py-2 rounded-md text-xs font-medium hover:bg-primary/90 transition-colors">
+                            Refresh Files
+                        </button>
+                        <button class="px-3 py-2 border border-border rounded-md text-xs font-medium hover:bg-accent transition-colors">
+                            <i data-lucide="upload" class="w-3 h-3"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- File Tree -->
+                <div class="flex-1 overflow-y-auto scrollbar-thin">
+                    <!-- Data Folder -->
+                    <div class="p-2">
+                        <div class="mb-2">
+                            <button class="flex items-center gap-2 w-full p-2 hover:bg-accent rounded-md transition-colors">
+                                <i data-lucide="chevron-down" class="w-4 h-4 text-muted-foreground"></i>
+                                <i data-lucide="folder" class="w-4 h-4 text-blue-500"></i>
+                                <span class="text-sm font-medium">data/</span>
+                                <span class="text-xs text-muted-foreground ml-auto">12 files</span>
+                            </button>
+                        </div>
+                        
+                        <!-- LAS Files -->
+                        <!-- @MAP: lasFiles.map(file => ( -->
+                        <div class="ml-6 space-y-1" data-mock="true">
+                            <div class="file-item flex items-center gap-2 p-2 rounded-md cursor-pointer">
+                                <i data-lucide="file-text" class="w-4 h-4 text-green-500"></i>
+                                <div class="flex-1 min-w-0">
+                                    <div class="text-sm text-foreground truncate">well_log_001.las</div>
+                                    <div class="text-xs text-muted-foreground">2.3 MB • 15 min ago</div>
+                                </div>
+                                <div class="flex items-center gap-1">
+                                    <div class="w-1.5 h-1.5 bg-green-500 rounded-full"></div>
+                                </div>
+                            </div>
+                            
+                            <div class="file-item flex items-center gap-2 p-2 rounded-md cursor-pointer">
+                                <i data-lucide="file-text" class="w-4 h-4 text-green-500"></i>
+                                <div class="flex-1 min-w-0">
+                                    <div class="text-sm text-foreground truncate">seismic_data_2024.las</div>
+                                    <div class="text-xs text-muted-foreground">5.7 MB • 1 hour ago</div>
+                                </div>
+                                <div class="flex items-center gap-1">
+                                    <div class="w-1.5 h-1.5 bg-yellow-500 rounded-full"></div>
+                                </div>
+                            </div>
+
+                            <div class="file-item flex items-center gap-2 p-2 rounded-md cursor-pointer">
+                                <i data-lucide="file-text" class="w-4 h-4 text-green-500"></i>
+                                <div class="flex-1 min-w-0">
+                                    <div class="text-sm text-foreground truncate">production_log.las</div>
+                                    <div class="text-xs text-muted-foreground">1.2 MB • 3 hours ago</div>
+                                </div>
+                                <div class="flex items-center gap-1">
+                                    <div class="w-1.5 h-1.5 bg-gray-400 rounded-full"></div>
+                                </div>
+                            </div>
+                        </div>
+                        <!-- @END_MAP )) -->
+                    </div>
+
+                    <!-- Output Folder -->
+                    <div class="p-2">
+                        <div class="mb-2">
+                            <button class="flex items-center gap-2 w-full p-2 hover:bg-accent rounded-md transition-colors">
+                                <i data-lucide="chevron-right" class="w-4 h-4 text-muted-foreground"></i>
+                                <i data-lucide="folder" class="w-4 h-4 text-purple-500"></i>
+                                <span class="text-sm font-medium">output/</span>
+                                <span class="text-xs text-muted-foreground ml-auto">8 files</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Scripts Folder -->
+                    <div class="p-2">
+                        <div class="mb-2">
+                            <button class="flex items-center gap-2 w-full p-2 hover:bg-accent rounded-md transition-colors">
+                                <i data-lucide="chevron-right" class="w-4 h-4 text-muted-foreground"></i>
+                                <i data-lucide="folder" class="w-4 h-4 text-orange-500"></i>
+                                <span class="text-sm font-medium">scripts/</span>
+                                <span class="text-xs text-muted-foreground ml-auto">5 tools</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- File Actions -->
+                <div class="p-4 border-t border-border">
+                    <div class="text-xs text-muted-foreground mb-2">Quick Preview</div>
+                    <div class="bg-muted p-3 rounded-md">
+                        <div class="font-mono text-xs text-muted-foreground" data-mock="true">
+                            Selected: well_log_001.las<br/>
+                            Size: 2.3 MB<br/>
+                            Type: Log ASCII Standard<br/>
+                            Wells: 1 | Curves: 15
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <!-- @END_COMPONENT: FileSidebar -->
+
+            <!-- Resizer -->
+            <div class="resizer"></div>
+
+            <!-- Main Content Area -->
+            <div class="flex-1 flex flex-col">
+                <!-- Agent/User Split View -->
+                <div class="flex-1 flex">
+                    <!-- Agent Side -->
+                    <!-- @COMPONENT: AgentInterface -->
+                    <div class="flex-1 flex flex-col bg-background">
+                        <!-- Agent Header -->
+                        <div class="bg-card border-b border-border p-4">
+                            <div class="flex items-center justify-between">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center">
+                                        <i data-lucide="bot" class="w-4 h-4 text-white"></i>
+                                    </div>
+                                    <div>
+                                        <h3 class="font-semibold">LangChain Agent</h3>
+                                        <p class="text-sm text-muted-foreground">Llama 3.2:1b via Ollama</p>
+                                    </div>
+                                </div>
+                                <div class="flex items-center gap-2 text-xs text-muted-foreground">
+                                    <div class="flex items-center gap-1">
+                                        <i data-lucide="zap" class="w-3 h-3"></i>
+                                        <span>MCP Tools: 5</span>
+                                    </div>
+                                    <div class="w-1 h-1 bg-muted rounded-full"></div>
+                                    <div class="flex items-center gap-1">
+                                        <i data-lucide="database" class="w-3 h-3"></i>
+                                        <span>Resources: 12</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Agent Chat Messages -->
+                        <div class="flex-1 overflow-y-auto scrollbar-thin p-4 space-y-4">
+                            <!-- System Message -->
+                            <div class="message-bubble" data-mock="true">
+                                <div class="flex items-start gap-3">
+                                    <div class="w-6 h-6 bg-gray-500 rounded-full flex items-center justify-center">
+                                        <i data-lucide="settings" class="w-3 h-3 text-white"></i>
+                                    </div>
+                                    <div class="flex-1">
+                                        <div class="bg-muted p-3 rounded-lg">
+                                            <p class="text-sm">System initialized. MCP server connected with plotting tools available. Ready to process LAS file queries.</p>
+                                        </div>
+                                        <div class="text-xs text-muted-foreground mt-1">12:34 PM</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Agent Response -->
+                            <div class="message-bubble" data-mock="true">
+                                <div class="flex items-start gap-3">
+                                    <div class="w-6 h-6 bg-green-500 rounded-full flex items-center justify-center">
+                                        <i data-lucide="bot" class="w-3 h-3 text-white"></i>
+                                    </div>
+                                    <div class="flex-1">
+                                        <div class="bg-card border border-border p-4 rounded-lg">
+                                            <p class="text-sm mb-3">I've analyzed the LAS file "well_log_001.las" and can create several visualizations. The file contains 15 curves including:</p>
+                                            <ul class="text-sm text-muted-foreground list-disc list-inside mb-3 space-y-1">
+                                                <li>Gamma Ray (GR)</li>
+                                                <li>Deep Resistivity (RT)</li>
+                                                <li>Neutron Porosity (NPHI)</li>
+                                                <li>Bulk Density (RHOB)</li>
+                                                <li>Photoelectric Factor (PEF)</li>
+                                            </ul>
+                                            <div class="bg-muted p-3 rounded-md">
+                                                <div class="text-xs font-medium mb-2">MCP Tool Execution:</div>
+                                                <div class="font-mono text-xs text-muted-foreground">
+                                                    plot_well_log(file="well_log_001.las", curves=["GR", "RT", "NPHI", "RHOB"])
+                                                    → Generated: well_log_001_composite.png
+                                                </div>
+                                            </div>
+                                            <p class="text-sm mt-3">The composite plot has been generated and saved to the output folder. Would you like me to create additional specialized plots or perform statistical analysis?</p>
+                                        </div>
+                                        <div class="text-xs text-muted-foreground mt-1">12:35 PM</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Tool Execution Status -->
+                            <div class="message-bubble" data-mock="true">
+                                <div class="flex items-start gap-3">
+                                    <div class="w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center">
+                                        <i data-lucide="cog" class="w-3 h-3 text-white"></i>
+                                    </div>
+                                    <div class="flex-1">
+                                        <div class="bg-blue-50 border border-blue-200 p-3 rounded-lg">
+                                            <div class="text-sm font-medium text-blue-800 mb-2">Tool Execution Complete</div>
+                                            <div class="space-y-2">
+                                                <div class="flex items-center gap-2 text-sm text-blue-700">
+                                                    <i data-lucide="check-circle" class="w-4 h-4"></i>
+                                                    <span>plot_well_log() executed successfully</span>
+                                                </div>
+                                                <div class="flex items-center gap-2 text-sm text-blue-700">
+                                                    <i data-lucide="file-image" class="w-4 h-4"></i>
+                                                    <span>Output: well_log_001_composite.png (245 KB)</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="text-xs text-muted-foreground mt-1">12:35 PM</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Agent Status -->
+                        <div class="bg-card border-t border-border p-3">
+                            <div class="flex items-center justify-between text-xs text-muted-foreground">
+                                <div class="flex items-center gap-4">
+                                    <div class="flex items-center gap-1">
+                                        <div class="w-2 h-2 bg-green-500 rounded-full"></div>
+                                        <span>Agent Active</span>
+                                    </div>
+                                    <div class="flex items-center gap-1">
+                                        <i data-lucide="cpu" class="w-3 h-3"></i>
+                                        <span>Processing: 0.2s avg</span>
+                                    </div>
+                                </div>
+                                <div class="flex items-center gap-1">
+                                    <i data-lucide="message-circle" class="w-3 h-3"></i>
+                                    <span>Ready for queries</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- @END_COMPONENT: AgentInterface -->
+
+                    <!-- Vertical Divider -->
+                    <div class="w-px bg-border"></div>
+
+                    <!-- User Side -->
+                    <!-- @COMPONENT: UserInterface -->
+                    <div class="flex-1 flex flex-col bg-background">
+                        <!-- User Header -->
+                        <div class="bg-card border-b border-border p-4">
+                            <div class="flex items-center justify-between">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center">
+                                        <i data-lucide="user" class="w-4 h-4 text-white"></i>
+                                    </div>
+                                    <div>
+                                        <h3 class="font-semibold">User Interface</h3>
+                                        <p class="text-sm text-muted-foreground">Query & Interaction Panel</p>
+                                    </div>
+                                </div>
+                                <button class="p-2 hover:bg-accent rounded-md transition-colors">
+                                    <i data-lucide="more-vertical" class="w-4 h-4"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- User Chat Messages -->
+                        <div class="flex-1 overflow-y-auto scrollbar-thin p-4 space-y-4">
+                            <!-- User Message -->
+                            <div class="message-bubble" data-mock="true">
+                                <div class="flex items-start gap-3 flex-row-reverse">
+                                    <div class="w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center">
+                                        <i data-lucide="user" class="w-3 h-3 text-white"></i>
+                                    </div>
+                                    <div class="flex-1">
+                                        <div class="bg-primary text-primary-foreground p-3 rounded-lg">
+                                            <p class="text-sm">Please analyze the well_log_001.las file and create a composite plot showing gamma ray, resistivity, porosity, and density curves. Also generate a depth vs porosity scatter plot.</p>
+                                        </div>
+                                        <div class="text-xs text-muted-foreground mt-1 text-right">12:34 PM</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- User Follow-up -->
+                            <div class="message-bubble" data-mock="true">
+                                <div class="flex items-start gap-3 flex-row-reverse">
+                                    <div class="w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center">
+                                        <i data-lucide="user" class="w-3 h-3 text-white"></i>
+                                    </div>
+                                    <div class="flex-1">
+                                        <div class="bg-primary text-primary-foreground p-3 rounded-lg">
+                                            <p class="text-sm">Great! Can you also calculate basic statistics for the porosity values and identify any anomalous zones?</p>
+                                        </div>
+                                        <div class="text-xs text-muted-foreground mt-1 text-right">12:36 PM</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Email Notification -->
+                            <div class="message-bubble" data-mock="true">
+                                <div class="bg-amber-50 border border-amber-200 p-3 rounded-lg">
+                                    <div class="flex items-center gap-2 mb-2">
+                                        <i data-lucide="mail" class="w-4 h-4 text-amber-600"></i>
+                                        <span class="text-sm font-medium text-amber-800">New Email Attachment</span>
+                                    </div>
+                                    <p class="text-sm text-amber-700">Received new LAS file: seismic_data_2024.las (5.7 MB)</p>
+                                    <p class="text-xs text-amber-600 mt-1">From: geology@company.com • Saved to data folder</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Query Input -->
+                        <div class="border-t border-border p-4">
+                            <!-- LAS File Selector -->
+                            <div class="mb-3">
+                                <label class="text-xs font-medium text-muted-foreground mb-2 block">Active LAS File</label>
+                                <select class="w-full p-2 bg-card border border-border rounded-md text-sm focus:ring-2 focus:ring-ring focus:border-transparent" data-implementation="Populate with available LAS files from data folder">
+                                    <option value="well_log_001.las" data-mock="true">well_log_001.las (2.3 MB)</option>
+                                    <option value="seismic_data_2024.las" data-mock="true">seismic_data_2024.las (5.7 MB)</option>
+                                    <option value="production_log.las" data-mock="true">production_log.las (1.2 MB)</option>
+                                </select>
+                            </div>
+
+                            <!-- Query Input -->
+                            <div class="flex gap-2">
+                                <div class="flex-1 relative">
+                                    <textarea 
+                                        placeholder="Ask me to analyze LAS files, create plots, or process data..."
+                                        class="w-full p-3 bg-card border border-border rounded-md text-sm resize-none focus:ring-2 focus:ring-ring focus:border-transparent"
+                                        rows="3"
+                                        data-implementation="Connect to LangChain agent for query processing"
+                                    ></textarea>
+                                    <div class="absolute bottom-2 right-2 flex items-center gap-1 text-xs text-muted-foreground">
+                                        <i data-lucide="paperclip" class="w-3 h-3"></i>
+                                        <span>LAS file attached</span>
+                                    </div>
+                                </div>
+                                <div class="flex flex-col gap-2">
+                                    <button 
+                                        class="bg-primary text-primary-foreground p-3 rounded-md hover:bg-primary/90 transition-colors"
+                                        data-event="click:sendQuery"
+                                        data-implementation="Process user query through LangChain agent"
+                                    >
+                                        <i data-lucide="send" class="w-4 h-4"></i>
+                                    </button>
+                                    <button class="p-3 border border-border rounded-md hover:bg-accent transition-colors">
+                                        <i data-lucide="mic" class="w-4 h-4"></i>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Quick Actions -->
+                            <div class="flex gap-2 mt-3">
+                                <button class="text-xs bg-secondary text-secondary-foreground px-3 py-1 rounded-full hover:bg-secondary/80 transition-colors">
+                                    Generate Summary
+                                </button>
+                                <button class="text-xs bg-secondary text-secondary-foreground px-3 py-1 rounded-full hover:bg-secondary/80 transition-colors">
+                                    Create All Plots
+                                </button>
+                                <button class="text-xs bg-secondary text-secondary-foreground px-3 py-1 rounded-full hover:bg-secondary/80 transition-colors">
+                                    Statistical Analysis
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- @END_COMPONENT: UserInterface -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Bottom Status Bar -->
+        <!-- @COMPONENT: StatusBar -->
+        <footer class="bg-card border-t border-border p-3 text-xs text-muted-foreground">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center gap-6">
+                    <div class="flex items-center gap-2">
+                        <i data-lucide="server" class="w-3 h-3"></i>
+                        <span>Ollama: https://cee75955aab6.ngrok-free.app</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <i data-lucide="plug" class="w-3 h-3"></i>
+                        <span>MCP: stdio transport active</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <i data-lucide="mail-check" class="w-3 h-3"></i>
+                        <span>IMAP: monitoring active</span>
+                    </div>
+                </div>
+                <div class="flex items-center gap-4">
+                    <span>Files processed: 12</span>
+                    <span>Last sync: 2 min ago</span>
+                    <div class="flex items-center gap-1">
+                        <div class="w-1.5 h-1.5 bg-green-500 rounded-full"></div>
+                        <span>All systems operational</span>
+                    </div>
+                </div>
+            </div>
+        </footer>
+        <!-- @END_COMPONENT: StatusBar -->
+    </div>
+    <!-- @END_COMPONENT: MainApplication -->
+
+    <script>
+        // Initialize Lucide icons
+        lucide.createIcons();
+
+        // Mock real-time updates
+        (() => {
+            // Simulate new file arrival
+            setInterval(() => {
+                const statusBadge = document.querySelector('[data-mock="true"]');
+                if (statusBadge && Math.random() < 0.1) {
+                    const count = parseInt(statusBadge.textContent.match(/\d+/)?.[0] || '0') + 1;
+                    statusBadge.textContent = `${count} New`;
+                }
+            }, 10000);
+
+            // Simulate connection status
+            const statusDots = document.querySelectorAll('.status-pulse');
+            setInterval(() => {
+                statusDots.forEach(dot => {
+                    if (Math.random() < 0.05) {
+                        dot.classList.toggle('bg-green-500');
+                        dot.classList.toggle('bg-yellow-500');
+                        setTimeout(() => {
+                            dot.classList.remove('bg-yellow-500');
+                            dot.classList.add('bg-green-500');
+                        }, 2000);
+                    }
+                });
+            }, 5000);
+
+            // File item interactions
+            document.querySelectorAll('.file-item').forEach(item => {
+                item.addEventListener('click', () => {
+                    // Remove active state from all items
+                    document.querySelectorAll('.file-item').forEach(i => i.classList.remove('bg-accent'));
+                    // Add active state to clicked item
+                    item.classList.add('bg-accent');
+                    
+                    // Update preview (mock)
+                    const previewArea = document.querySelector('.bg-muted .font-mono');
+                    const filename = item.querySelector('.text-sm').textContent;
+                    const size = item.querySelector('.text-xs').textContent.split(' • ')[0];
+                    
+                    if (previewArea) {
+                        previewArea.innerHTML = `
+                            Selected: ${filename}<br/>
+                            Size: ${size}<br/>
+                            Type: Log ASCII Standard<br/>
+                            Wells: 1 | Curves: ${Math.floor(Math.random() * 20) + 10}
+                        `;
+                    }
+                });
+            });
+
+            // Resizer functionality
+            const resizer = document.querySelector('.resizer');
+            const leftPanel = document.querySelector('.w-80');
+            let isResizing = false;
+
+            resizer.addEventListener('mousedown', (e) => {
+                isResizing = true;
+                document.addEventListener('mousemove', handleMouseMove);
+                document.addEventListener('mouseup', stopResize);
+            });
+
+            function handleMouseMove(e) {
+                if (!isResizing) return;
+                const newWidth = e.clientX;
+                if (newWidth > 200 && newWidth < 500) {
+                    leftPanel.style.width = `${newWidth}px`;
+                }
+            }
+
+            function stopResize() {
+                isResizing = false;
+                document.removeEventListener('mousemove', handleMouseMove);
+                document.removeEventListener('mouseup', stopResize);
+            }
+
+            // Query input functionality
+            const textarea = document.querySelector('textarea');
+            const sendButton = document.querySelector('[data-event="click:sendQuery"]');
+            
+            if (textarea && sendButton) {
+                sendButton.addEventListener('click', () => {
+                    const query = textarea.value.trim();
+                    if (query) {
+                        // TODO: Implement LangChain agent query processing
+                        console.log('Sending query to agent:', query);
+                        textarea.value = '';
+                        
+                        // Mock response delay
+                        setTimeout(() => {
+                            console.log('Agent response received');
+                        }, 2000);
+                    }
+                });
+
+                // Enter key handling
+                textarea.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault();
+                        sendButton.click();
+                    }
+                });
+            }
+
+            // Auto-scroll chat areas
+            const chatAreas = document.querySelectorAll('.overflow-y-auto.scrollbar-thin');
+            chatAreas.forEach(area => {
+                area.scrollTop = area.scrollHeight;
+            });
+        })();
+    </script>
+</body>
+</html>
