@@ -149,6 +149,68 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Email Test Route
+  app.post("/api/email/test", async (req, res) => {
+    try {
+      const { username, password } = req.body;
+      
+      if (!username || !password) {
+        return res.status(400).json({ 
+          success: false, 
+          message: "Email address and password required" 
+        });
+      }
+      
+      // Set environment variables for the test
+      process.env.EMAIL_USER = username;
+      process.env.EMAIL_PASS = password;
+      
+      // Call the SMTP/IMAP test script
+      const python = spawn("python", [
+        path.join(process.cwd(), "server/services/email-smtp.py")
+      ]);
+      
+      let output = "";
+      let errorOutput = "";
+      
+      python.stdout.on("data", (data) => {
+        output += data.toString();
+      });
+      
+      python.stderr.on("data", (data) => {
+        errorOutput += data.toString();
+      });
+      
+      python.on("close", (code) => {
+        if (code === 0) {
+          res.json({ 
+            success: true, 
+            message: "Email system tested successfully - IMAP & SMTP working" 
+          });
+        } else {
+          res.json({ 
+            success: false, 
+            message: errorOutput || "Email test failed" 
+          });
+        }
+      });
+      
+      setTimeout(() => {
+        python.kill();
+        res.json({ 
+          success: false, 
+          message: "Email test timeout" 
+        });
+      }, 15000);
+      
+    } catch (error) {
+      res.status(500).json({ 
+        success: false, 
+        message: "Email test error: " + error.message 
+      });
+    }
+  });
+
   return httpServer;
 }
 
