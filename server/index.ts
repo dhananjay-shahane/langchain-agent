@@ -166,5 +166,5 @@ process.on('SIGTERM', () => {
 });
 
 // Export functions for use in routes
-global.startEmailMonitor = startEmailMonitor;
-global.stopEmailMonitor = stopEmailMonitor;
+(global as any).startEmailMonitor = startEmailMonitor;
+(global as any).stopEmailMonitor = stopEmailMonitor;
