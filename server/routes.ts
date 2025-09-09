@@ -232,6 +232,69 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Debug endpoint to force immediate email check
+  app.post("/api/email/force-check", async (req, res) => {
+    try {
+      if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
+        return res.status(400).json({ 
+          success: false, 
+          message: "Email credentials not configured" 
+        });
+      }
+
+      // Force immediate email check using Python script
+      const python = spawn("python", [
+        path.join(process.cwd(), "test_email_debug.py")
+      ], {
+        env: {
+          ...process.env,
+          EMAIL_USER: process.env.EMAIL_USER,
+          EMAIL_PASS: process.env.EMAIL_PASS
+        }
+      });
+
+      let output = "";
+      let errorOutput = "";
+
+      python.stdout.on("data", (data) => {
+        output += data.toString();
+      });
+
+      python.stderr.on("data", (data) => {
+        errorOutput += data.toString();
+      });
+
+      python.on("close", (code) => {
+        if (code === 0) {
+          res.json({ 
+            success: true, 
+            message: "Email check completed", 
+            details: output 
+          });
+        } else {
+          res.json({ 
+            success: false, 
+            message: errorOutput || "Email check failed" 
+          });
+        }
+      });
+
+      setTimeout(() => {
+        python.kill();
+        res.json({ 
+          success: false, 
+          message: "Email check timeout" 
+        });
+      }, 30000);
+
+    } catch (error) {
+      res.status(500).json({ 
+        success: false, 
+        message: "Email check error: " + error.message 
+      });
+    }
+  });
+
   return httpServer;
 }
 
