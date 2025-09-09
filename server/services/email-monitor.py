@@ -243,18 +243,30 @@ class EmailAttachmentMonitor:
         
         try:
             with MailBox(self.server).login(self.username, self.password) as mailbox:
-                # Get recent emails with attachments (last 24 hours, including read ones)
+                # Get recent emails (last 7 days to catch more emails)
                 from datetime import datetime, timedelta
-                yesterday = datetime.now() - timedelta(days=1)
+                week_ago = datetime.now() - timedelta(days=7)
+                
+                logger.info(f"🔍 Connected to {self.server} as {self.username}")
                 
                 # First try unread emails
                 messages = list(mailbox.fetch(A(seen=False)))
                 logger.info(f"Found {len(messages)} unread emails")
                 
-                # If no unread emails, check recent emails from last 24 hours
-                if len(messages) == 0:
-                    messages = list(mailbox.fetch(A(date_gte=yesterday.date())))
-                    logger.info(f"Checking {len(messages)} recent emails from last 24 hours")
+                # Also check recent emails from last 7 days
+                recent_messages = list(mailbox.fetch(A(date_gte=week_ago.date())))
+                logger.info(f"Found {len(recent_messages)} emails from last 7 days")
+                
+                # Combine unread and recent (remove duplicates)
+                all_uids = set()
+                combined_messages = []
+                for msg in messages + recent_messages:
+                    if msg.uid not in all_uids:
+                        all_uids.add(msg.uid)
+                        combined_messages.append(msg)
+                
+                messages = combined_messages
+                logger.info(f"Total unique emails to process: {len(messages)}")
                 
                 for message in messages:
                     # Skip if already processed
@@ -263,11 +275,17 @@ class EmailAttachmentMonitor:
                     
                     # Filter by sender email if filter is configured
                     sender_email = str(message.from_).lower()
+                    logger.info(f"🔍 Checking email from: {sender_email}")
+                    
                     if self.filter_emails:
                         email_matches = any(filter_email.lower() in sender_email for filter_email in self.filter_emails)
+                        logger.info(f"   Filter emails: {self.filter_emails}")
+                        logger.info(f"   Matches filter: {email_matches}")
                         if not email_matches:
-                            logger.info(f"Skipping email from {sender_email} (not in filter list)")
+                            logger.info(f"⏭️  Skipping email from {sender_email} (not in filter list)")
                             continue
+                    else:
+                        logger.info("   No filter configured - processing all emails")
                     
                     logger.info(f"📧 RECEIVED EMAIL - ID: {message.uid}")
                     logger.info(f"   From: {message.from_}")
