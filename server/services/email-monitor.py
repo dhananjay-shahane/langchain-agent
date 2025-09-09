@@ -72,19 +72,79 @@ class EmailAttachmentMonitor:
             logger.warning(f"Could not store email in database: {e}")
             return None
     
-    def _should_auto_process_email(self, message):
-        """Determine if email should be automatically processed"""
+    def _has_analysis_query(self, message):
+        """Check if email contains analysis queries or requests"""
         content = (message.text or message.html or "").lower()
         subject = (message.subject or "").lower()
         
         # Keywords that indicate analysis request
-        analysis_keywords = [
-            'gamma ray', 'gamma', 'porosity', 'resistivity', 'plot', 'chart', 
-            'analysis', 'analyze', 'graph', 'curve', 'log', 'well log',
-            'create plot', 'generate plot', 'make plot', 'show plot'
+        query_keywords = [
+            'plot', 'chart', 'graph', 'analysis', 'analyze', 'report',
+            'gamma ray', 'gamma', 'porosity', 'resistivity', 'curve', 'log',
+            'create', 'generate', 'make', 'show', 'display', 'visualize',
+            'what is', 'how much', 'calculate', 'compare', 'trend'
         ]
         
-        return any(keyword in content or keyword in subject for keyword in analysis_keywords)
+        return any(keyword in content or keyword in subject for keyword in query_keywords)
+    
+    def _send_query_response(self, email_id, sender_email, subject, query_content):
+        """Send response to query-only emails"""
+        try:
+            logger.info(f"🤖 Processing query from {sender_email}")
+            
+            # Create a simple response for queries without LAS files
+            response_body = f"""Hello,
+
+Thank you for your inquiry. I've received your message: "{query_content[:100]}..."
+
+To provide detailed analysis and generate plots, please attach a LAS file to your email. I can then:
+- Create gamma ray plots
+- Generate porosity analysis
+- Produce resistivity curves
+- Provide comprehensive well log analysis
+
+Please resend your request with a LAS file attachment for detailed analysis.
+
+Best regards,
+LAS Analysis System
+"""
+            
+            # Send reply
+            success = self._send_analysis_reply(sender_email, subject, "Query Response", response_body, None)
+            
+            if success:
+                # Update email as processed
+                self._update_email_processed(email_id, [])
+                logger.info(f"✅ Query response sent to {sender_email}")
+            else:
+                logger.warning(f"❌ Failed to send query response to {sender_email}")
+                
+        except Exception as e:
+            logger.error(f"Error processing query: {e}")
+    
+    def _send_analysis_reply(self, to_email, original_subject, analysis_type, response_body, plot_path):
+        """Send automated reply email with analysis results"""
+        try:
+            smtp_script = Path(os.getcwd()) / "server" / "services" / "smtp-sender.py"
+            
+            # Prepare command arguments
+            cmd_args = ["python", str(smtp_script), to_email, original_subject, response_body]
+            if plot_path:
+                cmd_args.append(plot_path)
+            
+            result = Popen(cmd_args, stdout=PIPE, stderr=PIPE, text=True)
+            stdout, stderr = result.communicate(timeout=30)
+            
+            if result.returncode == 0:
+                logger.info(f"📧 Reply sent to {to_email}")
+                return True
+            else:
+                logger.error(f"Failed to send reply: {stderr}")
+                return False
+                
+        except Exception as e:
+            logger.error(f"Error sending reply email: {e}")
+            return False
     
     def _extract_analysis_type(self, message):
         """Extract what type of analysis is requested"""
@@ -124,12 +184,29 @@ class EmailAttachmentMonitor:
                         if plot_path.exists():
                             logger.info(f"📊 Plot generated: {plot_filename}")
                             
-                            # Send email reply with attachment
-                            self._send_analysis_reply(sender_email, subject, las_filename, str(plot_path))
+                            # Create response body
+                            response_body = f"""Hello,
+
+Your LAS file "{las_filename}" has been successfully processed!
+
+Analysis completed:
+- File: {las_filename}
+- Analysis type: {analysis_type}
+- Generated plot: {plot_filename}
+
+Please find the analysis results attached as a PNG image.
+
+Best regards,
+LAS Analysis System
+"""
                             
-                            # Update email as processed
-                            self._update_email_processed(email_id, [plot_filename])
-                            return True
+                            # Send email reply with attachment
+                            success = self._send_analysis_reply(sender_email, subject, analysis_type, response_body, str(plot_path))
+                            
+                            if success:
+                                # Update email as processed
+                                self._update_email_processed(email_id, [plot_filename])
+                                return True
                         break
                 
                 logger.warning(f"Plot generated but file not found in output")
@@ -303,7 +380,9 @@ class EmailAttachmentMonitor:
                                 saved_path = self._save_attachment(attachment, message)
                                 if saved_path:
                                     las_files_found += 1
-                                    las_files_saved.append(saved_path)
+                                    # Store just the filename, not full path
+                                    las_files_saved.append(Path(saved_path).name)
+                                    logger.info(f"✅ LAS file saved: {Path(saved_path).name}")
                             else:
                                 logger.info(f"Skipping attachment: {attachment.filename} (not a .las file or too large)")
                     else:
@@ -316,26 +395,30 @@ class EmailAttachmentMonitor:
                     if las_files_found > 0:
                         logger.info(f"✅ SUCCESS: Saved {las_files_found} LAS file(s) from Email ID {message.uid} ({message.from_})")
                         
-                        # Check if this email should be automatically processed
-                        if self._should_auto_process_email(message) and saved_las_filenames:
-                            analysis_type = self._extract_analysis_type(message)
-                            logger.info(f"🤖 Auto-processing triggered: {analysis_type} analysis for {saved_las_filenames[0]}")
-                            
-                            # Trigger automatic processing
-                            success = self._trigger_automatic_processing(
-                                email_id, 
-                                saved_las_filenames[0], 
-                                analysis_type,
-                                str(message.from_),
-                                message.subject or ""
-                            )
-                            
-                            if success:
-                                logger.info(f"🎉 Automatic processing completed for Email ID {message.uid}")
-                            else:
-                                logger.warning(f"⚠️  Automatic processing failed for Email ID {message.uid}")
+                        # Always trigger automatic processing for LAS files
+                        analysis_type = self._extract_analysis_type(message)
+                        logger.info(f"🤖 Auto-processing triggered: {analysis_type} analysis for {saved_las_filenames[0]}")
+                        
+                        # Trigger automatic processing
+                        success = self._trigger_automatic_processing(
+                            email_id, 
+                            saved_las_filenames[0], 
+                            analysis_type,
+                            str(message.from_),
+                            message.subject or ""
+                        )
+                        
+                        if success:
+                            logger.info(f"🎉 Automatic processing completed for Email ID {message.uid}")
+                        else:
+                            logger.warning(f"⚠️  Automatic processing failed for Email ID {message.uid}")
+                    
+                    # Check if there's a query in the email content (even without LAS files)
+                    elif self._has_analysis_query(message):
+                        logger.info(f"📝 Analysis query detected in email from {message.from_}")
+                        self._send_query_response(email_id, str(message.from_), message.subject or "", message.text or message.html or "")
                     else:
-                        logger.info(f"📧 Email received from {message.from_} - No LAS files found")
+                        logger.info(f"📧 Email received from {message.from_} - No LAS files or queries found")
                     
                     # Mark email as read and remember we processed it (only for unread emails)
                     if hasattr(message, 'seen') and not message.seen:

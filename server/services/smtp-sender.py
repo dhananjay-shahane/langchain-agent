@@ -35,6 +35,10 @@ class EmailSender:
                 logger.error("Cannot send email: credentials not configured")
                 return False
             
+            logger.info(f"Sending email to: {to_email}")
+            logger.info(f"Subject: Re: {subject}")
+            logger.info(f"Has attachment: {attachment_path is not None}")
+            
             # Create message
             msg = MIMEMultipart()
             msg['From'] = self.username
