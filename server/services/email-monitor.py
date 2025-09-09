@@ -56,8 +56,7 @@ class EmailAttachmentMonitor:
                 "autoProcessed": False,
                 "relatedLasFiles": las_files_saved,
                 "relatedOutputFiles": [],
-                "replyEmailSent": False,
-                "receivedAt": message.date.isoformat() if message.date else None
+                "replyEmailSent": False
             }
             
             # Send to local API endpoint to store in database
