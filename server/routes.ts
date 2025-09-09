@@ -133,6 +133,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "File not found" });
       }
       
+      // Check if it's an SVG file disguised as PNG
+      if (filename.endsWith('.png')) {
+        const content = fs.readFileSync(filepath, 'utf8');
+        if (content.startsWith('<?xml') && content.includes('<svg')) {
+          res.setHeader('Content-Type', 'image/svg+xml');
+          res.send(content);
+          return;
+        }
+      }
+      
       res.sendFile(filepath);
     } catch (error) {
       res.status(500).json({ error: "Failed to serve file" });
