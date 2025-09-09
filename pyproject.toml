@@ -14,4 +14,9 @@ dependencies = [
     "langgraph>=0.6.7",
     "matplotlib>=3.10.6",
     "numpy>=2.3.2",
+    "pandas>=2.3.2",
+    "seaborn>=0.13.2",
+    "mcp>=1.13.1",
+    "fastmcp>=2.12.2",
+    "lasio>=0.32",
 ]

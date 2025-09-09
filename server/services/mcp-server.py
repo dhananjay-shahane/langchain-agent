@@ -11,7 +11,7 @@ from typing import Any, Dict, List
 from datetime import datetime
 
 # MCP server imports
-from mcp.server.fastmcp import FastMCP
+from fastmcp import FastMCP
 from mcp.server.stdio import stdio_server
 from mcp.types import Resource
 
