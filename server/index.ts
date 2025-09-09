@@ -129,7 +129,7 @@ function startEmailMonitor() {
         setTimeout(() => {
           log("Restarting email monitor...");
           startEmailMonitor();
-        }, 5000);
+        }, 2000);
       }
     });
 

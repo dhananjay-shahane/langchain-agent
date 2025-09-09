@@ -132,7 +132,7 @@ class EmailAttachmentMonitor:
         except Exception as e:
             logger.error(f"Error processing emails: {e}")
     
-    async def run_monitor(self, check_interval: int = 60):
+    async def run_monitor(self, check_interval: int = 10):
         """Run the email monitor continuously"""
         logger.info(f"Starting email monitor (checking every {check_interval} seconds)")
         

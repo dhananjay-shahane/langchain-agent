@@ -193,7 +193,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           // Email test successful, save credentials and start monitor
           try {
             // Save credentials to config file
-            const fs = await import('fs');
+            const fs = require('fs');
             const emailConfig = {
               username: username,
               password: password,
