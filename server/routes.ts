@@ -340,6 +340,55 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // API endpoint to store new email (used by email monitor)
+  app.post("/api/emails/store", async (req, res) => {
+    try {
+      const validatedEmail = insertEmailSchema.parse(req.body);
+      const email = await storage.addEmail(validatedEmail);
+      
+      // Emit new email notification to all clients
+      io.emit("new_email", {
+        id: email.id,
+        sender: email.sender,
+        subject: email.subject,
+        hasAttachments: email.hasAttachments,
+        receivedAt: email.receivedAt
+      });
+      
+      res.json({ 
+        success: true, 
+        email_id: email.id,
+        message: "Email stored successfully" 
+      });
+    } catch (error) {
+      res.status(400).json({ error: "Invalid email data" });
+    }
+  });
+
+  // API endpoint to update email status
+  app.patch("/api/emails/:emailId", async (req, res) => {
+    try {
+      const emailId = req.params.emailId;
+      const updates = req.body;
+      const email = await storage.updateEmail(emailId, updates);
+      
+      if (!email) {
+        return res.status(404).json({ error: "Email not found" });
+      }
+
+      // Emit email update to all clients
+      io.emit("email_updated", email);
+      
+      res.json({ 
+        success: true, 
+        message: "Email updated successfully",
+        email: email 
+      });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to update email" });
+    }
+  });
+
   // API endpoint to manually trigger email processing
   app.post("/api/emails/process/:emailId", async (req, res) => {
     try {

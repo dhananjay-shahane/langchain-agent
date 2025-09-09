@@ -6,10 +6,12 @@ import asyncio
 import time
 import os
 import shutil
+import json
 from pathlib import Path
 from typing import List, Optional
 from imap_tools.mailbox import MailBox
 from imap_tools.query import A
+from subprocess import Popen, PIPE
 import logging
 
 # Configure logging
@@ -31,6 +33,150 @@ class EmailAttachmentMonitor:
         if not self.username or not self.password:
             logger.warning("Email credentials not found in environment variables")
             logger.warning("Set EMAIL_USER and EMAIL_PASS to enable email monitoring")
+    
+    def _store_email_in_database(self, message, las_files_saved):
+        """Store email information in the database via HTTP API"""
+        try:
+            email_data = {
+                "uid": str(message.uid),
+                "sender": str(message.from_),
+                "subject": message.subject or "",
+                "content": message.text or message.html or "",
+                "hasAttachments": len(message.attachments) > 0,
+                "processed": False,
+                "autoProcessed": False,
+                "relatedLasFiles": las_files_saved,
+                "relatedOutputFiles": [],
+                "replyEmailSent": False,
+                "receivedAt": message.date.isoformat() if message.date else None
+            }
+            
+            # Send to local API endpoint to store in database
+            import requests
+            response = requests.post('http://localhost:5000/api/emails/store', json=email_data, timeout=5)
+            if response.status_code == 200:
+                logger.info(f"📧 Email stored in database: {email_data['uid']}")
+                return response.json().get('email_id')
+            else:
+                logger.warning(f"Failed to store email in database: {response.status_code}")
+                return None
+        except Exception as e:
+            logger.warning(f"Could not store email in database: {e}")
+            return None
+    
+    def _should_auto_process_email(self, message):
+        """Determine if email should be automatically processed"""
+        content = (message.text or message.html or "").lower()
+        subject = (message.subject or "").lower()
+        
+        # Keywords that indicate analysis request
+        analysis_keywords = [
+            'gamma ray', 'gamma', 'porosity', 'resistivity', 'plot', 'chart', 
+            'analysis', 'analyze', 'graph', 'curve', 'log', 'well log',
+            'create plot', 'generate plot', 'make plot', 'show plot'
+        ]
+        
+        return any(keyword in content or keyword in subject for keyword in analysis_keywords)
+    
+    def _extract_analysis_type(self, message):
+        """Extract what type of analysis is requested"""
+        content = (message.text or message.html or "").lower()
+        subject = (message.subject or "").lower()
+        full_text = f"{subject} {content}"
+        
+        if 'gamma' in full_text:
+            return 'gamma'
+        elif 'porosity' in full_text:
+            return 'porosity'  
+        elif 'resistivity' in full_text:
+            return 'resistivity'
+        else:
+            return 'gamma'  # Default to gamma ray
+    
+    def _trigger_automatic_processing(self, email_id, las_filename, analysis_type, sender_email, subject):
+        """Trigger automatic LAS file analysis"""
+        try:
+            logger.info(f"🤖 Starting automatic processing for {las_filename}")
+            
+            # Call the plotting script
+            plot_script = Path(os.getcwd()) / "scripts" / "las_plotter.py"
+            result = Popen([
+                "python", str(plot_script), las_filename, analysis_type
+            ], stdout=PIPE, stderr=PIPE, text=True)
+            
+            stdout, stderr = result.communicate(timeout=60)
+            
+            if result.returncode == 0:
+                # Extract generated filename from output
+                for line in stdout.split('\n'):
+                    if line.startswith('SUCCESS:'):
+                        plot_filename = line.replace('SUCCESS:', '').strip()
+                        plot_path = Path("output") / plot_filename
+                        
+                        if plot_path.exists():
+                            logger.info(f"📊 Plot generated: {plot_filename}")
+                            
+                            # Send email reply with attachment
+                            self._send_analysis_reply(sender_email, subject, las_filename, str(plot_path))
+                            
+                            # Update email as processed
+                            self._update_email_processed(email_id, [plot_filename])
+                            return True
+                        break
+                
+                logger.warning(f"Plot generated but file not found in output")
+            else:
+                logger.error(f"Plot generation failed: {stderr}")
+                
+        except Exception as e:
+            logger.error(f"Automatic processing failed: {e}")
+            
+        return False
+    
+    def _send_analysis_reply(self, to_email, original_subject, las_filename, plot_path):
+        """Send automated reply email with analysis results"""
+        try:
+            smtp_script = Path(os.getcwd()) / "server" / "services" / "smtp-sender.py"
+            result = Popen([
+                "python", str(smtp_script), to_email, original_subject, las_filename, plot_path
+            ], stdout=PIPE, stderr=PIPE, text=True)
+            
+            stdout, stderr = result.communicate(timeout=30)
+            
+            if result.returncode == 0:
+                logger.info(f"📧 Reply sent to {to_email}")
+                return True
+            else:
+                logger.error(f"Failed to send reply: {stderr}")
+                return False
+                
+        except Exception as e:
+            logger.error(f"Error sending reply email: {e}")
+            return False
+    
+    def _update_email_processed(self, email_id, output_files):
+        """Update email as processed with generated files"""
+        try:
+            if not email_id:
+                return
+                
+            update_data = {
+                "processed": True,
+                "autoProcessed": True,
+                "relatedOutputFiles": output_files,
+                "replyEmailSent": True
+            }
+            
+            import requests
+            response = requests.patch(f'http://localhost:5000/api/emails/{email_id}', 
+                                    json=update_data, timeout=5)
+            if response.status_code == 200:
+                logger.info(f"✅ Email marked as processed: {email_id}")
+            else:
+                logger.warning(f"Failed to update email status: {response.status_code}")
+                
+        except Exception as e:
+            logger.warning(f"Could not update email status: {e}")
     
     def _sanitize_filename(self, filename: str) -> str:
         """Sanitize filename for safe storage"""
@@ -114,6 +260,7 @@ class EmailAttachmentMonitor:
                     logger.info(f"   Attachments: {len(message.attachments)}")
                     las_files_found = 0
                     
+                    las_files_saved = []
                     for attachment in message.attachments:
                         logger.info(f"Checking attachment: {attachment.filename} (size: {len(attachment.payload) / 1024:.1f}KB)")
                         if self._should_process_attachment(attachment):
@@ -121,11 +268,35 @@ class EmailAttachmentMonitor:
                             saved_path = self._save_attachment(attachment, message)
                             if saved_path:
                                 las_files_found += 1
+                                las_files_saved.append(saved_path)
                         else:
                             logger.info(f"Skipping attachment: {attachment.filename} (not a .las file or too large)")
                     
+                    # Store email in database
+                    saved_las_filenames = [Path(path).name for path in las_files_saved] if las_files_found > 0 else []
+                    email_id = self._store_email_in_database(message, saved_las_filenames)
+                    
                     if las_files_found > 0:
                         logger.info(f"✅ SUCCESS: Saved {las_files_found} LAS file(s) from Email ID {message.uid} ({message.from_})")
+                        
+                        # Check if this email should be automatically processed
+                        if self._should_auto_process_email(message) and saved_las_filenames:
+                            analysis_type = self._extract_analysis_type(message)
+                            logger.info(f"🤖 Auto-processing triggered: {analysis_type} analysis for {saved_las_filenames[0]}")
+                            
+                            # Trigger automatic processing
+                            success = self._trigger_automatic_processing(
+                                email_id, 
+                                saved_las_filenames[0], 
+                                analysis_type,
+                                str(message.from_),
+                                message.subject or ""
+                            )
+                            
+                            if success:
+                                logger.info(f"🎉 Automatic processing completed for Email ID {message.uid}")
+                            else:
+                                logger.warning(f"⚠️  Automatic processing failed for Email ID {message.uid}")
                     else:
                         logger.info(f"ℹ️  No LAS files found in Email ID {message.uid}")
                     

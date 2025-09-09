@@ -1983,6 +1983,7 @@ dependencies = [
     { name = "mcp" },
     { name = "numpy" },
     { name = "pandas" },
+    { name = "requests" },
     { name = "seaborn" },
     { name = "sendgrid" },
 ]
@@ -2003,6 +2004,7 @@ requires-dist = [
     { name = "mcp", specifier = ">=1.13.1" },
     { name = "numpy", specifier = ">=2.3.2" },
     { name = "pandas", specifier = ">=2.3.2" },
+    { name = "requests", specifier = ">=2.32.5" },
     { name = "seaborn", specifier = ">=0.13.2" },
     { name = "sendgrid", specifier = ">=6.12.4" },
 ]
