@@ -63,6 +63,9 @@ class LangChainMCPAgent:
                 self.create_summary_tool(),
                 self.create_file_lister_tool(),
                 self.create_las_analyzer_tool(),
+                self.create_gamma_ray_plot_tool(),
+                self.create_porosity_plot_tool(), 
+                self.create_resistivity_plot_tool(),
                 self.create_gamma_ray_tool(),
                 self.create_depth_visualization_tool(),
                 self.create_porosity_analysis_tool(),
@@ -220,6 +223,72 @@ class LangChainMCPAgent:
                 return f"Error creating depth visualization: {e}"
         
         return create_depth_plot
+    
+    def create_gamma_ray_plot_tool(self):
+        """Create a tool specifically for gamma ray plots"""
+        @tool
+        def create_gamma_ray_plot(filename: str) -> str:
+            """Create a gamma ray log plot from LAS file data."""
+            try:
+                import subprocess
+                result = subprocess.run([
+                    "python", "scripts/simple_plotter.py", 
+                    filename, "gamma"
+                ], capture_output=True, text=True, timeout=30)
+                
+                if result.returncode == 0 and "SUCCESS:" in result.stdout:
+                    plot_filename = result.stdout.split("SUCCESS: ")[1].strip()
+                    return f"✅ Gamma Ray Plot Created: {plot_filename}\n📊 Shows natural radioactivity levels vs depth\n🎯 File: {filename}\n📈 Useful for formation identification and lithology analysis"
+                else:
+                    return f"❌ Error creating gamma ray plot: {result.stderr}"
+            except Exception as e:
+                return f"❌ Error creating gamma ray plot: {e}"
+        
+        return create_gamma_ray_plot
+    
+    def create_porosity_plot_tool(self):
+        """Create a tool specifically for porosity plots"""  
+        @tool
+        def create_porosity_plot(filename: str) -> str:
+            """Create a porosity log plot from LAS file data."""
+            try:
+                import subprocess
+                result = subprocess.run([
+                    "python", "scripts/simple_plotter.py", 
+                    filename, "porosity"
+                ], capture_output=True, text=True, timeout=30)
+                
+                if result.returncode == 0 and "SUCCESS:" in result.stdout:
+                    plot_filename = result.stdout.split("SUCCESS: ")[1].strip()
+                    return f"✅ Porosity Plot Created: {plot_filename}\n📊 Shows rock porosity (NPHI/DPHI) vs depth\n🎯 File: {filename}\n📈 Essential for reservoir quality assessment"
+                else:
+                    return f"❌ Error creating porosity plot: {result.stderr}"
+            except Exception as e:
+                return f"❌ Error creating porosity plot: {e}"
+        
+        return create_porosity_plot
+    
+    def create_resistivity_plot_tool(self):
+        """Create a tool specifically for resistivity plots"""
+        @tool  
+        def create_resistivity_plot(filename: str) -> str:
+            """Create a resistivity log plot from LAS file data."""
+            try:
+                import subprocess
+                result = subprocess.run([
+                    "python", "scripts/simple_plotter.py", 
+                    filename, "resistivity"
+                ], capture_output=True, text=True, timeout=30)
+                
+                if result.returncode == 0 and "SUCCESS:" in result.stdout:
+                    plot_filename = result.stdout.split("SUCCESS: ")[1].strip()
+                    return f"✅ Resistivity Plot Created: {plot_filename}\n📊 Shows electrical resistivity vs depth (log scale)\n🎯 File: {filename}\n📈 Key indicator of hydrocarbon presence"
+                else:
+                    return f"❌ Error creating resistivity plot: {result.stderr}"
+            except Exception as e:
+                return f"❌ Error creating resistivity plot: {e}"
+        
+        return create_resistivity_plot
     
     def create_porosity_analysis_tool(self):
         """Create a tool for porosity analysis"""
