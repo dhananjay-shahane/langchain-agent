@@ -199,13 +199,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
               lastTested: new Date().toISOString()
             };
             fs.writeFileSync(path.join(process.cwd(), 'server', 'email-config.json'), JSON.stringify(emailConfig, null, 2));
+            console.log("Email credentials saved successfully");
             
             // Start the monitor service
-            if ((global as any).startEmailMonitor) {
-              (global as any).startEmailMonitor();
+            try {
+              if ((global as any).startEmailMonitor) {
+                (global as any).startEmailMonitor();
+                console.log("Email monitor started successfully");
+              } else {
+                console.log("startEmailMonitor function not available");
+              }
+            } catch (monitorError) {
+              console.log("Could not start email monitor:", monitorError);
             }
-          } catch (error) {
-            console.log("Could not save email config or start monitor:", error);
+          } catch (saveError) {
+            console.log("Could not save email config:", saveError);
           }
           
           res.json({ 
