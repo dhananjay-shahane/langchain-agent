@@ -257,9 +257,6 @@ class EmailAttachmentMonitor:
                     logger.info(f"Checking {len(messages)} recent emails from last 24 hours")
                 
                 for message in messages:
-                    # Skip if no attachments
-                    if not message.attachments:
-                        continue
                     # Skip if already processed
                     if message.uid in self.processed_uids:
                         continue
@@ -280,18 +277,22 @@ class EmailAttachmentMonitor:
                     las_files_found = 0
                     
                     las_files_saved = []
-                    for attachment in message.attachments:
-                        logger.info(f"Checking attachment: {attachment.filename} (size: {len(attachment.payload) / 1024:.1f}KB)")
-                        if self._should_process_attachment(attachment):
-                            logger.info(f"Processing LAS attachment: {attachment.filename}")
-                            saved_path = self._save_attachment(attachment, message)
-                            if saved_path:
-                                las_files_found += 1
-                                las_files_saved.append(saved_path)
-                        else:
-                            logger.info(f"Skipping attachment: {attachment.filename} (not a .las file or too large)")
+                    # Process attachments if they exist
+                    if message.attachments:
+                        for attachment in message.attachments:
+                            logger.info(f"Checking attachment: {attachment.filename} (size: {len(attachment.payload) / 1024:.1f}KB)")
+                            if self._should_process_attachment(attachment):
+                                logger.info(f"Processing LAS attachment: {attachment.filename}")
+                                saved_path = self._save_attachment(attachment, message)
+                                if saved_path:
+                                    las_files_found += 1
+                                    las_files_saved.append(saved_path)
+                            else:
+                                logger.info(f"Skipping attachment: {attachment.filename} (not a .las file or too large)")
+                    else:
+                        logger.info("No attachments in this email")
                     
-                    # Store email in database
+                    # Store email in database (even if no LAS files)
                     saved_las_filenames = [Path(path).name for path in las_files_saved] if las_files_found > 0 else []
                     email_id = self._store_email_in_database(message, saved_las_filenames)
                     
@@ -317,7 +318,7 @@ class EmailAttachmentMonitor:
                             else:
                                 logger.warning(f"⚠️  Automatic processing failed for Email ID {message.uid}")
                     else:
-                        logger.info(f"ℹ️  No LAS files found in Email ID {message.uid}")
+                        logger.info(f"📧 Email received from {message.from_} - No LAS files found")
                     
                     # Mark email as read and remember we processed it (only for unread emails)
                     if hasattr(message, 'seen') and not message.seen:
