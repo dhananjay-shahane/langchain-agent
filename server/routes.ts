@@ -190,9 +190,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         responseSet = true;
         
         if (code === 0) {
+          // Email test successful, start the monitor service
+          try {
+            if ((global as any).startEmailMonitor) {
+              (global as any).startEmailMonitor();
+            }
+          } catch (error) {
+            console.log("Could not start email monitor:", error);
+          }
+          
           res.json({ 
             success: true, 
-            message: "Email system tested successfully - IMAP & SMTP working" 
+            message: "Email system tested successfully - IMAP & SMTP working. Email monitoring started." 
           });
         } else {
           res.json({ 

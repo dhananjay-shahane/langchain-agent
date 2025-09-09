@@ -1,6 +1,8 @@
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
+import { spawn } from "child_process";
+import path from "path";
 
 const app = express();
 app.use(express.json());
@@ -67,5 +69,90 @@ app.use((req, res, next) => {
     reusePort: true,
   }, () => {
     log(`serving on port ${port}`);
+    
+    // Start email monitor service if credentials are available
+    if (process.env.EMAIL_USER && process.env.EMAIL_PASS) {
+      startEmailMonitor();
+    }
   });
 })();
+
+// Email monitor service management
+let emailMonitorProcess: any = null;
+
+function startEmailMonitor() {
+  if (emailMonitorProcess) {
+    log("Email monitor already running");
+    return;
+  }
+
+  try {
+    emailMonitorProcess = spawn("python", [
+      path.join(process.cwd(), "server/services/email-monitor.py")
+    ], {
+      stdio: ['ignore', 'pipe', 'pipe'],
+      detached: false
+    });
+
+    emailMonitorProcess.stdout.on("data", (data: Buffer) => {
+      const message = data.toString().trim();
+      if (message) {
+        log(`[EmailMonitor] ${message}`);
+      }
+    });
+
+    emailMonitorProcess.stderr.on("data", (data: Buffer) => {
+      const message = data.toString().trim();
+      if (message) {
+        log(`[EmailMonitor ERROR] ${message}`);
+      }
+    });
+
+    emailMonitorProcess.on("close", (code: number) => {
+      log(`Email monitor exited with code ${code}`);
+      emailMonitorProcess = null;
+      
+      // Restart if it wasn't intentionally killed and credentials exist
+      if (code !== 0 && process.env.EMAIL_USER && process.env.EMAIL_PASS) {
+        setTimeout(() => {
+          log("Restarting email monitor...");
+          startEmailMonitor();
+        }, 5000);
+      }
+    });
+
+    emailMonitorProcess.on("error", (error: Error) => {
+      log(`Email monitor error: ${error.message}`);
+      emailMonitorProcess = null;
+    });
+
+    log("Email monitor service started");
+  } catch (error) {
+    log(`Failed to start email monitor: ${error}`);
+  }
+}
+
+function stopEmailMonitor() {
+  if (emailMonitorProcess) {
+    emailMonitorProcess.kill();
+    emailMonitorProcess = null;
+    log("Email monitor service stopped");
+  }
+}
+
+// Graceful shutdown
+process.on('SIGINT', () => {
+  log('Shutting down gracefully...');
+  stopEmailMonitor();
+  process.exit(0);
+});
+
+process.on('SIGTERM', () => {
+  log('Shutting down gracefully...');
+  stopEmailMonitor();
+  process.exit(0);
+});
+
+// Export functions for use in routes
+global.startEmailMonitor = startEmailMonitor;
+global.stopEmailMonitor = stopEmailMonitor;
