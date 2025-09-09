@@ -244,7 +244,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       res.status(500).json({ 
         success: false, 
-        message: "Email test error: " + error.message 
+        message: "Email test error: " + (error as Error).message 
       });
     }
   });
@@ -307,7 +307,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       res.status(500).json({ 
         success: false, 
-        message: "Email check error: " + error.message 
+        message: "Email check error: " + (error as Error).message 
       });
     }
   });
@@ -328,7 +328,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       res.json({
         totalEmails: receivedEmails.length,
-        emails: receivedEmails.sort((a, b) => new Date(b.receivedAt).getTime() - new Date(a.receivedAt).getTime())
+        emails: receivedEmails.sort((a, b) => new Date(b.receivedAt || 0).getTime() - new Date(a.receivedAt || 0).getTime())
       });
     } catch (error) {
       res.status(500).json({ error: "Failed to get received emails" });

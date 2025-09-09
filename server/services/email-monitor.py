@@ -74,7 +74,7 @@ class EmailAttachmentMonitor:
             with open(file_path, 'wb') as f:
                 f.write(attachment.payload)
             
-            logger.info(f"Saved LAS file: {file_path}")
+            logger.info(f"💾 LAS FILE SAVED: {file_path.name} -> data/{file_path.name}")
             return str(file_path)
             
         except Exception as e:
@@ -107,8 +107,11 @@ class EmailAttachmentMonitor:
                     if message.uid in self.processed_uids:
                         continue
                     
-                    logger.info(f"Processing email: {message.subject} from {message.from_}")
-                    logger.info(f"Email has {len(message.attachments)} attachment(s)")
+                    logger.info(f"📧 RECEIVED EMAIL - ID: {message.uid}")
+                    logger.info(f"   From: {message.from_}")
+                    logger.info(f"   Subject: {message.subject}")
+                    logger.info(f"   Date: {message.date}")
+                    logger.info(f"   Attachments: {len(message.attachments)}")
                     las_files_found = 0
                     
                     for attachment in message.attachments:
@@ -122,7 +125,9 @@ class EmailAttachmentMonitor:
                             logger.info(f"Skipping attachment: {attachment.filename} (not a .las file or too large)")
                     
                     if las_files_found > 0:
-                        logger.info(f"Found {las_files_found} LAS file(s) in email from {message.from_}")
+                        logger.info(f"✅ SUCCESS: Saved {las_files_found} LAS file(s) from Email ID {message.uid} ({message.from_})")
+                    else:
+                        logger.info(f"ℹ️  No LAS files found in Email ID {message.uid}")
                     
                     # Mark email as read and remember we processed it (only for unread emails)
                     if not message.seen:
