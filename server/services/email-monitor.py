@@ -30,6 +30,15 @@ class EmailAttachmentMonitor:
         self.download_dir.mkdir(exist_ok=True)
         self.processed_uids = set()
         
+        # Parse filter emails from environment variable
+        filter_emails_str = os.getenv('FILTER_EMAIL', '')
+        self.filter_emails = []
+        if filter_emails_str:
+            # Remove brackets and split by comma, then clean up each email
+            clean_str = filter_emails_str.strip('[]')
+            self.filter_emails = [email.strip().strip('\'"') for email in clean_str.split(',') if email.strip()]
+            logger.info(f"Filtering emails from: {self.filter_emails}")
+        
         if not self.username or not self.password:
             logger.warning("Email credentials not found in environment variables")
             logger.warning("Set EMAIL_USER and EMAIL_PASS to enable email monitoring")
@@ -248,10 +257,20 @@ class EmailAttachmentMonitor:
                     logger.info(f"Checking {len(messages)} recent emails from last 24 hours")
                 
                 for message in messages:
+                    # Skip if no attachments
                     if not message.attachments:
                         continue
+                    # Skip if already processed
                     if message.uid in self.processed_uids:
                         continue
+                    
+                    # Filter by sender email if filter is configured
+                    sender_email = str(message.from_).lower()
+                    if self.filter_emails:
+                        email_matches = any(filter_email.lower() in sender_email for filter_email in self.filter_emails)
+                        if not email_matches:
+                            logger.info(f"Skipping email from {sender_email} (not in filter list)")
+                            continue
                     
                     logger.info(f"📧 RECEIVED EMAIL - ID: {message.uid}")
                     logger.info(f"   From: {message.from_}")
@@ -301,7 +320,7 @@ class EmailAttachmentMonitor:
                         logger.info(f"ℹ️  No LAS files found in Email ID {message.uid}")
                     
                     # Mark email as read and remember we processed it (only for unread emails)
-                    if not message.seen:
+                    if hasattr(message, 'seen') and not message.seen:
                         mailbox.flag([str(message.uid)], '\\Seen', True)
                     self.processed_uids.add(message.uid)
                     

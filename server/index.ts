@@ -71,16 +71,28 @@ app.use((req, res, next) => {
   }, () => {
     log(`serving on port ${port}`);
     
-    // Load email credentials from config file and start monitor
+    // Check for email credentials from environment variables and start monitor
     try {
-      const configPath = path.join(process.cwd(), 'server', 'email-config.json');
-      if (fs.existsSync(configPath)) {
-        const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
-        if (config.username && config.password) {
-          process.env.EMAIL_USER = config.username;
-          process.env.EMAIL_PASS = config.password;
-          log("Email credentials loaded from config");
-          startEmailMonitor();
+      if (process.env.SMTP_USER && process.env.SMTP_PASSWORD) {
+        // Map environment variables for the email monitor
+        process.env.EMAIL_USER = process.env.SMTP_USER;
+        process.env.EMAIL_PASS = process.env.SMTP_PASSWORD;
+        
+        log("Email credentials loaded from environment variables");
+        startEmailMonitor();
+      } else {
+        // Fallback to config file if env vars not available
+        const configPath = path.join(process.cwd(), 'server', 'email-config.json');
+        if (fs.existsSync(configPath)) {
+          const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+          if (config.username && config.password) {
+            process.env.EMAIL_USER = config.username;
+            process.env.EMAIL_PASS = config.password;
+            log("Email credentials loaded from config file");
+            startEmailMonitor();
+          }
+        } else {
+          log("No email credentials found in environment variables or config file");
         }
       }
     } catch (error) {
