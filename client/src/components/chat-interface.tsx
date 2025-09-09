@@ -141,6 +141,13 @@ export default function ChatInterface() {
         
         <div className={`flex-1 max-w-2xl ${isUser ? "order-first" : ""}`}>
           <div className={`p-4 rounded-lg ${isUser ? "bg-primary text-primary-foreground" : "bg-muted"}`}>
+            {/* Show selected LAS file for user messages */}
+            {isUser && msg.metadata?.selectedLasFile && (
+              <div className="mb-2 text-xs opacity-75 flex items-center gap-1">
+                <span>📁</span>
+                <span>LAS file: {msg.metadata.selectedLasFile}</span>
+              </div>
+            )}
             <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
             
             {/* Tool Usage Indicator */}
