@@ -193,7 +193,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
           // Email test successful, save credentials and start monitor
           try {
             // Save credentials to config file
-            const fs = require('fs');
             const emailConfig = {
               username: username,
               password: password,
@@ -302,6 +301,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
         success: false, 
         message: "Email check error: " + error.message 
       });
+    }
+  });
+
+  // API endpoint to get received emails and their attachments
+  app.get("/api/emails/received", async (req, res) => {
+    try {
+      // Get all LAS files that were received via email
+      const emailFiles = await storage.getLasFiles();
+      const receivedEmails = emailFiles.filter(file => file.source === "email").map(file => ({
+        id: file.id,
+        filename: file.filename,
+        receivedAt: file.createdAt,
+        size: file.size,
+        processed: file.processed,
+        source: "email"
+      }));
+
+      res.json({
+        totalEmails: receivedEmails.length,
+        emails: receivedEmails.sort((a, b) => new Date(b.receivedAt).getTime() - new Date(a.receivedAt).getTime())
+      });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to get received emails" });
     }
   });
 
