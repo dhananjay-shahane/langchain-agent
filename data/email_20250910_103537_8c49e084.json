@@ -1,0 +1,14 @@
+{
+  "email_id": "8c49e084-e48b-4e90-8efa-21c7cc195b01",
+  "uid": "109783",
+  "sender": "dhanushahane01@gmail.com",
+  "subject": "LAS File Processing System - Test Email",
+  "body_content": "This is a test email from your LAS File Processing System.\n        \n        System Status:\n        ✓ SMTP connection working\n        ✓ Email sending functional\n        ✓ Ready to receive LAS file attachments\n        \n        You can now send LAS files as attachments to this email address\n        and they will be automatically processed by the system.\n        \n        Best regards,\n        LAS File Processing System",
+  "content": "This is a test email from your LAS File Processing System.\n        \n        System Status:\n        ✓ SMTP connection working\n        ✓ Email sending functional\n        ✓ Ready to receive LAS file attachments\n        \n        You can now send LAS files as attachments to this email address\n        and they will be automatically processed by the system.\n        \n        Best regards,\n        LAS File Processing System",
+  "hasAttachments": false,
+  "attachments": [],
+  "date_received": "Tue, 09 Sep 2025 09:42:32 -0700 (PDT)",
+  "timestamp": "2025-09-10T10:35:37.889773",
+  "processed_at": "2025-09-10 10:35:37",
+  "realTime": true
+}

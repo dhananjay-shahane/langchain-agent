@@ -1,0 +1,19 @@
+{
+  "email_id": "58f46271-d5f0-4bcb-88a3-c85378c9f28a",
+  "uid": "109765",
+  "sender": "nse_alerts@nse.co.in",
+  "subject": "Funds/Securities Balance",
+  "body_content": "",
+  "content": "",
+  "hasAttachments": true,
+  "attachments": [
+    {
+      "filename": "0257278914_90187_29975.pdf",
+      "size": 15730
+    }
+  ],
+  "date_received": "Mon, 08 Sep 2025 18:58:05 -0000",
+  "timestamp": "2025-09-10T10:35:17.280372",
+  "processed_at": "2025-09-10 10:35:17",
+  "realTime": true
+}

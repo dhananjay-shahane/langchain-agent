@@ -126,7 +126,7 @@ function startEmailMonitor() {
     // Delay starting the monitor to allow marking old emails as seen to complete
     setTimeout(() => {
       emailMonitorProcess = spawn("python", [
-        path.join(process.cwd(), "server/services/email-monitor.py")
+        path.join(process.cwd(), "server/services/email-monitor-improved.py")
       ], {
         stdio: ['ignore', 'pipe', 'pipe'],
         detached: false,
@@ -193,8 +193,7 @@ function markOldEmailsAsSeen() {
     log("Marking old emails as seen to prevent processing...");
     
     const markOldEmailsProcess = spawn("python", [
-      path.join(process.cwd(), "server/services/email-monitor.py"),
-      "mark-old-seen"
+      path.join(process.cwd(), "server/services/email-monitor-improved.py")
     ], {
       stdio: ['ignore', 'pipe', 'pipe'],
       detached: false,
