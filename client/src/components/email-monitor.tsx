@@ -70,7 +70,7 @@ export function EmailMonitor() {
   // Save email configuration
   const saveEmailConfigMutation = useMutation({
     mutationFn: async (config: typeof emailConfig) => {
-      return await apiRequest("/api/email/config", "POST", config);
+      return await apiRequest("POST", "/api/email/config", config);
     },
     onSuccess: () => {
       toast({
@@ -199,9 +199,9 @@ export function EmailMonitor() {
             <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">Email Monitor</h1>
             <p className="text-gray-600 dark:text-gray-400 mt-1">
               AI-powered email monitoring and analysis
-              {agentConfig && (
+              {agentConfig && (agentConfig as AgentConfig).provider && (
                 <span className="ml-2 text-sm">
-                  • Using {agentConfig.provider} ({agentConfig.model})
+                  • Using {(agentConfig as AgentConfig).provider} ({(agentConfig as AgentConfig).model})
                 </span>
               )}
             </p>
@@ -418,14 +418,14 @@ export function EmailMonitor() {
                     <div>
                       <Label className="text-sm font-medium">Received</Label>
                       <p className="text-sm text-gray-600 dark:text-gray-400">
-                        {formatDate(selectedEmail.receivedAt)}
+                        {formatDate(selectedEmail.receivedAt ? selectedEmail.receivedAt.toString() : null)}
                       </p>
                     </div>
                     {selectedEmail.processedAt && (
                       <div>
                         <Label className="text-sm font-medium">Processed</Label>
                         <p className="text-sm text-gray-600 dark:text-gray-400">
-                          {formatDate(selectedEmail.processedAt)}
+                          {formatDate(selectedEmail.processedAt ? selectedEmail.processedAt.toString() : null)}
                         </p>
                       </div>
                     )}
@@ -442,7 +442,7 @@ export function EmailMonitor() {
                       <div>
                         <Label className="text-sm font-medium">Attachments</Label>
                         <div className="space-y-1 mt-1">
-                          {(selectedEmail.attachments as any[]).map((attachment, index) => (
+                          {(selectedEmail.attachments as any[]).map((attachment: any, index: number) => (
                             <div key={index} className="text-xs p-2 bg-gray-50 dark:bg-gray-800 rounded">
                               <div className="font-medium">{attachment.filename}</div>
                               <div className="text-gray-500">{attachment.content_type}</div>
