@@ -268,7 +268,7 @@ class RealTimeEmailMonitor:
         logger.info("🛑 Stopping real-time email monitoring...")
     
     def fetch_unseen_emails_individually(self):
-        """Fetch and process unseen emails one by one"""
+        """Fetch and process unseen emails one by one (only recent ones)"""
         if not self.username or not self.password:
             logger.error("Cannot fetch emails: Email credentials not configured")
             return
@@ -285,18 +285,20 @@ class RealTimeEmailMonitor:
                 self.server.select_folder('INBOX')
                 logger.info(f"✅ Connected to {self.imap_server} as {self.username}")
             
-            # Search for unseen emails
-            unseen_uids = self.server.search(['UNSEEN'])
+            # Search for recent unseen emails (from last 7 days)
+            from datetime import datetime, timedelta
+            since_date = (datetime.now() - timedelta(days=7)).date()
+            unseen_uids = self.server.search(['UNSEEN', 'SINCE', since_date])
             
             if not unseen_uids:
-                logger.info("📭 No unseen emails found")
+                logger.info("📭 No recent unseen emails found (last 7 days)")
                 return
             
-            logger.info(f"📬 Found {len(unseen_uids)} unseen emails. Processing one by one...")
+            logger.info(f"📬 Found {len(unseen_uids)} recent unseen emails. Processing one by one...")
             
-            # Process each unseen email individually
-            for i, uid in enumerate(unseen_uids, 1):
-                logger.info(f"🔍 Processing unseen email {i}/{len(unseen_uids)} (UID: {uid})")
+            # Process each unseen email individually (limit to 50 for performance)
+            for i, uid in enumerate(unseen_uids[:50], 1):
+                logger.info(f"🔍 Processing unseen email {i}/{min(len(unseen_uids), 50)} (UID: {uid})")
                 
                 try:
                     # Fetch the email message
@@ -312,19 +314,60 @@ class RealTimeEmailMonitor:
                     self.process_new_email(uid, email_message)
                     
                     # Small delay between processing emails
-                    time.sleep(0.5)
+                    time.sleep(0.1)  # Reduced delay for better performance
                     
                 except Exception as e:
                     logger.error(f"Error processing email {uid}: {e}")
                     continue
             
-            logger.info(f"✅ Finished processing {len(unseen_uids)} unseen emails")
+            logger.info(f"✅ Finished processing {min(len(unseen_uids), 50)} recent unseen emails")
             
         except Exception as e:
             logger.error(f"Failed to fetch unseen emails: {e}")
         finally:
             # Keep connection open for IDLE monitoring
             pass
+
+    def mark_old_emails_as_seen(self):
+        """Mark all old emails (older than 7 days) as seen to prevent processing"""
+        if not self.username or not self.password:
+            logger.error("Cannot mark emails as seen: Email credentials not configured")
+            return
+        
+        if IMAPClient is None:
+            logger.error("IMAPClient not available")
+            return
+            
+        try:
+            # Connect to IMAP server if not already connected
+            if not self.server or not hasattr(self.server, 'folder'):
+                self.server = IMAPClient(self.imap_server)
+                self.server.login(self.username, self.password)
+                self.server.select_folder('INBOX')
+                logger.info(f"✅ Connected to {self.imap_server} as {self.username}")
+            
+            # Search for old unseen emails (older than 7 days)
+            from datetime import datetime, timedelta
+            before_date = (datetime.now() - timedelta(days=7)).date()
+            old_unseen_uids = self.server.search(['UNSEEN', 'BEFORE', before_date])
+            
+            if not old_unseen_uids:
+                logger.info("📭 No old unseen emails to mark as seen")
+                return
+            
+            logger.info(f"🏷️ Marking {len(old_unseen_uids)} old emails as seen...")
+            
+            # Mark old emails as seen in batches
+            batch_size = 1000
+            for i in range(0, len(old_unseen_uids), batch_size):
+                batch = old_unseen_uids[i:i + batch_size]
+                self.server.add_flags(batch, ['\\Seen'])
+                logger.info(f"🏷️ Marked batch {i//batch_size + 1} ({len(batch)} emails) as seen")
+            
+            logger.info(f"✅ Finished marking {len(old_unseen_uids)} old emails as seen")
+            
+        except Exception as e:
+            logger.error(f"Failed to mark old emails as seen: {e}")
 
 # Global monitor instance
 email_monitor = RealTimeEmailMonitor()
@@ -337,18 +380,29 @@ def stop_real_time_monitoring():
     """Stop real-time email monitoring"""
     email_monitor.stop_monitoring()
 
+def mark_old_emails_as_seen():
+    """Mark old emails as seen to prevent processing"""
+    return email_monitor.mark_old_emails_as_seen()
+
 if __name__ == "__main__":
     import sys
     
     monitor = RealTimeEmailMonitor()
     
     # Check command line arguments
-    if len(sys.argv) > 1 and sys.argv[1] == "fetch-unseen":
-        # Just fetch unseen emails and exit
-        logger.info("🔍 Fetching unseen emails...")
-        monitor.fetch_unseen_emails_individually()
-        logger.info("✅ Done fetching unseen emails")
-        sys.exit(0)
+    if len(sys.argv) > 1:
+        if sys.argv[1] == "fetch-unseen":
+            # Just fetch unseen emails and exit
+            logger.info("🔍 Fetching unseen emails...")
+            monitor.fetch_unseen_emails_individually()
+            logger.info("✅ Done fetching unseen emails")
+            sys.exit(0)
+        elif sys.argv[1] == "mark-old-seen":
+            # Mark old emails as seen and exit
+            logger.info("🏷️ Marking old emails as seen...")
+            monitor.mark_old_emails_as_seen()
+            logger.info("✅ Done marking old emails as seen")
+            sys.exit(0)
     
     try:
         # First, fetch any existing unseen emails

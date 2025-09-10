@@ -111,6 +111,9 @@ function startEmailMonitor() {
   }
 
   try {
+    // First, mark old emails as seen to prevent processing all unseen emails
+    markOldEmailsAsSeen();
+    
     // Set up environment variables for the real-time email monitor process
     const env = { 
       ...process.env,
@@ -120,47 +123,50 @@ function startEmailMonitor() {
       FILTER_EMAIL: process.env.FILTER_EMAIL || '' // Empty means process all emails
     };
     
-    emailMonitorProcess = spawn("python", [
-      path.join(process.cwd(), "server/services/email-monitor.py")
-    ], {
-      stdio: ['ignore', 'pipe', 'pipe'],
-      detached: false,
-      env: env
-    });
+    // Delay starting the monitor to allow marking old emails as seen to complete
+    setTimeout(() => {
+      emailMonitorProcess = spawn("python", [
+        path.join(process.cwd(), "server/services/email-monitor.py")
+      ], {
+        stdio: ['ignore', 'pipe', 'pipe'],
+        detached: false,
+        env: env
+      });
 
-    emailMonitorProcess.stdout.on("data", (data: Buffer) => {
-      const message = data.toString().trim();
-      if (message) {
-        log(`[RealTimeEmailMonitor] ${message}`);
-      }
-    });
+      emailMonitorProcess.stdout.on("data", (data: Buffer) => {
+        const message = data.toString().trim();
+        if (message) {
+          log(`[RealTimeEmailMonitor] ${message}`);
+        }
+      });
 
-    emailMonitorProcess.stderr.on("data", (data: Buffer) => {
-      const message = data.toString().trim();
-      if (message) {
-        log(`[RealTimeEmailMonitor ERROR] ${message}`);
-      }
-    });
+      emailMonitorProcess.stderr.on("data", (data: Buffer) => {
+        const message = data.toString().trim();
+        if (message) {
+          log(`[RealTimeEmailMonitor ERROR] ${message}`);
+        }
+      });
 
-    emailMonitorProcess.on("close", (code: number) => {
-      log(`Real-time email monitor exited with code ${code}`);
-      emailMonitorProcess = null;
-      
-      // Restart if it wasn't intentionally killed and credentials exist
-      if (code !== 0 && process.env.EMAIL_USER && process.env.EMAIL_PASS) {
-        setTimeout(() => {
-          log("Restarting real-time email monitor...");
-          startEmailMonitor();
-        }, 2000);
-      }
-    });
+      emailMonitorProcess.on("close", (code: number) => {
+        log(`Real-time email monitor exited with code ${code}`);
+        emailMonitorProcess = null;
+        
+        // Restart if it wasn't intentionally killed and credentials exist
+        if (code !== 0 && process.env.EMAIL_USER && process.env.EMAIL_PASS) {
+          setTimeout(() => {
+            log("Restarting real-time email monitor...");
+            startEmailMonitor();
+          }, 2000);
+        }
+      });
 
-    emailMonitorProcess.on("error", (error: Error) => {
-      log(`Real-time email monitor error: ${error.message}`);
-      emailMonitorProcess = null;
-    });
+      emailMonitorProcess.on("error", (error: Error) => {
+        log(`Real-time email monitor error: ${error.message}`);
+        emailMonitorProcess = null;
+      });
 
-    log("Real-time email monitor service started (IMAP IDLE)");
+      log("Real-time email monitor service started (IMAP IDLE)");
+    }, 5000); // 5 second delay to allow marking old emails as seen
   } catch (error) {
     log(`Failed to start real-time email monitor: ${error}`);
   }
@@ -171,6 +177,50 @@ function stopEmailMonitor() {
     emailMonitorProcess.kill();
     emailMonitorProcess = null;
     log("Email monitor service stopped");
+  }
+}
+
+function markOldEmailsAsSeen() {
+  try {
+    // Set up environment variables for the email monitor process
+    const env = { 
+      ...process.env,
+      EMAIL_USER: process.env.SMTP_USER || process.env.EMAIL_USER,
+      EMAIL_PASS: process.env.SMTP_PASSWORD || process.env.EMAIL_PASS,
+      IMAP_SERVER: process.env.IMAP_SERVER || 'imap.gmail.com'
+    };
+
+    log("Marking old emails as seen to prevent processing...");
+    
+    const markOldEmailsProcess = spawn("python", [
+      path.join(process.cwd(), "server/services/email-monitor.py"),
+      "mark-old-seen"
+    ], {
+      stdio: ['ignore', 'pipe', 'pipe'],
+      detached: false,
+      env: env
+    });
+
+    markOldEmailsProcess.stdout.on("data", (data: Buffer) => {
+      const message = data.toString().trim();
+      if (message) {
+        log(`[MarkOldEmails] ${message}`);
+      }
+    });
+
+    markOldEmailsProcess.stderr.on("data", (data: Buffer) => {
+      const message = data.toString().trim();
+      if (message) {
+        log(`[MarkOldEmails ERROR] ${message}`);
+      }
+    });
+
+    markOldEmailsProcess.on("close", (code: number) => {
+      log(`Mark old emails process exited with code ${code}`);
+    });
+
+  } catch (error) {
+    log(`Failed to mark old emails as seen: ${error}`);
   }
 }
 
