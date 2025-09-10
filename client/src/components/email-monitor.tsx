@@ -14,7 +14,7 @@ import { Mail, Play, Settings, RefreshCw, Eye, Clock, CheckCircle, AlertCircle, 
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { Link } from "wouter";
-import type { Email, AgentConfig } from "@shared/schema";
+import type { Email, AgentConfig, EmailConfig } from "@shared/schema";
 
 interface EmailAnalysis {
   category?: string;
@@ -43,6 +43,19 @@ export function EmailMonitor() {
     queryKey: ["/api/agent/config"],
   });
 
+  // Fetch email configuration
+  const { data: existingEmailConfig } = useQuery({
+    queryKey: ["/api/email/config"],
+    queryFn: async () => {
+      const response = await fetch("/api/email/config");
+      if (!response.ok) {
+        if (response.status === 404) return null;
+        throw new Error("Failed to fetch email config");
+      }
+      return response.json();
+    },
+  });
+
   // Fetch emails
   const { data: emails = [], isLoading: emailsLoading } = useQuery({
     queryKey: ["/api/emails"],
@@ -52,6 +65,31 @@ export function EmailMonitor() {
       return response.json();
     },
     refetchInterval: 30000, // Refresh every 30 seconds
+  });
+
+  // Save email configuration
+  const saveEmailConfigMutation = useMutation({
+    mutationFn: async (config: typeof emailConfig) => {
+      const response = await apiRequest("/api/email/config", {
+        method: "POST",
+        body: JSON.stringify(config),
+      });
+      return response;
+    },
+    onSuccess: () => {
+      toast({
+        title: "Configuration Saved",
+        description: "Email configuration has been saved successfully",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/email/config"] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Save Failed",
+        description: error.message || "Failed to save email configuration",
+        variant: "destructive",
+      });
+    },
   });
 
   // Run email agent
@@ -76,6 +114,19 @@ export function EmailMonitor() {
       });
     },
   });
+
+  // Load existing email configuration
+  useEffect(() => {
+    if (existingEmailConfig) {
+      setEmailConfig({
+        emailAddress: existingEmailConfig.emailAddress || "",
+        emailPassword: existingEmailConfig.emailPassword || "",
+        imapHost: existingEmailConfig.imapHost || "imap.gmail.com",
+        smtpHost: existingEmailConfig.smtpHost || "smtp.gmail.com",
+        pollInterval: parseInt(existingEmailConfig.pollInterval || "20")
+      });
+    }
+  }, [existingEmailConfig]);
 
   // Listen for real-time updates
   useEffect(() => {
@@ -231,7 +282,15 @@ export function EmailMonitor() {
                     data-testid="input-poll-interval"
                   />
                 </div>
-                <Button className="w-full" data-testid="button-save-config">
+                <Button 
+                  className="w-full" 
+                  onClick={() => saveEmailConfigMutation.mutate(emailConfig)}
+                  disabled={saveEmailConfigMutation.isPending}
+                  data-testid="button-save-config"
+                >
+                  {saveEmailConfigMutation.isPending ? (
+                    <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                  ) : null}
                   Save Configuration
                 </Button>
               </div>
