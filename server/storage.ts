@@ -1,4 +1,4 @@
-import { type AgentConfig, type ChatMessage, type LasFile, type OutputFile, type Email, type InsertAgentConfig, type InsertChatMessage, type InsertLasFile, type InsertOutputFile, type InsertEmail, agentConfigs, chatMessages, lasFiles, outputFiles, emails } from "@shared/schema";
+import { type AgentConfig, type ChatMessage, type LasFile, type OutputFile, type Email, type EmailConfig, type InsertAgentConfig, type InsertChatMessage, type InsertLasFile, type InsertOutputFile, type InsertEmail, type InsertEmailConfig, agentConfigs, chatMessages, lasFiles, outputFiles, emails, emailConfigs } from "@shared/schema";
 import { randomUUID } from "crypto";
 import { db } from "./db";
 import { eq, desc } from "drizzle-orm";
@@ -26,10 +26,15 @@ export interface IStorage {
   addEmail(email: InsertEmail): Promise<Email>;
   updateEmail(id: string, updates: Partial<Email>): Promise<Email | undefined>;
   getEmailByUid(uid: string): Promise<Email | undefined>;
+  
+  // Email Config
+  getEmailConfig(): Promise<EmailConfig | undefined>;
+  updateEmailConfig(config: InsertEmailConfig): Promise<EmailConfig>;
 }
 
 export class MemStorage implements IStorage {
   private agentConfig: AgentConfig | undefined;
+  private emailConfig: EmailConfig | undefined;
   private chatMessages: Map<string, ChatMessage>;
   private lasFiles: Map<string, LasFile>;
   private outputFiles: Map<string, OutputFile>;
@@ -169,6 +174,21 @@ export class MemStorage implements IStorage {
     return Array.from(this.emails.values()).find(email => email.uid === uid);
   }
 
+  async getEmailConfig(): Promise<EmailConfig | undefined> {
+    return this.emailConfig;
+  }
+
+  async updateEmailConfig(config: InsertEmailConfig): Promise<EmailConfig> {
+    this.emailConfig = {
+      ...this.emailConfig!,
+      ...config,
+      id: this.emailConfig?.id || randomUUID(),
+      createdAt: this.emailConfig?.createdAt || new Date(),
+      updatedAt: new Date(),
+    };
+    return this.emailConfig;
+  }
+
 }
 
 // Database Storage Implementation
@@ -260,6 +280,28 @@ export class DbStorage implements IStorage {
   async getEmailByUid(uid: string): Promise<Email | undefined> {
     const result = await db.select().from(emails).where(eq(emails.uid, uid)).limit(1);
     return result[0];
+  }
+
+  async getEmailConfig(): Promise<EmailConfig | undefined> {
+    const result = await db.select().from(emailConfigs).limit(1);
+    return result[0];
+  }
+
+  async updateEmailConfig(config: InsertEmailConfig): Promise<EmailConfig> {
+    const existing = await this.getEmailConfig();
+    
+    if (existing) {
+      const [updated] = await db.update(emailConfigs)
+        .set({ ...config, updatedAt: new Date() })
+        .where(eq(emailConfigs.id, existing.id))
+        .returning();
+      return updated;
+    } else {
+      const [created] = await db.insert(emailConfigs)
+        .values({ ...config, updatedAt: new Date() })
+        .returning();
+      return created;
+    }
   }
 
 }
