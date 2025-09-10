@@ -412,6 +412,61 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Webhook endpoint for real-time email notifications from IMAP IDLE
+  app.post("/api/emails/webhook", async (req, res) => {
+    try {
+      const emailData = req.body;
+      
+      // Create email record for database
+      const emailRecord = {
+        uid: emailData.uid,
+        sender: emailData.sender,
+        subject: emailData.subject,
+        content: emailData.content,
+        hasAttachments: emailData.hasAttachments || false,
+        processed: false,
+        autoProcessed: false,
+        replyEmailSent: false,
+        relatedLasFiles: [],
+        relatedOutputFiles: []
+      };
+
+      // Store in database
+      const savedEmail = await storage.addEmail(emailRecord);
+      
+      // Emit real-time notification to all connected clients
+      io.emit("realtime_email", {
+        id: savedEmail.id,
+        uid: savedEmail.uid,
+        sender: savedEmail.sender,
+        subject: savedEmail.subject,
+        hasAttachments: savedEmail.hasAttachments,
+        receivedAt: savedEmail.receivedAt,
+        realTime: true
+      });
+      
+      // Also emit general new_email event for compatibility
+      io.emit("new_email", {
+        id: savedEmail.id,
+        sender: savedEmail.sender,
+        subject: savedEmail.subject,
+        hasAttachments: savedEmail.hasAttachments,
+        receivedAt: savedEmail.receivedAt
+      });
+      
+      console.log(`🔔 Real-time email notification sent: ${savedEmail.sender} - ${savedEmail.subject}`);
+      
+      res.json({ 
+        success: true, 
+        message: "Real-time email processed successfully",
+        emailId: savedEmail.id
+      });
+    } catch (error) {
+      console.error("Webhook error:", error);
+      res.status(500).json({ error: "Failed to process real-time email" });
+    }
+  });
+
   return httpServer;
 }
 
