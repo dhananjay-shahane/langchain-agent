@@ -5,6 +5,9 @@ import FileBrowser from "@/components/file-browser";
 import ImageViewer from "@/components/image-viewer";
 import { useSocket } from "@/hooks/use-socket";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Button } from "@/components/ui/button";
+import { Mail } from "lucide-react";
+import { Link } from "wouter";
 
 export default function Home() {
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
@@ -17,12 +20,22 @@ export default function Home() {
       <div className="w-100 bg-card border-r border-border flex flex-col min-h-0 overflow-hidden">
         {/* Header */}
         <div className="p-6 border-b border-border">
-          <h1 className="text-xl font-semibold text-foreground">
-            LangChain MCP Agent
-          </h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            LAS File Processing System
-          </p>
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-xl font-semibold text-foreground">
+                LangChain MCP Agent
+              </h1>
+              <p className="text-sm text-muted-foreground mt-1">
+                LAS File Processing System
+              </p>
+            </div>
+            <Link href="/emails">
+              <Button variant="outline" size="sm" data-testid="link-email-monitor">
+                <Mail className="h-4 w-4 mr-2" />
+                Emails
+              </Button>
+            </Link>
+          </div>
         </div>
 
         {/* Scrollable Content */}
