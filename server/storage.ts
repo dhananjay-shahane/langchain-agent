@@ -307,7 +307,5 @@ export class DbStorage implements IStorage {
 
 }
 
-// Use MemStorage for now since database is not provisioned yet
-// To use database storage, provision a PostgreSQL database and switch to:
-// export const storage = new DbStorage();
-export const storage = new MemStorage();
+// Database is now provisioned, using PostgreSQL storage
+export const storage = new DbStorage();
