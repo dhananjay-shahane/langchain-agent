@@ -46,7 +46,7 @@ def check_new_emails():
         for num in message_ids:
             status, data = mail.fetch(num, '(RFC822)')
             
-            if status != 'OK':
+            if status != 'OK' or not data or not data[0]:
                 continue
                 
             bytes_data = data[0][1]
@@ -66,13 +66,21 @@ def check_new_emails():
                 for part in email_message.walk():
                     if part.get_content_type() == "text/plain":
                         try:
-                            body = part.get_payload(decode=True).decode('utf-8', errors='ignore')
+                            payload = part.get_payload(decode=True)
+                            if isinstance(payload, bytes):
+                                body = payload.decode('utf-8', errors='ignore')
+                            else:
+                                body = str(payload)
                             break
                         except Exception as e:
                             logger.warning(f"Error decoding email body: {e}")
             else:
                 try:
-                    body = email_message.get_payload(decode=True).decode('utf-8', errors='ignore')
+                    payload = email_message.get_payload(decode=True)
+                    if isinstance(payload, bytes):
+                        body = payload.decode('utf-8', errors='ignore')
+                    else:
+                        body = str(payload)
                 except Exception as e:
                     logger.warning(f"Error decoding email body: {e}")
             
