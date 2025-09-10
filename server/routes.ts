@@ -2,7 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { Server as SocketIOServer } from "socket.io";
 import { storage } from "./storage";
-import { insertAgentConfigSchema, insertChatMessageSchema, insertLasFileSchema } from "@shared/schema";
+import { insertAgentConfigSchema, insertChatMessageSchema, insertLasFileSchema, insertOutputFileSchema, insertEmailSchema } from "@shared/schema";
 import { spawn } from "child_process";
 import path from "path";
 import fs from "fs";
@@ -149,6 +149,107 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Email Routes
+  app.get("/api/emails", async (req, res) => {
+    try {
+      const limit = req.query.limit ? parseInt(req.query.limit as string) : undefined;
+      const emails = await storage.getEmails(limit);
+      res.json(emails);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to get emails" });
+    }
+  });
+
+  app.post("/api/emails", async (req, res) => {
+    try {
+      const validatedEmail = insertEmailSchema.parse(req.body);
+      const email = await storage.addEmail(validatedEmail);
+      
+      // Emit new email to all clients
+      io.emit("new_email", email);
+      
+      res.json(email);
+    } catch (error) {
+      res.status(400).json({ error: "Invalid email data" });
+    }
+  });
+
+  app.patch("/api/emails/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const updates = req.body;
+      const email = await storage.updateEmail(id, updates);
+      
+      if (!email) {
+        return res.status(404).json({ error: "Email not found" });
+      }
+      
+      // Emit email update to all clients
+      io.emit("email_updated", email);
+      
+      res.json(email);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to update email" });
+    }
+  });
+
+  app.get("/api/emails/uid/:uid", async (req, res) => {
+    try {
+      const { uid } = req.params;
+      const email = await storage.getEmailByUid(uid);
+      
+      if (!email) {
+        return res.status(404).json({ error: "Email not found" });
+      }
+      
+      res.json(email);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to get email" });
+    }
+  });
+
+  app.post("/api/emails/run-agent", async (req, res) => {
+    try {
+      // Trigger the email agent to run once
+      const pythonProcess = spawn("python", [
+        path.join(process.cwd(), "server/services/email_agent.py"),
+        "--once"
+      ]);
+
+      let output = "";
+      let errorOutput = "";
+
+      pythonProcess.stdout.on("data", (data) => {
+        output += data.toString();
+      });
+
+      pythonProcess.stderr.on("data", (data) => {
+        errorOutput += data.toString();
+      });
+
+      pythonProcess.on("close", (code) => {
+        if (code === 0) {
+          res.json({ 
+            success: true, 
+            message: "Email agent completed successfully",
+            output: output 
+          });
+          
+          // Emit agent run completed
+          io.emit("email_agent_completed", { success: true, output });
+        } else {
+          res.status(500).json({ 
+            success: false, 
+            message: "Email agent failed",
+            error: errorOutput 
+          });
+        }
+      });
+
+    } catch (error) {
+      res.status(500).json({ error: "Failed to run email agent" });
+    }
+  });
 
   return httpServer;
 }
