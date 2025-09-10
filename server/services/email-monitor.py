@@ -266,6 +266,65 @@ class RealTimeEmailMonitor:
         """Stop the real-time email monitoring"""
         self.running = False
         logger.info("🛑 Stopping real-time email monitoring...")
+    
+    def fetch_unseen_emails_individually(self):
+        """Fetch and process unseen emails one by one"""
+        if not self.username or not self.password:
+            logger.error("Cannot fetch emails: Email credentials not configured")
+            return
+        
+        if IMAPClient is None:
+            logger.error("IMAPClient not available")
+            return
+            
+        try:
+            # Connect to IMAP server if not already connected
+            if not self.server or not hasattr(self.server, 'folder'):
+                self.server = IMAPClient(self.imap_server)
+                self.server.login(self.username, self.password)
+                self.server.select_folder('INBOX')
+                logger.info(f"✅ Connected to {self.imap_server} as {self.username}")
+            
+            # Search for unseen emails
+            unseen_uids = self.server.search(['UNSEEN'])
+            
+            if not unseen_uids:
+                logger.info("📭 No unseen emails found")
+                return
+            
+            logger.info(f"📬 Found {len(unseen_uids)} unseen emails. Processing one by one...")
+            
+            # Process each unseen email individually
+            for i, uid in enumerate(unseen_uids, 1):
+                logger.info(f"🔍 Processing unseen email {i}/{len(unseen_uids)} (UID: {uid})")
+                
+                try:
+                    # Fetch the email message
+                    response = self.server.fetch([uid], ['RFC822'])
+                    if uid not in response:
+                        logger.warning(f"Could not fetch email with UID {uid}")
+                        continue
+                    
+                    email_data = response[uid][b'RFC822']
+                    email_message = email.message_from_bytes(email_data)
+                    
+                    # Process the email
+                    self.process_new_email(uid, email_message)
+                    
+                    # Small delay between processing emails
+                    time.sleep(0.5)
+                    
+                except Exception as e:
+                    logger.error(f"Error processing email {uid}: {e}")
+                    continue
+            
+            logger.info(f"✅ Finished processing {len(unseen_uids)} unseen emails")
+            
+        except Exception as e:
+            logger.error(f"Failed to fetch unseen emails: {e}")
+        finally:
+            # Keep connection open for IDLE monitoring
+            pass
 
 # Global monitor instance
 email_monitor = RealTimeEmailMonitor()
@@ -279,9 +338,24 @@ def stop_real_time_monitoring():
     email_monitor.stop_monitoring()
 
 if __name__ == "__main__":
+    import sys
+    
     monitor = RealTimeEmailMonitor()
     
+    # Check command line arguments
+    if len(sys.argv) > 1 and sys.argv[1] == "fetch-unseen":
+        # Just fetch unseen emails and exit
+        logger.info("🔍 Fetching unseen emails...")
+        monitor.fetch_unseen_emails_individually()
+        logger.info("✅ Done fetching unseen emails")
+        sys.exit(0)
+    
     try:
+        # First, fetch any existing unseen emails
+        logger.info("🔍 Checking for existing unseen emails before starting real-time monitoring...")
+        monitor.fetch_unseen_emails_individually()
+        
+        # Then start real-time monitoring
         monitor.start_monitoring()
         
         # Keep the main thread alive

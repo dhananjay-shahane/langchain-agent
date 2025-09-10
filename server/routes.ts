@@ -412,6 +412,49 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // API endpoint to manually fetch unseen emails one by one
+  app.post("/api/emails/fetch-unseen", async (req, res) => {
+    try {
+      // Trigger the Python script to fetch unseen emails
+      const python = spawn("python", [
+        path.join(process.cwd(), "server/services/email-monitor.py"),
+        "fetch-unseen"
+      ]);
+
+      let output = "";
+      python.stdout.on("data", (data) => {
+        output += data.toString();
+      });
+
+      python.on("close", (code) => {
+        if (code === 0) {
+          res.json({ 
+            success: true, 
+            message: "Unseen emails fetched successfully",
+            output: output 
+          });
+        } else {
+          res.status(500).json({ 
+            success: false, 
+            message: "Failed to fetch unseen emails",
+            output: output 
+          });
+        }
+      });
+
+      setTimeout(() => {
+        python.kill();
+        res.status(408).json({ 
+          success: false, 
+          message: "Fetch unseen emails timeout" 
+        });
+      }, 30000); // 30 seconds timeout
+
+    } catch (error) {
+      res.status(500).json({ error: "Failed to trigger unseen email fetch" });
+    }
+  });
+
   // Webhook endpoint for real-time email notifications from IMAP IDLE
   app.post("/api/emails/webhook", async (req, res) => {
     try {
