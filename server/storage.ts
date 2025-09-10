@@ -148,6 +148,7 @@ export class MemStorage implements IStorage {
     const emailRecord: Email = {
       ...email,
       id,
+      body: email.body || null,
       createdAt: new Date(),
       receivedAt: email.receivedAt || new Date(),
       processedAt: email.processedAt || null,
