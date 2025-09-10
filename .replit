@@ -15,10 +15,6 @@ run = ["npm", "run", "start"]
 localPort = 5000
 externalPort = 80
 
-[[ports]]
-localPort = 39477
-externalPort = 3000
-
 [env]
 PORT = "5000"
 
@@ -32,34 +28,19 @@ author = "agent"
 
 [[workflows.workflow.tasks]]
 task = "workflow.run"
-args = "Start application"
-
-[[workflows.workflow.tasks]]
-task = "workflow.run"
-args = "Email Monitor"
+args = "Frontend Server"
 
 [[workflows.workflow]]
-name = "Start application"
+name = "Frontend Server"
 author = "agent"
-
-[workflows.workflow.metadata]
-outputType = "webview"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "npm run dev"
 waitForPort = 5000
 
-[[workflows.workflow]]
-name = "Email Monitor"
-author = "agent"
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "python server/services/email_agent.py"
-
 [workflows.workflow.metadata]
-outputType = "console"
+outputType = "webview"
 
 [agent]
 integrations = ["javascript_mem_db:1.0.0", "javascript_openai:1.0.0", "javascript_anthropic:1.0.0", "javascript_sendgrid:1.0.0", "javascript_websocket:1.0.0", "javascript_database:1.0.0"]
