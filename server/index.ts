@@ -111,7 +111,7 @@ function startEmailMonitor() {
   }
 
   try {
-    // Set up environment variables for the email monitor process
+    // Set up environment variables for the real-time email monitor process
     const env = { 
       ...process.env,
       EMAIL_USER: process.env.SMTP_USER || process.env.EMAIL_USER,
@@ -131,38 +131,38 @@ function startEmailMonitor() {
     emailMonitorProcess.stdout.on("data", (data: Buffer) => {
       const message = data.toString().trim();
       if (message) {
-        log(`[EmailMonitor] ${message}`);
+        log(`[RealTimeEmailMonitor] ${message}`);
       }
     });
 
     emailMonitorProcess.stderr.on("data", (data: Buffer) => {
       const message = data.toString().trim();
       if (message) {
-        log(`[EmailMonitor ERROR] ${message}`);
+        log(`[RealTimeEmailMonitor ERROR] ${message}`);
       }
     });
 
     emailMonitorProcess.on("close", (code: number) => {
-      log(`Email monitor exited with code ${code}`);
+      log(`Real-time email monitor exited with code ${code}`);
       emailMonitorProcess = null;
       
       // Restart if it wasn't intentionally killed and credentials exist
       if (code !== 0 && process.env.EMAIL_USER && process.env.EMAIL_PASS) {
         setTimeout(() => {
-          log("Restarting email monitor...");
+          log("Restarting real-time email monitor...");
           startEmailMonitor();
         }, 2000);
       }
     });
 
     emailMonitorProcess.on("error", (error: Error) => {
-      log(`Email monitor error: ${error.message}`);
+      log(`Real-time email monitor error: ${error.message}`);
       emailMonitorProcess = null;
     });
 
-    log("Email monitor service started");
+    log("Real-time email monitor service started (IMAP IDLE)");
   } catch (error) {
-    log(`Failed to start email monitor: ${error}`);
+    log(`Failed to start real-time email monitor: ${error}`);
   }
 }
 
