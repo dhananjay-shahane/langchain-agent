@@ -70,11 +70,7 @@ export function EmailMonitor() {
   // Save email configuration
   const saveEmailConfigMutation = useMutation({
     mutationFn: async (config: typeof emailConfig) => {
-      const response = await apiRequest("/api/email/config", {
-        method: "POST",
-        body: JSON.stringify(config),
-      });
-      return response;
+      return await apiRequest("/api/email/config", "POST", config);
     },
     onSuccess: () => {
       toast({
