@@ -49,7 +49,10 @@ def check_new_emails():
             if status != 'OK' or not data or not data[0]:
                 continue
                 
-            bytes_data = data[0][1]
+            if isinstance(data[0][1], bytes):
+                bytes_data = data[0][1]
+            else:
+                continue
             email_message = email.message_from_bytes(bytes_data)
             
             # Get email details
