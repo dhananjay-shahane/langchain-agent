@@ -21,4 +21,5 @@ dependencies = [
     "lasio>=0.32",
     "sendgrid>=6.12.4",
     "requests>=2.32.5",
+    "imapclient>=3.0.1",
 ]
