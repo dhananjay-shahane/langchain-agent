@@ -211,7 +211,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/emails/run-agent", async (req, res) => {
     try {
       // Trigger the email agent to run once
-      const pythonProcess = spawn("python", [
+      const pythonProcess = spawn("uv", [
+        "run", 
+        "python", 
         path.join(process.cwd(), "server/services/email_agent.py"),
         "--once"
       ]);
@@ -280,7 +282,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
 async function testAgentConnection(config: any): Promise<{ success: boolean; message: string }> {
   return new Promise((resolve) => {
-    const python = spawn("python", [
+    const python = spawn("uv", [
+      "run",
+      "python", 
       path.join(process.cwd(), "server/services/langchain-agent.py"),
       "test",
       config.provider,
