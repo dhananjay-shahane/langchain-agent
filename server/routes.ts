@@ -477,6 +477,47 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Store in database
       const savedEmail = await storage.addEmail(emailRecord);
       
+      // Save email data to JSON file
+      try {
+        const emailsJsonPath = path.join(process.cwd(), "data", "received_emails.json");
+        
+        // Read existing emails or create empty array
+        let existingEmails = [];
+        if (fs.existsSync(emailsJsonPath)) {
+          const fileContent = fs.readFileSync(emailsJsonPath, 'utf8');
+          existingEmails = JSON.parse(fileContent);
+        }
+        
+        // Create email data object with ID, body content, and attachments
+        const emailDataForJson = {
+          id: savedEmail.id,
+          uid: savedEmail.uid,
+          sender: savedEmail.sender,
+          subject: savedEmail.subject,
+          bodyContent: savedEmail.content,
+          hasAttachments: savedEmail.hasAttachments,
+          attachmentInfo: emailData.attachments || [],
+          receivedAt: savedEmail.receivedAt,
+          processed: savedEmail.processed,
+          timestamp: new Date().toISOString()
+        };
+        
+        // Add new email to the array
+        existingEmails.push(emailDataForJson);
+        
+        // Keep only the last 100 emails to prevent file from getting too large
+        if (existingEmails.length > 100) {
+          existingEmails = existingEmails.slice(-100);
+        }
+        
+        // Write back to JSON file
+        fs.writeFileSync(emailsJsonPath, JSON.stringify(existingEmails, null, 2));
+        
+        console.log(`💾 Email data saved to JSON: ${savedEmail.id}`);
+      } catch (jsonError) {
+        console.error(`❌ Failed to save email to JSON:`, jsonError);
+      }
+      
       // Emit real-time notification to all connected clients
       io.emit("realtime_email", {
         id: savedEmail.id,
@@ -507,6 +548,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Webhook error:", error);
       res.status(500).json({ error: "Failed to process real-time email" });
+    }
+  });
+
+  // API endpoint to get saved email data from JSON file
+  app.get("/api/emails/json", async (req, res) => {
+    try {
+      const emailsJsonPath = path.join(process.cwd(), "data", "received_emails.json");
+      
+      if (!fs.existsSync(emailsJsonPath)) {
+        return res.json({
+          success: true,
+          emails: [],
+          message: "No email data file found yet"
+        });
+      }
+      
+      const fileContent = fs.readFileSync(emailsJsonPath, 'utf8');
+      const emails = JSON.parse(fileContent);
+      
+      res.json({
+        success: true,
+        emails: emails,
+        totalCount: emails.length,
+        message: "Email data retrieved from JSON file"
+      });
+    } catch (error) {
+      console.error("Failed to read email JSON file:", error);
+      res.status(500).json({ 
+        success: false,
+        error: "Failed to read email data from JSON file" 
+      });
     }
   });
 
