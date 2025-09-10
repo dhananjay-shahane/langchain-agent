@@ -470,6 +470,44 @@ class EmailAgent:
             logger.error(f"Error saving email JSON: {e}")
             return None
 
+    def save_email_to_database(self, email_data):
+        """Save processed email data to database via API"""
+        try:
+            # Prepare email data for API - ensure proper format
+            from datetime import datetime
+            api_data = {
+                "uid": str(email_data.get("uid", "")),
+                "sender": str(email_data.get("sender", "")),
+                "subject": str(email_data.get("subject", "")),
+                "body": str(email_data.get("body", "")),
+                "hasAttachments": bool(email_data.get("has_attachments", False)),
+                "attachments": email_data.get("attachments", []),
+                "processed": bool(email_data.get("processed", True)),
+                "aiAnalysis": email_data.get("ai_analysis"),
+                "jsonFile": email_data.get("json_file"),
+                "receivedAt": email_data.get("received_at"),
+                "processedAt": email_data.get("processed_at", datetime.now().isoformat())
+            }
+            
+            # Remove None values
+            api_data = {k: v for k, v in api_data.items() if v is not None}
+            
+            # Send to API
+            response = requests.post('http://localhost:5000/api/emails', 
+                                   json=api_data, 
+                                   timeout=10)
+            
+            if response.status_code == 200:
+                logger.info(f"Email saved to database: {email_data.get('subject')}")
+                return response.json()
+            else:
+                logger.error(f"Failed to save email to database: {response.status_code}")
+                return None
+                
+        except Exception as e:
+            logger.error(f"Error saving email to database: {e}")
+            return None
+
     def process_emails(self):
         """Process new emails once"""
         try:
@@ -496,7 +534,9 @@ class EmailAgent:
                             json_file = self.save_email_as_json(processed_email)
                             if json_file:
                                 processed_email['json_file'] = json_file
-
+                            
+                            # Save to database via API
+                            self.save_email_to_database(processed_email)
                             processed_emails.append(processed_email)
 
                         except Exception as e:
@@ -524,6 +564,9 @@ class EmailAgent:
                     json_file = self.save_email_as_json(processed_email)
                     if json_file:
                         processed_email['json_file'] = json_file
+                    
+                    # Save to database via API
+                    self.save_email_to_database(processed_email)
                     processed_emails.append(processed_email)
                     logger.info("Successfully processed test email with AI analysis")
                     
