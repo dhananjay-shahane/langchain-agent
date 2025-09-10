@@ -323,7 +323,7 @@ export function EmailMonitor() {
               ) : (
                 <ScrollArea className="h-96">
                   <div className="space-y-3">
-                    {emails.map((email) => (
+                    {emails.map((email: any) => (
                       <div
                         key={email.id}
                         className={`p-3 border rounded-lg cursor-pointer transition-colors hover:bg-gray-50 dark:hover:bg-gray-800 ${
