@@ -10,10 +10,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Mail, Play, Settings, RefreshCw, Eye, Clock, CheckCircle, AlertCircle, Paperclip } from "lucide-react";
+import { Mail, Play, Settings, RefreshCw, Eye, Clock, CheckCircle, AlertCircle, Paperclip, ArrowLeft } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
-import type { Email } from "@shared/schema";
+import { Link } from "wouter";
+import type { Email, AgentConfig } from "@shared/schema";
 
 interface EmailAnalysis {
   category?: string;
@@ -35,6 +36,12 @@ export function EmailMonitor() {
     imapHost: "imap.gmail.com",
     smtpHost: "smtp.gmail.com",
     pollInterval: 20
+  });
+
+  // Fetch agent configuration
+  const { data: agentConfig } = useQuery({
+    queryKey: ["/api/agent/config"],
+    queryFn: () => apiRequest("/api/agent/config"),
   });
 
   // Fetch emails
@@ -127,11 +134,24 @@ export function EmailMonitor() {
   return (
     <div className="container mx-auto p-6" data-testid="email-monitor">
       <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">Email Monitor</h1>
-          <p className="text-gray-600 dark:text-gray-400 mt-1">
-            AI-powered email monitoring and analysis
-          </p>
+        <div className="flex items-center gap-4">
+          <Link href="/">
+            <Button variant="ghost" size="sm" data-testid="button-back-home">
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Back to Home
+            </Button>
+          </Link>
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">Email Monitor</h1>
+            <p className="text-gray-600 dark:text-gray-400 mt-1">
+              AI-powered email monitoring and analysis
+              {agentConfig && (
+                <span className="ml-2 text-sm">
+                  • Using {agentConfig.provider} ({agentConfig.model})
+                </span>
+              )}
+            </p>
+          </div>
         </div>
         <div className="flex gap-2">
           <Button
