@@ -1,0 +1,38 @@
+[
+  {
+    "id": "c39e9f64-4c12-4ebf-a696-a02db520e9e6",
+    "uid": "test123",
+    "sender": "test@example.com",
+    "subject": "Test Email",
+    "bodyContent": "This is a test email to verify webhook functionality",
+    "hasAttachments": false,
+    "attachmentInfo": [],
+    "receivedAt": "2025-09-10T06:11:03.666Z",
+    "processed": false,
+    "timestamp": "2025-09-10T06:11:03.666Z"
+  },
+  {
+    "id": "3540c18d-d8a6-425f-aedb-acca9b35a43d",
+    "uid": "109820",
+    "sender": "Dhananjay Shahane <dhananjayshahane24@gmail.com>",
+    "subject": "test",
+    "bodyContent": "hi\r\n\r\n[image: photo]\r\n\r\nDhananjay Shahane\r\nWeb Developer\r\n\r\n📞 7350736478 <📞7350736478>  |  🌐 dhananjayshahane.vercel.app <https://🌐\r\nhttps://dhananjayshahane.vercel.app>\r\n\r\n✉️ dhananjayshahane@yahoo.com\r\n\r\n📍Chatrapati Sambhaji Nagar, Maharashtra, India\r\n<https://maps.google.com/?q=📍Chatrapati Sambhaji Nagar, Maharashtra, India>\r\n\r\n[image: facebook] <https://www.facebook.com/dhanu.shahane>\r\n\r\n[image: instagram] <https://www.instagram.com/dhananjay.shahane>\r\n\r\n[image: linkedin] <https://www.linkedin.com/in/dhananjay-shahane>\r\nCreate your own email signature\r\n<https://www.wisestamp.com/lp/promo/professional-email-signature?utm_source=promotion&utm_medium=signature&utm_campaign=create_your_own&srcid=>\r\n\r\n[image: __tpx__]\r\n",
+    "hasAttachments": false,
+    "attachmentInfo": [],
+    "receivedAt": "2025-09-10T06:12:07.579Z",
+    "processed": false,
+    "timestamp": "2025-09-10T06:12:07.579Z"
+  },
+  {
+    "id": "6c7220b0-1cf6-4747-bd68-e3c2202bb823",
+    "uid": "109821",
+    "sender": "Team ZebPay 🦓 <no-reply@email.zebpay.com>",
+    "subject": "🔑 Complete KYC & Unlock Your Reward",
+    "bodyContent": null,
+    "hasAttachments": false,
+    "attachmentInfo": [],
+    "receivedAt": "2025-09-10T06:12:08.351Z",
+    "processed": false,
+    "timestamp": "2025-09-10T06:12:08.351Z"
+  }
+]

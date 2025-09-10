@@ -208,11 +208,29 @@ class RealTimeEmailMonitor:
                                 # New message arrived
                                 logger.info("🔔 New email detected via IDLE!")
                                 
-                                # Get the latest message UID
-                                messages = self.server.search(['UNSEEN'])
-                                if messages:
-                                    latest_uid = max(messages)
-                                    self.handle_new_message(latest_uid)
+                                try:
+                                    # Get the latest message UID
+                                    messages = self.server.search(['UNSEEN'])
+                                    logger.info(f"📬 Found {len(messages)} unseen messages after IDLE detection")
+                                    
+                                    if messages:
+                                        latest_uid = max(messages)
+                                        logger.info(f"🎯 Processing latest email UID: {latest_uid}")
+                                        self.handle_new_message(latest_uid)
+                                    else:
+                                        logger.warning("⚠️ IDLE detected new email but no UNSEEN messages found")
+                                        
+                                        # Alternative: get the highest UID and process it regardless
+                                        all_messages = self.server.search(['ALL'])
+                                        if all_messages:
+                                            latest_uid = max(all_messages)
+                                            logger.info(f"🔄 Fallback: Processing latest message UID: {latest_uid}")
+                                            self.handle_new_message(latest_uid)
+                                            
+                                except Exception as e:
+                                    logger.error(f"❌ Error processing IDLE detection: {e}")
+                                    import traceback
+                                    logger.error(f"Full traceback: {traceback.format_exc()}")
                     
                     # Stop IDLE to prevent timeout
                     self.server.idle_done()
