@@ -14,6 +14,7 @@ import time
 import os
 import sys
 import logging
+import requests
 from datetime import datetime
 from pathlib import Path
 
@@ -346,34 +347,71 @@ class EmailAgent:
         self.config = self._load_config()
 
     def _load_config(self):
-        """Load configuration from environment and config files"""
-        # Try to load agent config from file
-        agent_config = {}
-        try:
-            config_file = Path('data/agent_config.json')
-            if config_file.exists():
-                with open(config_file, 'r') as f:
-                    agent_config = json.load(f)
-        except Exception as e:
-            logger.warning(f"Could not load agent config: {e}")
-
-        return {
-            # Email configuration
-            'imap_host': os.getenv('EMAIL_IMAP_HOST', 'imap.gmail.com'),
-            'smtp_host': os.getenv('EMAIL_SMTP_HOST', 'smtp.gmail.com'),
-            'email_address': os.getenv('EMAIL_ADDRESS'),
-            'email_password': os.getenv('EMAIL_PASSWORD'),
-            'imap_port': int(os.getenv('EMAIL_IMAP_PORT', '993')),
-            
-            # Agent configuration
-            'provider': agent_config.get('provider', 'ollama'),
-            'model': agent_config.get('model', 'llama3.2:1b'),
-            'endpointUrl': agent_config.get('endpointUrl', 'http://localhost:11434'),
-            
-            # Processing configuration
-            'poll_interval': int(os.getenv('EMAIL_POLL_INTERVAL', '20')),
-            'max_emails_per_batch': int(os.getenv('MAX_EMAILS_PER_BATCH', '10'))
+        """Load configuration from API and environment"""
+        config = {
+            # Default configuration
+            'imap_host': 'imap.gmail.com',
+            'smtp_host': 'smtp.gmail.com',
+            'email_address': None,
+            'email_password': None,
+            'imap_port': 993,
+            'provider': 'ollama',
+            'model': 'llama3.2:1b',
+            'endpointUrl': 'http://localhost:11434',
+            'poll_interval': 20,
+            'max_emails_per_batch': 10
         }
+        
+        # Try to load email config from API
+        try:
+            response = requests.get('http://localhost:5000/api/email/config', timeout=5)
+            if response.status_code == 200:
+                email_config = response.json()
+                if email_config:
+                    config.update({
+                        'imap_host': email_config.get('imapHost', 'imap.gmail.com'),
+                        'smtp_host': email_config.get('smtpHost', 'smtp.gmail.com'),
+                        'email_address': email_config.get('emailAddress'),
+                        'email_password': email_config.get('emailPassword'),
+                        'imap_port': int(email_config.get('imapPort', '993')),
+                        'poll_interval': int(email_config.get('pollInterval', '20'))
+                    })
+                    logger.info("Loaded email configuration from API")
+        except Exception as e:
+            logger.warning(f"Could not load email config from API: {e}")
+        
+        # Try to load agent config from API
+        try:
+            response = requests.get('http://localhost:5000/api/agent/config', timeout=5)
+            if response.status_code == 200:
+                agent_config = response.json()
+                if agent_config:
+                    config.update({
+                        'provider': agent_config.get('provider', 'ollama'),
+                        'model': agent_config.get('model', 'llama3.2:1b'),
+                        'endpointUrl': agent_config.get('endpointUrl', 'http://localhost:11434')
+                    })
+                    logger.info("Loaded agent configuration from API")
+        except Exception as e:
+            logger.warning(f"Could not load agent config from API: {e}")
+        
+        # Override with environment variables if present
+        if os.getenv('EMAIL_ADDRESS'):
+            config['email_address'] = os.getenv('EMAIL_ADDRESS')
+        if os.getenv('EMAIL_PASSWORD'):
+            config['email_password'] = os.getenv('EMAIL_PASSWORD')
+        if os.getenv('EMAIL_IMAP_HOST'):
+            config['imap_host'] = os.getenv('EMAIL_IMAP_HOST')
+        if os.getenv('EMAIL_SMTP_HOST'):
+            config['smtp_host'] = os.getenv('EMAIL_SMTP_HOST')
+        if os.getenv('EMAIL_IMAP_PORT'):
+            config['imap_port'] = int(os.getenv('EMAIL_IMAP_PORT'))
+        if os.getenv('EMAIL_POLL_INTERVAL'):
+            config['poll_interval'] = int(os.getenv('EMAIL_POLL_INTERVAL'))
+        if os.getenv('MAX_EMAILS_PER_BATCH'):
+            config['max_emails_per_batch'] = int(os.getenv('MAX_EMAILS_PER_BATCH'))
+            
+        return config
 
     def initialize(self):
         """Initialize email agent components"""
