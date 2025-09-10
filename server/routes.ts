@@ -2,7 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { Server as SocketIOServer } from "socket.io";
 import { storage } from "./storage";
-import { insertAgentConfigSchema, insertChatMessageSchema, insertLasFileSchema, insertOutputFileSchema, insertEmailSchema } from "@shared/schema";
+import { insertAgentConfigSchema, insertChatMessageSchema, insertLasFileSchema, insertOutputFileSchema, insertEmailSchema, insertEmailConfigSchema } from "@shared/schema";
 import { spawn } from "child_process";
 import path from "path";
 import fs from "fs";
@@ -248,6 +248,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
     } catch (error) {
       res.status(500).json({ error: "Failed to run email agent" });
+    }
+  });
+
+  // Email Configuration Routes
+  app.get("/api/email/config", async (req, res) => {
+    try {
+      const config = await storage.getEmailConfig();
+      res.json(config);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to get email config" });
+    }
+  });
+
+  app.post("/api/email/config", async (req, res) => {
+    try {
+      const validatedConfig = insertEmailConfigSchema.parse(req.body);
+      const config = await storage.updateEmailConfig(validatedConfig);
+      
+      // Emit config update to all clients
+      io.emit("email_config_updated", config);
+      
+      res.json(config);
+    } catch (error) {
+      res.status(400).json({ error: "Invalid email config data" });
     }
   });
 
