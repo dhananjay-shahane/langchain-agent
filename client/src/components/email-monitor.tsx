@@ -41,19 +41,26 @@ export function EmailMonitor() {
   // Fetch agent configuration
   const { data: agentConfig } = useQuery({
     queryKey: ["/api/agent/config"],
-    queryFn: () => apiRequest("/api/agent/config"),
   });
 
   // Fetch emails
   const { data: emails = [], isLoading: emailsLoading } = useQuery({
     queryKey: ["/api/emails"],
-    queryFn: () => apiRequest("/api/emails?limit=50"),
+    queryFn: async () => {
+      const response = await fetch("/api/emails?limit=50");
+      if (!response.ok) throw new Error("Failed to fetch emails");
+      return response.json();
+    },
     refetchInterval: 30000, // Refresh every 30 seconds
   });
 
   // Run email agent
   const runEmailAgentMutation = useMutation({
-    mutationFn: () => apiRequest("/api/emails/run-agent", { method: "POST" }),
+    mutationFn: async () => {
+      const response = await fetch("/api/emails/run-agent", { method: "POST" });
+      if (!response.ok) throw new Error("Failed to run email agent");
+      return response.json();
+    },
     onSuccess: (data) => {
       toast({
         title: "Email Agent Completed",
