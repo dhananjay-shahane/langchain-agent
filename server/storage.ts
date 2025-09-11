@@ -145,6 +145,8 @@ export class MemStorage implements IStorage {
       receivedAt: email.receivedAt || new Date(),
       processed: email.processed || false,
       hasAttachments: email.hasAttachments || false,
+      body: email.body || null,
+      attachments: email.attachments || null,
     };
     this.emails.set(id, newEmail);
     return newEmail;

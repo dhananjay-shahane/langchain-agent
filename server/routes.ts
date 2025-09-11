@@ -2,7 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { Server as SocketIOServer } from "socket.io";
 import { storage } from "./storage";
-import { insertAgentConfigSchema, insertChatMessageSchema, insertLasFileSchema, insertOutputFileSchema } from "@shared/schema";
+import { insertAgentConfigSchema, insertChatMessageSchema, insertLasFileSchema, insertOutputFileSchema, insertEmailSchema } from "@shared/schema";
 import { spawn } from "child_process";
 import path from "path";
 import fs from "fs";
@@ -149,6 +149,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Email Routes
+  app.get("/api/emails", async (req, res) => {
+    try {
+      const emails = await storage.getEmails();
+      res.json(emails);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to get emails" });
+    }
+  });
+
+  app.post("/api/emails", async (req, res) => {
+    try {
+      const validatedEmail = insertEmailSchema.parse(req.body);
+      const email = await storage.addEmail(validatedEmail);
+      
+      // Emit new email to all clients
+      io.emit("new_email", email);
+      
+      res.json(email);
+    } catch (error) {
+      res.status(400).json({ error: "Invalid email data" });
+    }
+  });
+
+  app.get("/api/email/config", async (req, res) => {
+    try {
+      // Return environment-based config status
+      const hasCredentials = !!(process.env.EMAIL_USER && process.env.EMAIL_PASSWORD);
+      res.json({
+        isConfigured: hasCredentials,
+        emailUser: process.env.EMAIL_USER || '',
+        imapHost: process.env.IMAP_HOST || 'imap.gmail.com',
+        imapPort: process.env.IMAP_PORT || '993'
+      });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to get email config" });
+    }
+  });
 
   return httpServer;
 }
