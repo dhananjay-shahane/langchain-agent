@@ -44,7 +44,7 @@ class EmailAgent:
                     return False
                 self.llm = ChatOpenAI(
                     model=self.model,
-                    openai_api_key=api_key,
+                    api_key=api_key,
                     temperature=0.3
                 )
             elif self.provider == "anthropic":
@@ -52,9 +52,11 @@ class EmailAgent:
                 if not api_key:
                     return False
                 self.llm = ChatAnthropic(
-                    model=self.model,
+                    model_name=self.model,
                     api_key=api_key,
-                    temperature=0.3
+                    temperature=0.3,
+                    timeout=30,
+                    stop=[]
                 )
             
             # Create email-specific tools
@@ -68,7 +70,10 @@ class EmailAgent:
             ]
             
             # Create agent with email tools
-            self.agent = create_react_agent(self.llm, custom_tools)
+            if self.llm is not None:
+                self.agent = create_react_agent(self.llm, custom_tools)
+            else:
+                return False
             
             return True
             
@@ -415,19 +420,22 @@ Customer Service Team"""
             ])
             
             # Process with agent
-            response = await self.agent.ainvoke({
-                "messages": [SystemMessage(content="\n".join(context_parts))]
-            })
-            
-            # Extract the response content
-            response_content = ""
-            if hasattr(response, 'messages') and response.messages:
-                last_message = response.messages[-1]
-                response_content = last_message.content if hasattr(last_message, 'content') else str(last_message)
-            elif hasattr(response, 'content'):
-                response_content = response.content
+            if self.agent is not None:
+                response = await self.agent.ainvoke({
+                    "messages": [SystemMessage(content="\n".join(context_parts))]
+                })
+                
+                # Extract the response content
+                response_content = ""
+                if hasattr(response, 'messages') and response.messages:
+                    last_message = response.messages[-1]
+                    response_content = last_message.content if hasattr(last_message, 'content') else str(last_message)
+                elif hasattr(response, 'content'):
+                    response_content = response.content
+                else:
+                    response_content = str(response)
             else:
-                response_content = str(response)
+                raise Exception("Agent not initialized")
             
             # Clean up the response to extract just the email reply
             lines = response_content.split('\n')
@@ -476,6 +484,48 @@ Customer Service Team"""
         except Exception as e:
             print(f"Email processing error: {str(e)}")
             raise Exception(f"Email processing failed: {str(e)}")
+    
+    async def test_connection(self) -> Dict[str, Any]:
+        """Test connection to the configured LLM provider"""
+        try:
+            # Initialize agent
+            if not await self.initialize():
+                return {
+                    "success": False,
+                    "message": f"Failed to initialize {self.provider} agent with model {self.model}"
+                }
+            
+            # Test with a simple message
+            if self.agent is not None:
+                test_response = await self.agent.ainvoke({
+                    "messages": [SystemMessage(content="Test connection - respond with 'Connection successful'")]
+                })
+                
+                return {
+                    "success": True,
+                    "message": f"Connection successful to {self.provider} with model {self.model}",
+                    "provider": self.provider,
+                    "model": self.model,
+                    "endpoint": self.endpoint_url
+                }
+            else:
+                return {
+                    "success": False,
+                    "message": "Agent initialization returned None"
+                }
+                
+        except Exception as e:
+            error_msg = str(e)
+            if "404" in error_msg and "not found" in error_msg:
+                return {
+                    "success": False,
+                    "message": f"ERROR: Connection failed: model '{self.model}' not found, try pulling it first (status code: 404)"
+                }
+            else:
+                return {
+                    "success": False,
+                    "message": f"Connection failed: {error_msg}"
+                }
     
     async def send_email_reply(self, to_email: str, subject: str, reply_content: str) -> Dict[str, Any]:
         """Send actual email reply via SMTP using EMAIL_USER credentials"""
