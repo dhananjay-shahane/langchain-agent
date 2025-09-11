@@ -200,6 +200,55 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.post("/api/email/monitor/start", async (req, res) => {
+    try {
+      // Check if credentials are configured
+      if (!process.env.EMAIL_USER || !process.env.EMAIL_PASSWORD) {
+        return res.status(400).json({ error: "Email credentials not configured" });
+      }
+      
+      // Start email monitoring workflow
+      const { spawn } = require("child_process");
+      const monitor = spawn("uv", [
+        "run", 
+        "python", 
+        path.join(process.cwd(), "scripts/email_monitor.py")
+      ], {
+        detached: true,
+        stdio: 'ignore'
+      });
+      
+      monitor.unref();
+      
+      res.json({ 
+        message: "Email monitoring started",
+        status: "running"
+      });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to start email monitoring" });
+    }
+  });
+
+  app.post("/api/email/monitor/stop", async (req, res) => {
+    try {
+      // Kill email monitoring processes
+      const { exec } = require("child_process");
+      exec("pkill -f email_monitor.py", (error) => {
+        if (error && error.code !== 1) {
+          // Code 1 means no process found, which is fine
+          console.error("Error stopping email monitor:", error);
+        }
+      });
+      
+      res.json({ 
+        message: "Email monitoring stopped",
+        status: "stopped"
+      });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to stop email monitoring" });
+    }
+  });
+
   return httpServer;
 }
 

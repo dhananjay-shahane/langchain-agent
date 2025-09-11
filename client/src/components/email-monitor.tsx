@@ -3,53 +3,26 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Mail, Play, Settings, RefreshCw, Eye, Clock, CheckCircle, AlertCircle, Paperclip, ArrowLeft } from "lucide-react";
+import { Mail, Play, Square, RefreshCw, Eye, Clock, CheckCircle, AlertCircle, Paperclip, ArrowLeft } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { Link } from "wouter";
-import type { Email, AgentConfig, EmailConfig } from "@shared/schema";
-
-interface EmailAnalysis {
-  category?: string;
-  topics?: string[];
-  sentiment?: string;
-  action_items?: string[];
-  priority?: string;
-  summary?: string;
-  error?: string;
-}
+import type { Email } from "@shared/schema";
 
 export function EmailMonitor() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [selectedEmail, setSelectedEmail] = useState<Email | null>(null);
-  const [emailConfig, setEmailConfig] = useState({
-    emailAddress: "",
-    emailPassword: "",
-    imapHost: "imap.gmail.com",
-    smtpHost: "smtp.gmail.com",
-    pollInterval: 20
-  });
+  const [isMonitoring, setIsMonitoring] = useState(false);
 
-  // Fetch agent configuration
-  const { data: agentConfig } = useQuery({
-    queryKey: ["/api/agent/config"],
-  });
-
-  // Fetch email configuration
-  const { data: existingEmailConfig } = useQuery({
+  // Fetch email configuration status
+  const { data: emailConfigStatus } = useQuery({
     queryKey: ["/api/email/config"],
     queryFn: async () => {
       const response = await fetch("/api/email/config");
       if (!response.ok) {
-        if (response.status === 404) return null;
         throw new Error("Failed to fetch email config");
       }
       return response.json();
@@ -88,41 +61,59 @@ export function EmailMonitor() {
     },
   });
 
-  // Run email agent
-  const runEmailAgentMutation = useMutation({
+  // Start email monitoring
+  const startMonitoringMutation = useMutation({
     mutationFn: async () => {
-      const response = await fetch("/api/emails/run-agent", { method: "POST" });
-      if (!response.ok) throw new Error("Failed to run email agent");
+      const response = await fetch("/api/email/monitor/start", { method: "POST" });
+      if (!response.ok) throw new Error("Failed to start email monitoring");
       return response.json();
     },
-    onSuccess: (data) => {
+    onSuccess: () => {
+      setIsMonitoring(true);
       toast({
-        title: "Email Agent Completed",
-        description: data.message,
+        title: "Email monitoring started",
+        description: "Now monitoring for new emails",
       });
-      queryClient.invalidateQueries({ queryKey: ["/api/emails"] });
     },
     onError: (error: any) => {
       toast({
-        title: "Email Agent Failed",
-        description: error.message || "Failed to run email agent",
+        title: "Failed to start monitoring",
+        description: error.message || "Could not start email monitoring",
         variant: "destructive",
       });
     },
   });
 
-  // Load existing email configuration
-  useEffect(() => {
-    if (existingEmailConfig) {
-      setEmailConfig({
-        emailAddress: existingEmailConfig.emailAddress || "",
-        emailPassword: existingEmailConfig.emailPassword || "",
-        imapHost: existingEmailConfig.imapHost || "imap.gmail.com",
-        smtpHost: existingEmailConfig.smtpHost || "smtp.gmail.com",
-        pollInterval: parseInt(existingEmailConfig.pollInterval || "20")
+  // Stop email monitoring
+  const stopMonitoringMutation = useMutation({
+    mutationFn: async () => {
+      const response = await fetch("/api/email/monitor/stop", { method: "POST" });
+      if (!response.ok) throw new Error("Failed to stop email monitoring");
+      return response.json();
+    },
+    onSuccess: () => {
+      setIsMonitoring(false);
+      toast({
+        title: "Email monitoring stopped",
+        description: "No longer monitoring for new emails",
       });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Failed to stop monitoring",
+        description: error.message || "Could not stop email monitoring",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Check monitoring status on mount
+  useEffect(() => {
+    if (emailConfigStatus?.isConfigured) {
+      // Email credentials are configured via environment variables
+      // Monitor status will be managed by start/stop buttons
     }
-  }, [existingEmailConfig]);
+  }, [emailConfigStatus]);
 
   // Listen for real-time updates
   useEffect(() => {
@@ -198,30 +189,45 @@ export function EmailMonitor() {
           <div>
             <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">Email Monitor</h1>
             <p className="text-gray-600 dark:text-gray-400 mt-1">
-              AI-powered email monitoring and analysis
-              {agentConfig && (agentConfig as AgentConfig).provider && (
-                <span className="ml-2 text-sm">
-                  • Using {(agentConfig as AgentConfig).provider} ({(agentConfig as AgentConfig).model})
-                </span>
-              )}
+              IMAP email monitoring with automatic LAS file processing
             </p>
           </div>
         </div>
-        <div className="flex gap-2">
-          <Button
-            onClick={() => runEmailAgentMutation.mutate()}
-            disabled={runEmailAgentMutation.isPending}
-            data-testid="button-run-agent"
-          >
-            {runEmailAgentMutation.isPending ? (
-              <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-            ) : (
-              <Play className="h-4 w-4 mr-2" />
-            )}
-            Run Agent
-          </Button>
+        <div className="flex gap-2 items-center">
+          {!isMonitoring ? (
+            <Button
+              onClick={() => startMonitoringMutation.mutate()}
+              disabled={startMonitoringMutation.isPending}
+              data-testid="button-start-monitoring"
+            >
+              {startMonitoringMutation.isPending ? (
+                <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <Play className="h-4 w-4 mr-2" />
+              )}
+              Start Monitoring
+            </Button>
+          ) : (
+            <Button
+              onClick={() => stopMonitoringMutation.mutate()}
+              disabled={stopMonitoringMutation.isPending}
+              variant="outline"
+              data-testid="button-stop-monitoring"
+            >
+              {stopMonitoringMutation.isPending ? (
+                <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <Square className="h-4 w-4 mr-2" />
+              )}
+              Stop Monitoring
+            </Button>
+          )}
           <div className="text-sm text-gray-600 dark:text-gray-400">
-            Email monitoring configured via environment variables
+            {emailConfigStatus?.isConfigured ? (
+              <span className="text-green-600 dark:text-green-400">✓ Configured via environment</span>
+            ) : (
+              <span className="text-orange-600 dark:text-orange-400">⚠ Missing email credentials</span>
+            )}
           </div>
         </div>
       </div>
@@ -236,7 +242,7 @@ export function EmailMonitor() {
                 Recent Emails ({emails.length})
               </CardTitle>
               <CardDescription>
-                Latest emails processed by the AI agent
+                Latest emails received and processed
               </CardDescription>
             </CardHeader>
             <CardContent>
