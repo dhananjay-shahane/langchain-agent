@@ -7,10 +7,6 @@ import sys
 import json
 import asyncio
 import os
-import smtplib
-from email.mime.text import MimeText
-from email.mime.multipart import MimeMultipart
-from email.utils import formataddr
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional

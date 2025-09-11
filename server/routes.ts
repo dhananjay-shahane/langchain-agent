@@ -354,22 +354,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Test endpoint to verify routing is working
+  app.get("/api/test", (req, res) => {
+    console.log("TEST ROUTE HIT - ROUTING IS WORKING!");
+    res.json({ message: "Test route working", timestamp: new Date().toISOString() });
+  });
+
   // Email Processing Routes (Email Agent)
   app.post("/api/emails/process", async (req, res) => {
     try {
+      console.log("Email processing route hit with data:", req.body);
       const { emailId, emailContent, emailFrom, emailSubject, attachments } = req.body;
       
       if (!emailId || !emailContent || !emailFrom) {
+        console.log("Missing required data:", { emailId: !!emailId, emailContent: !!emailContent, emailFrom: !!emailFrom });
         return res.status(400).json({ error: "Missing required email data" });
       }
 
       // Get agent config for email processing
+      console.log("Getting agent config...");
       const config = await storage.getAgentConfig();
       if (!config) {
+        console.log("No agent config found");
         return res.status(404).json({ error: "No agent config found" });
       }
+      console.log("Agent config found:", config);
 
       // Process email with email agent
+      console.log("Processing email with agent...");
       const result = await processEmailWithAgent({
         emailId,
         emailContent,
@@ -377,6 +389,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         emailSubject: emailSubject || "No Subject",
         attachments: attachments || []
       }, config);
+      console.log("Email processing result:", result);
 
       if (result.success) {
         // Update email status to completed

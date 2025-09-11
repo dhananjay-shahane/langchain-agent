@@ -40,9 +40,17 @@ export async function setupVite(app: Express, server: Server) {
     appType: "custom",
   });
 
-  app.use(vite.middlewares);
-  app.use("*", async (req, res, next) => {
-    const url = req.originalUrl;
+  // Use negative lookahead regex to exclude API and socket.io from Vite
+  app.use(/^(?!\/api\/|\/socket\.io\/).*/, vite.middlewares);
+  
+  // SPA catch-all for GET requests that accept HTML, excluding API and socket.io
+  app.get(/^(?!\/api\/|\/socket\.io\/).*/, async (req, res, next) => {
+    const accept = req.headers.accept || "";
+    
+    // Only serve HTML for requests that accept it
+    if (!accept.includes("text/html")) {
+      return next();
+    }
 
     try {
       const clientTemplate = path.resolve(
@@ -58,7 +66,7 @@ export async function setupVite(app: Express, server: Server) {
         `src="/src/main.tsx"`,
         `src="/src/main.tsx?v=${nanoid()}"`,
       );
-      const page = await vite.transformIndexHtml(url, template);
+      const page = await vite.transformIndexHtml(req.originalUrl, template);
       res.status(200).set({ "Content-Type": "text/html" }).end(page);
     } catch (e) {
       vite.ssrFixStacktrace(e as Error);
@@ -78,8 +86,15 @@ export function serveStatic(app: Express) {
 
   app.use(express.static(distPath));
 
-  // fall through to index.html if the file doesn't exist
-  app.use("*", (_req, res) => {
+  // SPA fallback for GET requests that accept HTML, excluding API and socket.io
+  app.get(/^(?!\/api\/|\/socket\.io\/).*/, (req, res, next) => {
+    const accept = req.headers.accept || "";
+    
+    // Only serve HTML for requests that accept it
+    if (!accept.includes("text/html")) {
+      return next();
+    }
+    
     res.sendFile(path.resolve(distPath, "index.html"));
   });
 }
