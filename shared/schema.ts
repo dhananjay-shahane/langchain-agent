@@ -40,18 +40,6 @@ export const outputFiles = pgTable("output_files", {
   createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`),
 });
 
-export const emails = pgTable("emails", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  uid: text("uid").notNull().unique(),
-  sender: text("sender").notNull(),
-  subject: text("subject").notNull(),
-  body: text("body"),
-  hasAttachments: boolean("has_attachments").default(false),
-  attachments: jsonb("attachments"), // JSON array of attachment data
-  processed: boolean("processed").default(false),
-  receivedAt: timestamp("received_at").default(sql`CURRENT_TIMESTAMP`),
-  createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`),
-});
 
 
 
@@ -75,14 +63,6 @@ export const insertOutputFileSchema = createInsertSchema(outputFiles).omit({
   createdAt: true,
 });
 
-export const insertEmailSchema = createInsertSchema(emails).omit({
-  id: true,
-  createdAt: true,
-}).extend({
-  receivedAt: z.union([z.date(), z.string().datetime()]).transform((val) => {
-    return typeof val === 'string' ? new Date(val) : val;
-  }).optional()
-});
 
 
 
@@ -90,10 +70,8 @@ export type AgentConfig = typeof agentConfigs.$inferSelect;
 export type ChatMessage = typeof chatMessages.$inferSelect;
 export type LasFile = typeof lasFiles.$inferSelect;
 export type OutputFile = typeof outputFiles.$inferSelect;
-export type Email = typeof emails.$inferSelect;
 
 export type InsertAgentConfig = z.infer<typeof insertAgentConfigSchema>;
 export type InsertChatMessage = z.infer<typeof insertChatMessageSchema>;
 export type InsertLasFile = z.infer<typeof insertLasFileSchema>;
 export type InsertOutputFile = z.infer<typeof insertOutputFileSchema>;
-export type InsertEmail = z.infer<typeof insertEmailSchema>;
