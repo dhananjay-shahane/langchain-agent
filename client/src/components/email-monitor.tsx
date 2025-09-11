@@ -220,78 +220,9 @@ export function EmailMonitor() {
             )}
             Run Agent
           </Button>
-          <Dialog>
-            <DialogTrigger asChild>
-              <Button variant="outline" data-testid="button-config">
-                <Settings className="h-4 w-4 mr-2" />
-                Config
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-md">
-              <DialogHeader>
-                <DialogTitle>Email Configuration</DialogTitle>
-                <DialogDescription>
-                  Configure your email monitoring settings
-                </DialogDescription>
-              </DialogHeader>
-              <div className="space-y-4">
-                <div>
-                  <Label htmlFor="email-address">Email Address</Label>
-                  <Input
-                    id="email-address"
-                    type="email"
-                    value={emailConfig.emailAddress}
-                    onChange={(e) => setEmailConfig(prev => ({ ...prev, emailAddress: e.target.value }))}
-                    placeholder="your-email@example.com"
-                    data-testid="input-email-address"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="email-password">App Password</Label>
-                  <Input
-                    id="email-password"
-                    type="password"
-                    value={emailConfig.emailPassword}
-                    onChange={(e) => setEmailConfig(prev => ({ ...prev, emailPassword: e.target.value }))}
-                    placeholder="App-specific password"
-                    data-testid="input-email-password"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="imap-host">IMAP Host</Label>
-                  <Input
-                    id="imap-host"
-                    value={emailConfig.imapHost}
-                    onChange={(e) => setEmailConfig(prev => ({ ...prev, imapHost: e.target.value }))}
-                    data-testid="input-imap-host"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="poll-interval">Poll Interval (seconds)</Label>
-                  <Input
-                    id="poll-interval"
-                    type="number"
-                    value={emailConfig.pollInterval}
-                    onChange={(e) => setEmailConfig(prev => ({ ...prev, pollInterval: parseInt(e.target.value) }))}
-                    min={5}
-                    max={300}
-                    data-testid="input-poll-interval"
-                  />
-                </div>
-                <Button 
-                  className="w-full" 
-                  onClick={() => saveEmailConfigMutation.mutate(emailConfig)}
-                  disabled={saveEmailConfigMutation.isPending}
-                  data-testid="button-save-config"
-                >
-                  {saveEmailConfigMutation.isPending ? (
-                    <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-                  ) : null}
-                  Save Configuration
-                </Button>
-              </div>
-            </DialogContent>
-          </Dialog>
+          <div className="text-sm text-gray-600 dark:text-gray-400">
+            Email monitoring configured via environment variables
+          </div>
         </div>
       </div>
 

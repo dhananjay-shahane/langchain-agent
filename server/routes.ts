@@ -115,6 +115,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.post("/api/files/las", async (req, res) => {
+    try {
+      const validatedFile = insertLasFileSchema.parse(req.body);
+      const file = await storage.addLasFile(validatedFile);
+      
+      // Emit files update to all clients
+      io.emit("files_updated");
+      io.emit("new_las_file", file);
+      
+      res.json(file);
+    } catch (error) {
+      res.status(400).json({ error: "Invalid LAS file data" });
+    }
+  });
+
   app.get("/api/files/output", async (req, res) => {
     try {
       const files = await storage.getOutputFiles();
@@ -175,13 +190,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/email/config", async (req, res) => {
     try {
-      // Return environment-based config status
+      // Return only configuration status for security
       const hasCredentials = !!(process.env.EMAIL_USER && process.env.EMAIL_PASSWORD);
       res.json({
-        isConfigured: hasCredentials,
-        emailUser: process.env.EMAIL_USER || '',
-        imapHost: process.env.IMAP_HOST || 'imap.gmail.com',
-        imapPort: process.env.IMAP_PORT || '993'
+        isConfigured: hasCredentials
       });
     } catch (error) {
       res.status(500).json({ error: "Failed to get email config" });
