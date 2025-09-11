@@ -1,0 +1,16 @@
+
+LAS Plot Data: 4771-36-SESE.las
+Curve Type: porosity  
+Generated: 20250911_142157
+Well: 4771-36-SESE
+
+This is a placeholder for the actual porosity plot.
+The matplotlib visualization will show real data from the LAS file once the environment is properly configured.
+
+Expected data columns for 4771-36-SESE.las:
+- DEPT (Depth)
+- GR (Gamma Ray) 
+- NPHI (Neutron Porosity)
+- DPHI (Density Porosity)  
+- RT (Resistivity)
+- RHOB (Bulk Density)

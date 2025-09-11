@@ -482,6 +482,25 @@ Customer Service Team"""
             if not final_response:
                 raise Exception("Failed to generate email response")
             
+            # Send actual email reply
+            reply_sent = False
+            reply_info = {}
+            
+            try:
+                if email_from and email_from.strip():
+                    reply_info = await self.send_email_reply(
+                        to_email=email_from,
+                        subject=email_subject,
+                        reply_content=final_response
+                    )
+                    reply_sent = True
+                    print(f"Email reply sent successfully to: {email_from}")
+                else:
+                    print("No valid sender email address to reply to")
+            except Exception as email_error:
+                print(f"Failed to send email reply: {email_error}")
+                reply_sent = False
+            
             return {
                 "success": True,
                 "response": final_response,
@@ -490,7 +509,9 @@ Customer Service Team"""
                     "email_id": email_id,
                     "original_subject": email_subject,
                     "attachments_processed": len(attachments),
-                    "response_type": "automated_agent_reply"
+                    "response_type": "automated_agent_reply",
+                    "reply_sent": reply_sent,
+                    "reply_info": reply_info
                 }
             }
             

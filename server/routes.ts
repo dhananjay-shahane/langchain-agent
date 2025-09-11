@@ -722,13 +722,13 @@ async function processUserMessage(content: string, selectedLasFile?: string) {
       console.error('Agent spawn error:', err);
     });
     
-    // Add timeout for the entire process
+    // Add timeout for the entire process - extended for LLM processing
     setTimeout(() => {
       if (!python.killed) {
         python.kill();
         console.error("Agent process timeout");
       }
-    }, 30000); // 30 second timeout
+    }, 180000); // 3 minute timeout for LLM processing
     
   } catch (error) {
     console.error("Error processing user message:", error);

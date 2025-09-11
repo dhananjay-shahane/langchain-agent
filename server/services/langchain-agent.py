@@ -39,7 +39,8 @@ class LangChainMCPAgent:
                 self.llm = ChatOllama(
                     model=self.model,
                     base_url=base_url,
-                    temperature=0.1
+                    temperature=0.1,
+                    timeout=120  # Extended timeout for llama3.2:1b model
                 )
             elif self.provider == "openai":
                 api_key = os.getenv("OPENAI_API_KEY")
@@ -438,7 +439,8 @@ class LangChainMCPAgent:
                 self.llm = ChatOllama(
                     model=self.model,
                     base_url=base_url,
-                    temperature=0.1
+                    temperature=0.1,
+                    timeout=120  # Extended timeout for llama3.2:1b model
                 )
             elif self.provider == "openai":
                 api_key = os.getenv("OPENAI_API_KEY")
@@ -467,7 +469,7 @@ class LangChainMCPAgent:
                         SystemMessage(content="You are a helpful assistant."),
                         HumanMessage(content="Hello, can you respond with 'Connection successful'?")
                     ]),
-                    timeout=2.0  # 2 second timeout
+                    timeout=60.0  # 60 second timeout for connection test
                 )
             except asyncio.TimeoutError:
                 return {"success": False, "message": "Connection timeout - server not responding"}
