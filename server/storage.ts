@@ -1,4 +1,4 @@
-import { type AgentConfig, type ChatMessage, type LasFile, type OutputFile, type Email, type InsertAgentConfig, type InsertChatMessage, type InsertLasFile, type InsertOutputFile, type InsertEmail, agentConfigs, chatMessages, lasFiles, outputFiles, emails } from "@shared/schema";
+import { type AgentConfig, type ChatMessage, type LasFile, type OutputFile, type InsertAgentConfig, type InsertChatMessage, type InsertLasFile, type InsertOutputFile, agentConfigs, chatMessages, lasFiles, outputFiles } from "@shared/schema";
 import { randomUUID } from "crypto";
 import { db } from "./db";
 import { eq, desc } from "drizzle-orm";
@@ -21,10 +21,6 @@ export interface IStorage {
   getOutputFiles(): Promise<OutputFile[]>;
   addOutputFile(file: InsertOutputFile): Promise<OutputFile>;
   
-  // Emails
-  getEmails(): Promise<Email[]>;
-  addEmail(email: InsertEmail): Promise<Email>;
-  updateEmail(id: string, updates: Partial<Email>): Promise<Email | undefined>;
 }
 
 export class MemStorage implements IStorage {
@@ -32,13 +28,11 @@ export class MemStorage implements IStorage {
   private chatMessages: Map<string, ChatMessage>;
   private lasFiles: Map<string, LasFile>;
   private outputFiles: Map<string, OutputFile>;
-  private emails: Map<string, Email>;
 
   constructor() {
     this.chatMessages = new Map();
     this.lasFiles = new Map();
     this.outputFiles = new Map();
-    this.emails = new Map();
     
     // Initialize with default config
     this.agentConfig = {
@@ -130,36 +124,6 @@ export class MemStorage implements IStorage {
     return outputFile;
   }
 
-  async getEmails(): Promise<Email[]> {
-    return Array.from(this.emails.values()).sort(
-      (a, b) => b.receivedAt!.getTime() - a.receivedAt!.getTime()
-    );
-  }
-
-  async addEmail(email: InsertEmail): Promise<Email> {
-    const id = randomUUID();
-    const newEmail: Email = {
-      ...email,
-      id,
-      createdAt: new Date(),
-      receivedAt: email.receivedAt || new Date(),
-      processed: email.processed || false,
-      hasAttachments: email.hasAttachments || false,
-      body: email.body || null,
-      attachments: email.attachments || null,
-    };
-    this.emails.set(id, newEmail);
-    return newEmail;
-  }
-
-  async updateEmail(id: string, updates: Partial<Email>): Promise<Email | undefined> {
-    const existing = this.emails.get(id);
-    if (!existing) return undefined;
-    
-    const updated = { ...existing, ...updates };
-    this.emails.set(id, updated);
-    return updated;
-  }
 }
 
 // Database Storage Implementation
@@ -227,24 +191,6 @@ export class DbStorage implements IStorage {
     return created;
   }
 
-  async getEmails(): Promise<Email[]> {
-    return db.select().from(emails).orderBy(desc(emails.receivedAt));
-  }
-
-  async addEmail(email: InsertEmail): Promise<Email> {
-    const [created] = await db.insert(emails)
-      .values(email)
-      .returning();
-    return created;
-  }
-
-  async updateEmail(id: string, updates: Partial<Email>): Promise<Email | undefined> {
-    const [updated] = await db.update(emails)
-      .set(updates)
-      .where(eq(emails.id, id))
-      .returning();
-    return updated;
-  }
 }
 
 // Database is now provisioned, using PostgreSQL storage
