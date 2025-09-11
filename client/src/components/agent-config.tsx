@@ -195,7 +195,7 @@ export default function AgentConfig() {
       <div className="mb-4">
         <Label className="block text-sm font-medium text-foreground mb-2">Model</Label>
         <Select
-          value={config?.model || "llama3.2:1b"}
+          value={config?.model || "qwen:1.8b"}
           onValueChange={(model) => updateConfigMutation.mutate({ model })}
           data-testid="select-model"
         >

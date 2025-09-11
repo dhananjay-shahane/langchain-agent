@@ -463,7 +463,7 @@ async function testAgentConnection(config: any): Promise<{ success: boolean; mes
     
     // Security: Sanitize string inputs to prevent command injection
     const safeProvider = config.provider.replace(/[^a-zA-Z0-9_-]/g, '');
-    const safeModel = config.model.replace(/[^a-zA-Z0-9_.-]/g, '');
+    const safeModel = config.model.replace(/[^a-zA-Z0-9_.:/-]/g, '');
     const safeEndpointUrl = config.endpointUrl || '';
     
     const scriptPath = path.join(process.cwd(), "server/services/langchain-agent.py");
@@ -523,7 +523,7 @@ async function processEmailWithAgent(emailData: any, config: any): Promise<{ suc
     
     // Security: Sanitize string inputs to prevent command injection
     const safeProvider = config.provider.replace(/[^a-zA-Z0-9_-]/g, '');
-    const safeModel = config.model.replace(/[^a-zA-Z0-9_.-]/g, '');
+    const safeModel = config.model.replace(/[^a-zA-Z0-9_.:/-]/g, '');
     const safeEndpointUrl = config.endpointUrl || '';
     
     const scriptPath = path.join(process.cwd(), "server/services/email-agent.py");
