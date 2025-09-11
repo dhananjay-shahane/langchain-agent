@@ -5,6 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Label } from "@/components/ui/label";
 import { Mail, Play, Square, RefreshCw, Eye, Clock, CheckCircle, AlertCircle, Paperclip, ArrowLeft } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
@@ -313,26 +315,6 @@ export function EmailMonitor() {
                             </span>
                           </div>
                         </div>
-                        {email.aiAnalysis && (
-                          <div className="flex gap-1 mt-2">
-                            {(email.aiAnalysis as EmailAnalysis).priority && (
-                              <Badge 
-                                variant="secondary" 
-                                className={`text-xs ${getPriorityColor((email.aiAnalysis as EmailAnalysis).priority)}`}
-                              >
-                                {(email.aiAnalysis as EmailAnalysis).priority}
-                              </Badge>
-                            )}
-                            {(email.aiAnalysis as EmailAnalysis).sentiment && (
-                              <Badge 
-                                variant="secondary"
-                                className={`text-xs ${getSentimentColor((email.aiAnalysis as EmailAnalysis).sentiment)}`}
-                              >
-                                {(email.aiAnalysis as EmailAnalysis).sentiment}
-                              </Badge>
-                            )}
-                          </div>
-                        )}
                       </div>
                     ))}
                   </div>
@@ -374,14 +356,12 @@ export function EmailMonitor() {
                         {formatDate(selectedEmail.receivedAt ? selectedEmail.receivedAt.toString() : null)}
                       </p>
                     </div>
-                    {selectedEmail.processedAt && (
-                      <div>
-                        <Label className="text-sm font-medium">Processed</Label>
-                        <p className="text-sm text-gray-600 dark:text-gray-400">
-                          {formatDate(selectedEmail.processedAt ? selectedEmail.processedAt.toString() : null)}
-                        </p>
-                      </div>
-                    )}
+                    <div>
+                      <Label className="text-sm font-medium">Status</Label>
+                      <Badge variant={selectedEmail.processed ? "default" : "secondary"} className="ml-2">
+                        {selectedEmail.processed ? "Processed" : "Pending"}
+                      </Badge>
+                    </div>
                     <Separator />
                     <div>
                       <Label className="text-sm font-medium">Content</Label>
@@ -407,86 +387,46 @@ export function EmailMonitor() {
                   </TabsContent>
                   
                   <TabsContent value="analysis" className="space-y-4">
-                    {selectedEmail.aiAnalysis ? (
-                      <div className="space-y-3">
-                        {(selectedEmail.aiAnalysis as EmailAnalysis).error ? (
-                          <div className="flex items-center gap-2 text-red-600 dark:text-red-400">
-                            <AlertCircle className="h-4 w-4" />
-                            <span className="text-sm">Analysis failed</span>
-                          </div>
-                        ) : (
-                          <>
-                            {(selectedEmail.aiAnalysis as EmailAnalysis).category && (
-                              <div>
-                                <Label className="text-sm font-medium">Category</Label>
-                                <Badge variant="outline" className="ml-2">
-                                  {(selectedEmail.aiAnalysis as EmailAnalysis).category}
-                                </Badge>
-                              </div>
-                            )}
-                            {(selectedEmail.aiAnalysis as EmailAnalysis).priority && (
-                              <div>
-                                <Label className="text-sm font-medium">Priority</Label>
-                                <Badge 
-                                  className={`ml-2 ${getPriorityColor((selectedEmail.aiAnalysis as EmailAnalysis).priority)}`}
-                                >
-                                  {(selectedEmail.aiAnalysis as EmailAnalysis).priority}
-                                </Badge>
-                              </div>
-                            )}
-                            {(selectedEmail.aiAnalysis as EmailAnalysis).sentiment && (
-                              <div>
-                                <Label className="text-sm font-medium">Sentiment</Label>
-                                <Badge 
-                                  className={`ml-2 ${getSentimentColor((selectedEmail.aiAnalysis as EmailAnalysis).sentiment)}`}
-                                >
-                                  {(selectedEmail.aiAnalysis as EmailAnalysis).sentiment}
-                                </Badge>
-                              </div>
-                            )}
-                            {(selectedEmail.aiAnalysis as EmailAnalysis).summary && (
-                              <div>
-                                <Label className="text-sm font-medium">Summary</Label>
-                                <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                                  {(selectedEmail.aiAnalysis as EmailAnalysis).summary}
-                                </p>
-                              </div>
-                            )}
-                            {(selectedEmail.aiAnalysis as EmailAnalysis).topics && (selectedEmail.aiAnalysis as EmailAnalysis).topics!.length > 0 && (
-                              <div>
-                                <Label className="text-sm font-medium">Topics</Label>
-                                <div className="flex flex-wrap gap-1 mt-1">
-                                  {(selectedEmail.aiAnalysis as EmailAnalysis).topics!.map((topic, index) => (
-                                    <Badge key={index} variant="secondary" className="text-xs">
-                                      {topic}
-                                    </Badge>
-                                  ))}
-                                </div>
-                              </div>
-                            )}
-                            {(selectedEmail.aiAnalysis as EmailAnalysis).action_items && (selectedEmail.aiAnalysis as EmailAnalysis).action_items!.length > 0 && (
-                              <div>
-                                <Label className="text-sm font-medium">Action Items</Label>
-                                <ul className="text-sm text-gray-600 dark:text-gray-400 mt-1 space-y-1">
-                                  {(selectedEmail.aiAnalysis as EmailAnalysis).action_items!.map((item, index) => (
-                                    <li key={index} className="flex items-start gap-2">
-                                      <span className="w-1 h-1 bg-gray-400 rounded-full mt-2 flex-shrink-0"></span>
-                                      {item}
-                                    </li>
-                                  ))}
-                                </ul>
-                              </div>
-                            )}
-                          </>
-                        )}
+                    <div className="space-y-3">
+                      <div>
+                        <Label className="text-sm font-medium">Email ID</Label>
+                        <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">{selectedEmail.uid}</p>
                       </div>
-                    ) : (
-                      <div className="text-center py-4 text-gray-500 dark:text-gray-400">
-                        <AlertCircle className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                        <p className="text-sm">No AI analysis available</p>
-                        <p className="text-xs">Run the email agent to analyze this email</p>
+                      
+                      <div>
+                        <Label className="text-sm font-medium">Attachment Status</Label>
+                        <Badge variant={selectedEmail.hasAttachments ? "default" : "secondary"} className="ml-2">
+                          {selectedEmail.hasAttachments ? "Has Attachments" : "No Attachments"}
+                        </Badge>
                       </div>
-                    )}
+                      
+                      <div>
+                        <Label className="text-sm font-medium">Processing Status</Label>
+                        <Badge variant={selectedEmail.processed ? "default" : "secondary"} className="ml-2">
+                          {selectedEmail.processed ? "Processed" : "Pending"}
+                        </Badge>
+                      </div>
+                      
+                      <div>
+                        <Label className="text-sm font-medium">Created</Label>
+                        <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                          {formatDate(selectedEmail.createdAt ? selectedEmail.createdAt.toString() : null)}
+                        </p>
+                      </div>
+                      
+                      {selectedEmail.attachments && (
+                        <div>
+                          <Label className="text-sm font-medium">Attachment Data</Label>
+                          <ScrollArea className="h-32 mt-1">
+                            <pre className="text-xs text-gray-600 dark:text-gray-400 whitespace-pre-wrap">
+                              {typeof selectedEmail.attachments === 'string' 
+                                ? selectedEmail.attachments 
+                                : JSON.stringify(selectedEmail.attachments, null, 2)}
+                            </pre>
+                          </ScrollArea>
+                        </div>
+                      )}
+                    </div>
                   </TabsContent>
                 </Tabs>
               ) : (
