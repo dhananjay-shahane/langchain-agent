@@ -1,4 +1,4 @@
-import { type AgentConfig, type ChatMessage, type LasFile, type OutputFile, type InsertAgentConfig, type InsertChatMessage, type InsertLasFile, type InsertOutputFile, agentConfigs, chatMessages, lasFiles, outputFiles } from "@shared/schema";
+import { type AgentConfig, type ChatMessage, type LasFile, type OutputFile, type Email, type EmailMonitorStatus, type InsertAgentConfig, type InsertChatMessage, type InsertLasFile, type InsertOutputFile, type InsertEmail, type InsertEmailMonitorStatus, agentConfigs, chatMessages, lasFiles, outputFiles, emails, emailMonitorStatus } from "@shared/schema";
 import { randomUUID } from "crypto";
 import { db } from "./db";
 import { eq, desc } from "drizzle-orm";
@@ -21,6 +21,15 @@ export interface IStorage {
   getOutputFiles(): Promise<OutputFile[]>;
   addOutputFile(file: InsertOutputFile): Promise<OutputFile>;
   
+  // Emails
+  getEmails(): Promise<Email[]>;
+  addEmail(email: InsertEmail): Promise<Email>;
+  deleteEmail(id: string): Promise<boolean>;
+  
+  // Email Monitor Status
+  getEmailMonitorStatus(): Promise<EmailMonitorStatus | undefined>;
+  updateEmailMonitorStatus(status: InsertEmailMonitorStatus): Promise<EmailMonitorStatus>;
+  
 }
 
 export class MemStorage implements IStorage {
@@ -28,11 +37,14 @@ export class MemStorage implements IStorage {
   private chatMessages: Map<string, ChatMessage>;
   private lasFiles: Map<string, LasFile>;
   private outputFiles: Map<string, OutputFile>;
+  private emails: Map<string, Email>;
+  private emailMonitorStatus: EmailMonitorStatus | undefined;
 
   constructor() {
     this.chatMessages = new Map();
     this.lasFiles = new Map();
     this.outputFiles = new Map();
+    this.emails = new Map();
     
     // Initialize with default config
     this.agentConfig = {
@@ -43,6 +55,17 @@ export class MemStorage implements IStorage {
       isConnected: false,
       lastTested: null,
       createdAt: new Date(),
+    };
+    
+    // Initialize email monitor status
+    this.emailMonitorStatus = {
+      id: randomUUID(),
+      isRunning: false,
+      lastStarted: null,
+      lastStopped: null,
+      lastError: null,
+      emailsProcessed: "0",
+      updatedAt: new Date(),
     };
   }
 
@@ -124,6 +147,43 @@ export class MemStorage implements IStorage {
     return outputFile;
   }
 
+  async getEmails(): Promise<Email[]> {
+    return Array.from(this.emails.values()).sort(
+      (a, b) => b.createdAt!.getTime() - a.createdAt!.getTime()
+    );
+  }
+
+  async addEmail(email: InsertEmail): Promise<Email> {
+    const id = randomUUID();
+    const emailRecord: Email = {
+      ...email,
+      id,
+      createdAt: new Date(),
+      body: email.body || "",
+      attachments: email.attachments || [],
+      replyStatus: email.replyStatus || "pending",
+    };
+    this.emails.set(id, emailRecord);
+    return emailRecord;
+  }
+
+  async deleteEmail(id: string): Promise<boolean> {
+    return this.emails.delete(id);
+  }
+
+  async getEmailMonitorStatus(): Promise<EmailMonitorStatus | undefined> {
+    return this.emailMonitorStatus;
+  }
+
+  async updateEmailMonitorStatus(status: InsertEmailMonitorStatus): Promise<EmailMonitorStatus> {
+    this.emailMonitorStatus = {
+      ...this.emailMonitorStatus!,
+      ...status,
+      updatedAt: new Date(),
+    };
+    return this.emailMonitorStatus;
+  }
+
 }
 
 // Database Storage Implementation
@@ -189,6 +249,46 @@ export class DbStorage implements IStorage {
       .values(file)
       .returning();
     return created;
+  }
+
+  async getEmails(): Promise<Email[]> {
+    return db.select().from(emails).orderBy(desc(emails.createdAt));
+  }
+
+  async addEmail(email: InsertEmail): Promise<Email> {
+    const [created] = await db.insert(emails)
+      .values(email)
+      .returning();
+    return created;
+  }
+
+  async deleteEmail(id: string): Promise<boolean> {
+    const result = await db.delete(emails)
+      .where(eq(emails.id, id))
+      .returning();
+    return result.length > 0;
+  }
+
+  async getEmailMonitorStatus(): Promise<EmailMonitorStatus | undefined> {
+    const result = await db.select().from(emailMonitorStatus).limit(1);
+    return result[0];
+  }
+
+  async updateEmailMonitorStatus(status: InsertEmailMonitorStatus): Promise<EmailMonitorStatus> {
+    const existing = await this.getEmailMonitorStatus();
+    
+    if (existing) {
+      const [updated] = await db.update(emailMonitorStatus)
+        .set({ ...status, updatedAt: new Date() })
+        .where(eq(emailMonitorStatus.id, existing.id))
+        .returning();
+      return updated;
+    } else {
+      const [created] = await db.insert(emailMonitorStatus)
+        .values({ ...status, updatedAt: new Date() })
+        .returning();
+      return created;
+    }
   }
 
 }

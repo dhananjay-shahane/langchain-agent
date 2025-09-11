@@ -40,6 +40,27 @@ export const outputFiles = pgTable("output_files", {
   createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`),
 });
 
+export const emails = pgTable("emails", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  uid: text("uid").notNull().unique(),
+  from: text("from").notNull(),
+  subject: text("subject").notNull(),
+  body: text("body").default(""),
+  attachments: text("attachments").array().default([]),
+  replyStatus: text("reply_status").default("pending"),
+  createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`),
+});
+
+export const emailMonitorStatus = pgTable("email_monitor_status", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  isRunning: boolean("is_running").default(false),
+  lastStarted: timestamp("last_started"),
+  lastStopped: timestamp("last_stopped"),
+  lastError: text("last_error"),
+  emailsProcessed: text("emails_processed").default("0"),
+  updatedAt: timestamp("updated_at").default(sql`CURRENT_TIMESTAMP`),
+});
+
 
 
 
@@ -63,6 +84,16 @@ export const insertOutputFileSchema = createInsertSchema(outputFiles).omit({
   createdAt: true,
 });
 
+export const insertEmailSchema = createInsertSchema(emails).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertEmailMonitorStatusSchema = createInsertSchema(emailMonitorStatus).omit({
+  id: true,
+  updatedAt: true,
+});
+
 
 
 
@@ -70,8 +101,12 @@ export type AgentConfig = typeof agentConfigs.$inferSelect;
 export type ChatMessage = typeof chatMessages.$inferSelect;
 export type LasFile = typeof lasFiles.$inferSelect;
 export type OutputFile = typeof outputFiles.$inferSelect;
+export type Email = typeof emails.$inferSelect;
+export type EmailMonitorStatus = typeof emailMonitorStatus.$inferSelect;
 
 export type InsertAgentConfig = z.infer<typeof insertAgentConfigSchema>;
 export type InsertChatMessage = z.infer<typeof insertChatMessageSchema>;
 export type InsertLasFile = z.infer<typeof insertLasFileSchema>;
 export type InsertOutputFile = z.infer<typeof insertOutputFileSchema>;
+export type InsertEmail = z.infer<typeof insertEmailSchema>;
+export type InsertEmailMonitorStatus = z.infer<typeof insertEmailMonitorStatusSchema>;
