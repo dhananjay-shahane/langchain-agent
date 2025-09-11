@@ -3,10 +3,50 @@ import { createServer, type Server } from "http";
 import { Server as SocketIOServer } from "socket.io";
 import { storage } from "./storage";
 import { insertAgentConfigSchema, insertChatMessageSchema, insertLasFileSchema, insertOutputFileSchema, insertEmailSchema } from "@shared/schema";
-import { spawn } from "child_process";
+import { spawn, exec } from "child_process";
 import path from "path";
 import fs from "fs";
 import "./services/file-watcher";
+
+// Simple rate limiting for email monitor endpoints
+interface RateLimitEntry {
+  count: number;
+  resetTime: number;
+}
+
+const rateLimitMap = new Map<string, RateLimitEntry>();
+const RATE_LIMIT_WINDOW = 60 * 1000; // 1 minute
+const RATE_LIMIT_MAX_REQUESTS = 10; // 10 requests per minute
+
+function checkRateLimit(ip: string): boolean {
+  const now = Date.now();
+  const entry = rateLimitMap.get(ip);
+  
+  if (!entry || now > entry.resetTime) {
+    rateLimitMap.set(ip, { count: 1, resetTime: now + RATE_LIMIT_WINDOW });
+    return true;
+  }
+  
+  if (entry.count >= RATE_LIMIT_MAX_REQUESTS) {
+    return false;
+  }
+  
+  entry.count++;
+  return true;
+}
+
+function rateLimitMiddleware(req: any, res: any, next: any) {
+  const clientIp = req.ip || req.connection?.remoteAddress || 'unknown';
+  
+  if (!checkRateLimit(clientIp)) {
+    return res.status(429).json({ 
+      error: "Too many requests. Please try again later.",
+      retryAfter: Math.ceil(RATE_LIMIT_WINDOW / 1000)
+    });
+  }
+  
+  next();
+}
 
 export async function registerRoutes(app: Express): Promise<Server> {
   const httpServer = createServer(app);
@@ -142,7 +182,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/files/output/:filename", async (req, res) => {
     try {
       const filename = req.params.filename;
-      const filepath = path.join(process.cwd(), "output", filename);
+      
+      // Security: Validate filename to prevent path traversal
+      if (!filename || filename.includes('..') || filename.includes('/') || filename.includes('\\')) {
+        return res.status(400).json({ error: "Invalid filename" });
+      }
+      
+      // Security: Only allow specific file extensions
+      const allowedExtensions = ['.png', '.jpg', '.jpeg', '.svg', '.txt', '.json', '.pdf'];
+      const hasValidExtension = allowedExtensions.some(ext => filename.toLowerCase().endsWith(ext));
+      if (!hasValidExtension) {
+        return res.status(400).json({ error: "File type not allowed" });
+      }
+      
+      const outputDir = path.join(process.cwd(), "output");
+      const filepath = path.join(outputDir, filename);
+      
+      // Security: Ensure the resolved path is within the output directory
+      const resolvedPath = path.resolve(filepath);
+      const resolvedOutputDir = path.resolve(outputDir);
+      if (!resolvedPath.startsWith(resolvedOutputDir + path.sep) && resolvedPath !== resolvedOutputDir) {
+        return res.status(403).json({ error: "Access denied" });
+      }
       
       if (!fs.existsSync(filepath)) {
         return res.status(404).json({ error: "File not found" });
@@ -160,6 +221,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       res.sendFile(filepath);
     } catch (error) {
+      console.error("File serving error:", error);
       res.status(500).json({ error: "Failed to serve file" });
     }
   });
@@ -200,7 +262,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/email/monitor/start", async (req, res) => {
+  app.post("/api/email/monitor/start", rateLimitMiddleware, async (req, res) => {
     try {
       // Check if credentials are configured
       if (!process.env.EMAIL_USER || !process.env.EMAIL_PASSWORD) {
@@ -208,9 +270,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Check if already running
-      const { exec } = require("child_process");
-      exec("pgrep -f email_monitor.py", (error, stdout, stderr) => {
-        if (stdout.trim()) {
+      exec("pgrep -f email_monitor.py", { timeout: 5000 }, (error: any, stdout: string, stderr: string) => {
+        if (error && error.code !== 1 && !error.killed) {
+          console.error("Process check error:", error);
+          return res.status(500).json({ error: "Failed to check current status" });
+        }
+        
+        if (stdout && stdout.trim()) {
           return res.json({ 
             message: "Email monitoring already running",
             status: "running"
@@ -218,11 +284,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
         
         // Start email monitoring workflow
-        const { spawn } = require("child_process");
+        const scriptPath = path.join(process.cwd(), "scripts/email_monitor.py");
+        
+        // Security: Validate script path exists and is within expected directory
+        if (!fs.existsSync(scriptPath)) {
+          return res.status(500).json({ error: "Email monitor script not found" });
+        }
+        
         const monitor = spawn("uv", [
           "run", 
           "python", 
-          path.join(process.cwd(), "scripts/email_monitor.py")
+          scriptPath
         ], {
           detached: true,
           stdio: ['ignore', 'ignore', 'ignore']
@@ -246,37 +318,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/email/monitor/stop", async (req, res) => {
+  app.post("/api/email/monitor/stop", rateLimitMiddleware, async (req, res) => {
     try {
       // Kill email monitoring processes
-      const { exec } = require("child_process");
-      exec("pkill -f email_monitor.py", (error) => {
-        if (error && error.code !== 1) {
+      exec("pkill -f email_monitor.py", { timeout: 5000 }, (error: any, stdout: string, stderr: string) => {
+        if (error && error.code !== 1 && !error.killed) {
           // Code 1 means no process found, which is fine
           console.error("Error stopping email monitor:", error);
+          return res.status(500).json({ error: "Failed to stop email monitoring" });
         }
-      });
-      
-      res.json({ 
-        message: "Email monitoring stopped",
-        status: "stopped"
+        
+        res.json({ 
+          message: "Email monitoring stopped",
+          status: "stopped"
+        });
       });
     } catch (error) {
+      console.error('Email monitor stop error:', error);
       res.status(500).json({ error: "Failed to stop email monitoring" });
     }
   });
 
-  app.get("/api/email/monitor/status", async (req, res) => {
+  app.get("/api/email/monitor/status", rateLimitMiddleware, async (req, res) => {
     try {
-      const { exec } = require("child_process");
-      exec("pgrep -f email_monitor.py", (error, stdout, stderr) => {
-        const isRunning = stdout.trim() !== "";
+      exec("pgrep -f email_monitor.py", { timeout: 5000 }, (error: any, stdout: string, stderr: string) => {
+        if (error && error.code !== 1 && !error.killed) {
+          console.error("Process check error:", error);
+          return res.status(500).json({ error: "Failed to check monitoring status" });
+        }
+        
+        const isRunning = stdout && stdout.trim() !== "";
         res.json({
           running: isRunning,
           message: isRunning ? "Email monitoring is running" : "Email monitoring is stopped"
         });
       });
     } catch (error) {
+      console.error("Status check error:", error);
       res.status(500).json({ error: "Failed to check monitoring status" });
     }
   });
@@ -286,19 +364,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
 async function testAgentConnection(config: any): Promise<{ success: boolean; message: string }> {
   return new Promise((resolve) => {
+    // Security: Validate config parameters to prevent command injection
+    if (!config || typeof config.provider !== 'string' || typeof config.model !== 'string') {
+      resolve({ success: false, message: "Invalid configuration parameters" });
+      return;
+    }
+    
+    // Security: Sanitize string inputs to prevent command injection
+    const safeProvider = config.provider.replace(/[^a-zA-Z0-9_-]/g, '');
+    const safeModel = config.model.replace(/[^a-zA-Z0-9_.-]/g, '');
+    const safeEndpointUrl = config.endpointUrl || '';
+    
+    const scriptPath = path.join(process.cwd(), "server/services/langchain-agent.py");
+    
+    // Security: Verify script exists
+    if (!fs.existsSync(scriptPath)) {
+      resolve({ success: false, message: "Agent script not found" });
+      return;
+    }
+    
     const python = spawn("uv", [
       "run",
       "python", 
-      path.join(process.cwd(), "server/services/langchain-agent.py"),
+      scriptPath,
       "test",
-      config.provider,
-      config.model,
-      config.endpointUrl
+      safeProvider,
+      safeModel,
+      safeEndpointUrl
     ]);
 
     let output = "";
     python.stdout.on("data", (data) => {
       output += data.toString();
+    });
+
+    python.stderr.on("data", (data) => {
+      console.error("Agent test error:", data.toString());
     });
 
     python.on("close", (code) => {
@@ -309,15 +410,26 @@ async function testAgentConnection(config: any): Promise<{ success: boolean; mes
       }
     });
 
+    python.on('error', (err) => {
+      console.error('Spawn error:', err);
+      resolve({ success: false, message: "Failed to start connection test" });
+    });
+
     setTimeout(() => {
       python.kill();
       resolve({ success: false, message: "Connection timeout" });
-    }, 3000); // Reduced to 3 seconds
+    }, 3000);
   });
 }
 
 async function processUserMessage(content: string, selectedLasFile?: string) {
   try {
+    // Security: Validate and sanitize inputs
+    if (typeof content !== 'string' || content.length > 10000) {
+      console.error("Invalid message content");
+      return;
+    }
+    
     // Add agent thinking message
     const thinkingMessage = await storage.addChatMessage({
       role: "agent",
@@ -329,13 +441,29 @@ async function processUserMessage(content: string, selectedLasFile?: string) {
 
     // Call the LangChain agent
     const config = await storage.getAgentConfig();
+    const scriptPath = path.join(process.cwd(), "server/services/langchain-agent.py");
+    
+    // Security: Verify script exists
+    if (!fs.existsSync(scriptPath)) {
+      throw new Error("Agent script not found");
+    }
+    
+    // Security: Sanitize selectedLasFile path
+    let safeLasFile = "";
+    if (selectedLasFile) {
+      // Only allow filenames without path traversal
+      if (!selectedLasFile.includes('..') && !selectedLasFile.includes('/') && !selectedLasFile.includes('\\')) {
+        safeLasFile = selectedLasFile;
+      }
+    }
+    
     const python = spawn("uv", [
       "run",
       "python", 
-      path.join(process.cwd(), "server/services/langchain-agent.py"),
+      scriptPath,
       "process",
       content,
-      selectedLasFile || "",
+      safeLasFile,
       JSON.stringify(config)
     ]);
 
@@ -344,9 +472,22 @@ async function processUserMessage(content: string, selectedLasFile?: string) {
       output += data.toString();
     });
 
+    python.stderr.on("data", (data) => {
+      console.error("Agent process error:", data.toString());
+    });
+
     python.on("close", async (code) => {
       try {
+        if (!output.trim()) {
+          throw new Error("No response from agent");
+        }
+        
         const response = JSON.parse(output);
+        
+        // Security: Validate response structure
+        if (typeof response.content !== 'string') {
+          throw new Error("Invalid response format");
+        }
         
         // Remove thinking message and add real response
         const agentMessage = await storage.addChatMessage({
@@ -358,18 +499,23 @@ async function processUserMessage(content: string, selectedLasFile?: string) {
         global.io?.emit("agent_response", agentMessage);
         
         // If files were generated, update file lists
-        if (response.generated_files) {
+        if (response.generated_files && Array.isArray(response.generated_files)) {
           for (const file of response.generated_files) {
-            await storage.addOutputFile({
-              filename: file.filename,
-              filepath: file.filepath,
-              type: file.type,
-              relatedLasFile: file.relatedLasFile
-            });
+            // Security: Validate file paths are within output directory
+            if (file.filename && typeof file.filename === 'string' && 
+                !file.filename.includes('..') && !file.filename.includes('/')) {
+              await storage.addOutputFile({
+                filename: file.filename,
+                filepath: file.filepath || path.join("output", file.filename),
+                type: file.type || "unknown",
+                relatedLasFile: file.relatedLasFile
+              });
+            }
           }
           global.io?.emit("files_updated");
         }
       } catch (error) {
+        console.error("Agent response processing error:", error);
         const errorMessage = await storage.addChatMessage({
           role: "agent",
           content: "I encountered an error processing your request. Please try again.",
@@ -379,8 +525,29 @@ async function processUserMessage(content: string, selectedLasFile?: string) {
         global.io?.emit("new_message", errorMessage);
       }
     });
+    
+    python.on('error', (err) => {
+      console.error('Agent spawn error:', err);
+    });
+    
+    // Add timeout for the entire process
+    setTimeout(() => {
+      if (!python.killed) {
+        python.kill();
+        console.error("Agent process timeout");
+      }
+    }, 30000); // 30 second timeout
+    
   } catch (error) {
     console.error("Error processing user message:", error);
+    
+    const errorMessage = await storage.addChatMessage({
+      role: "agent",
+      content: "I encountered an error processing your request. Please try again.",
+      metadata: { error: true }
+    });
+    
+    global.io?.emit("new_message", errorMessage);
   }
 }
 
