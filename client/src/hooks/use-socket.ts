@@ -66,7 +66,13 @@ export function useSocket() {
       queryClient.invalidateQueries({ queryKey: ["/api/files/output"] });
     };
 
-
+    const handleNewEmail = (email: any) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/emails"] });
+      toast({
+        title: "New email received",
+        description: `From: ${email.sender} - ${email.subject}`,
+      });
+    };
 
     // Register event listeners
     socket.on("connect", handleConnect);
@@ -77,6 +83,7 @@ export function useSocket() {
     socket.on("new_las_file", handleNewLasFile);
     socket.on("new_output_file", handleNewOutputFile);
     socket.on("files_updated", handleFilesUpdated);
+    socket.on("new_email", handleNewEmail);
 
     return () => {
       // Clean up listeners but keep connection alive
@@ -88,6 +95,7 @@ export function useSocket() {
       socket?.off("new_las_file", handleNewLasFile);
       socket?.off("new_output_file", handleNewOutputFile);
       socket?.off("files_updated", handleFilesUpdated);
+      socket?.off("new_email", handleNewEmail);
     };
   }, [queryClient, toast]);
 
