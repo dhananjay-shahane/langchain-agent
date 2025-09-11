@@ -6,6 +6,8 @@ import ImageViewer from "@/components/image-viewer";
 import { useSocket } from "@/hooks/use-socket";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
+import { Link } from "wouter";
+import { Mail } from "lucide-react";
 
 export default function Home() {
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
@@ -27,6 +29,16 @@ export default function Home() {
                 LAS File Processing System
               </p>
             </div>
+          </div>
+          
+          {/* Navigation */}
+          <div className="mt-4 space-y-2">
+            <Link href="/emails">
+              <Button variant="outline" className="w-full justify-start" data-testid="button-nav-emails">
+                <Mail className="w-4 h-4 mr-2" />
+                Email Monitor
+              </Button>
+            </Link>
           </div>
         </div>
 

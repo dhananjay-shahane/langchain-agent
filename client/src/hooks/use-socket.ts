@@ -5,7 +5,13 @@ import { io, Socket } from "socket.io-client";
 
 let socket: Socket | null = null;
 
-export function useSocket() {
+interface SocketEventHandlers {
+  onNewEmail?: (email: any) => void;
+  onEmailDeleted?: (data: { id: string }) => void;
+  onEmailMonitorStatus?: (status: any) => void;
+}
+
+export function useSocket(handlers: SocketEventHandlers = {}) {
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
@@ -66,6 +72,34 @@ export function useSocket() {
       queryClient.invalidateQueries({ queryKey: ["/api/files/output"] });
     };
 
+    const handleNewEmail = (email: any) => {
+      if (handlers.onNewEmail) {
+        handlers.onNewEmail(email);
+      } else {
+        queryClient.invalidateQueries({ queryKey: ["/api/emails"] });
+        toast({
+          title: "📧 New Email Received",
+          description: `From: ${email.from}`,
+        });
+      }
+    };
+
+    const handleEmailDeleted = (data: { id: string }) => {
+      if (handlers.onEmailDeleted) {
+        handlers.onEmailDeleted(data);
+      } else {
+        queryClient.invalidateQueries({ queryKey: ["/api/emails"] });
+      }
+    };
+
+    const handleEmailMonitorStatus = (status: any) => {
+      if (handlers.onEmailMonitorStatus) {
+        handlers.onEmailMonitorStatus(status);
+      } else {
+        queryClient.setQueryData(["/api/emails/monitor/status"], status);
+      }
+    };
+
 
     // Register event listeners
     socket.on("connect", handleConnect);
@@ -76,6 +110,9 @@ export function useSocket() {
     socket.on("new_las_file", handleNewLasFile);
     socket.on("new_output_file", handleNewOutputFile);
     socket.on("files_updated", handleFilesUpdated);
+    socket.on("new_email", handleNewEmail);
+    socket.on("email_deleted", handleEmailDeleted);
+    socket.on("email_monitor_status", handleEmailMonitorStatus);
 
     return () => {
       // Clean up listeners but keep connection alive
@@ -87,6 +124,9 @@ export function useSocket() {
       socket?.off("new_las_file", handleNewLasFile);
       socket?.off("new_output_file", handleNewOutputFile);
       socket?.off("files_updated", handleFilesUpdated);
+      socket?.off("new_email", handleNewEmail);
+      socket?.off("email_deleted", handleEmailDeleted);
+      socket?.off("email_monitor_status", handleEmailMonitorStatus);
     };
   }, [queryClient, toast]);
 

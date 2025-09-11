@@ -303,7 +303,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Update status
       const newStatus = await storage.updateEmailMonitorStatus({ 
         isRunning: true,
-        lastStarted: new Date().getTime(),
+        lastStarted: new Date(),
         lastError: null
       });
       
@@ -333,7 +333,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Update status
       const newStatus = await storage.updateEmailMonitorStatus({ 
         isRunning: false,
-        lastStopped: new Date().getTime()
+        lastStopped: new Date()
       });
       
       io.emit("email_monitor_status", newStatus);
