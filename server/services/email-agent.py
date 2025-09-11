@@ -15,6 +15,7 @@ from typing import Any, Dict, List, Optional
 from langchain_ollama import ChatOllama
 from langchain_openai import ChatOpenAI
 from langchain_anthropic import ChatAnthropic
+from pydantic import SecretStr
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_core.tools import tool
 from langgraph.prebuilt import create_react_agent
@@ -44,7 +45,7 @@ class EmailAgent:
                     return False
                 self.llm = ChatOpenAI(
                     model=self.model,
-                    api_key=api_key,
+                    api_key=SecretStr(api_key),
                     temperature=0.3
                 )
             elif self.provider == "anthropic":
@@ -53,7 +54,7 @@ class EmailAgent:
                     return False
                 self.llm = ChatAnthropic(
                     model_name=self.model,
-                    api_key=api_key,
+                    api_key=SecretStr(api_key),
                     temperature=0.3,
                     timeout=30,
                     stop=[]
@@ -427,13 +428,27 @@ Customer Service Team"""
                 
                 # Extract the response content
                 response_content = ""
-                if hasattr(response, 'messages') and response.messages:
-                    last_message = response.messages[-1]
-                    response_content = last_message.content if hasattr(last_message, 'content') else str(last_message)
-                elif hasattr(response, 'content'):
-                    response_content = response.content
+                if isinstance(response, dict):
+                    # Handle dictionary response from agent
+                    if 'messages' in response and response['messages']:
+                        last_message = response['messages'][-1]
+                        if isinstance(last_message, dict) and 'content' in last_message:
+                            response_content = last_message['content']
+                        else:
+                            response_content = str(last_message)
+                    elif 'output' in response:
+                        response_content = str(response['output'])
+                    else:
+                        response_content = str(response)
                 else:
-                    response_content = str(response)
+                    # Handle object response
+                    if hasattr(response, 'messages') and response.messages:
+                        last_message = response.messages[-1]
+                        response_content = last_message.content if hasattr(last_message, 'content') else str(last_message)
+                    elif hasattr(response, 'content'):
+                        response_content = response.content
+                    else:
+                        response_content = str(response)
             else:
                 raise Exception("Agent not initialized")
             

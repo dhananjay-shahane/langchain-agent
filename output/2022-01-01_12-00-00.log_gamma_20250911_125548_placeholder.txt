@@ -1,0 +1,16 @@
+
+LAS Plot Data: data/2022-01-01_12-00-00.log
+Curve Type: gamma  
+Generated: 20250911_125548
+Well: 2022-01-01_12-00-00.log
+
+This is a placeholder for the actual gamma plot.
+The matplotlib visualization will show real data from the LAS file once the environment is properly configured.
+
+Expected data columns for data/2022-01-01_12-00-00.log:
+- DEPT (Depth)
+- GR (Gamma Ray) 
+- NPHI (Neutron Porosity)
+- DPHI (Density Porosity)  
+- RT (Resistivity)
+- RHOB (Bulk Density)
