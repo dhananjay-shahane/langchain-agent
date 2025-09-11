@@ -207,24 +207,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Email credentials not configured" });
       }
       
-      // Start email monitoring workflow
-      const { spawn } = require("child_process");
-      const monitor = spawn("uv", [
-        "run", 
-        "python", 
-        path.join(process.cwd(), "scripts/email_monitor.py")
-      ], {
-        detached: true,
-        stdio: 'ignore'
+      // Check if already running
+      const { exec } = require("child_process");
+      exec("pgrep -f email_monitor.py", (error, stdout, stderr) => {
+        if (stdout.trim()) {
+          return res.json({ 
+            message: "Email monitoring already running",
+            status: "running"
+          });
+        }
+        
+        // Start email monitoring workflow
+        const { spawn } = require("child_process");
+        const monitor = spawn("uv", [
+          "run", 
+          "python", 
+          path.join(process.cwd(), "scripts/email_monitor.py")
+        ], {
+          detached: true,
+          stdio: ['ignore', 'ignore', 'ignore']
+        });
+        
+        monitor.on('error', (err) => {
+          console.error('Failed to start email monitor:', err);
+        });
+        
+        monitor.unref();
+        
+        res.json({ 
+          message: "Email monitoring started",
+          status: "running"
+        });
       });
       
-      monitor.unref();
-      
-      res.json({ 
-        message: "Email monitoring started",
-        status: "running"
-      });
     } catch (error) {
+      console.error('Email monitor start error:', error);
       res.status(500).json({ error: "Failed to start email monitoring" });
     }
   });

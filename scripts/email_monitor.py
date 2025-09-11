@@ -7,6 +7,7 @@ This script monitors an email account for new emails and processes attachments.
 import os
 import imaplib
 import email
+from email import message as email_message
 import json
 import time
 import threading
@@ -47,6 +48,11 @@ class EmailMonitor:
         if not self.email_user or not self.email_password:
             raise ValueError("EMAIL_USER and EMAIL_PASSWORD environment variables are required")
         
+        # Ensure we have valid credentials
+        self.email_user = str(self.email_user)
+        self.email_password = str(self.email_password)
+        self.imap_host = str(self.imap_host)
+        
         self.mail = None
         self.running = False
         self.idle_timeout = 300  # 5 minutes
@@ -61,7 +67,9 @@ class EmailMonitor:
         """Connect to the IMAP server."""
         try:
             self.mail = imaplib.IMAP4_SSL(self.imap_host, self.imap_port)
-            self.mail.login(self.email_user, self.email_password)
+            if not self.email_user or not self.email_password:
+                raise ValueError("Invalid email credentials")
+            self.mail.login(str(self.email_user), str(self.email_password))
             self.mail.select('INBOX')
             logger.info(f"Connected to {self.imap_host}")
             return True
