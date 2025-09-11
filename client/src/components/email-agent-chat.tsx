@@ -90,15 +90,33 @@ export default function EmailAgentChat() {
     },
     onSuccess: (data, email) => {
       // Extract clean response content instead of raw JSON
-      let responseContent = data.response || "Email processed successfully";
+      let responseContent = "Email processed successfully";
       
-      // If response is still JSON, extract the actual message
-      if (typeof responseContent === 'string' && responseContent.startsWith('{')) {
+      // Check if data has response field directly
+      if (data && data.response) {
+        responseContent = data.response;
+      }
+      // Check if data itself is a string containing JSON
+      else if (typeof data === 'string') {
         try {
-          const parsed = JSON.parse(responseContent);
-          responseContent = parsed.response || parsed.message || responseContent;
+          const parsed = JSON.parse(data);
+          responseContent = parsed.response || parsed.message || "Email processed successfully";
         } catch (e) {
-          // If parsing fails, use the content as is
+          responseContent = data;
+        }
+      }
+      // Check if the response is an object that was stringified
+      else if (data && typeof data === 'object') {
+        responseContent = data.response || data.message || JSON.stringify(data);
+        
+        // If it's still JSON-like, try to extract the message
+        if (typeof responseContent === 'string' && responseContent.includes('"response":')) {
+          try {
+            const parsed = JSON.parse(responseContent);
+            responseContent = parsed.response || responseContent;
+          } catch (e) {
+            // Keep as is if parsing fails
+          }
         }
       }
       
@@ -373,7 +391,7 @@ export default function EmailAgentChat() {
                             From: {extractEmailAddress(email.from || "")}
                           </div>
                           <div className="text-xs text-muted-foreground mt-1">
-                            {formatDate(email.createdAt || new Date().toISOString())}
+                            {formatDate(typeof email.createdAt === 'string' ? email.createdAt : new Date().toISOString())}
                           </div>
                         </div>
                         <div className="flex flex-col items-end gap-1">
