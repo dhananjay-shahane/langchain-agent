@@ -275,7 +275,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Check if already running
-      exec("pgrep -f email_monitor.py", { timeout: 5000 }, (error: any, stdout: string, stderr: string) => {
+      exec("pgrep -f realtime_email_monitor.py", { timeout: 5000 }, (error: any, stdout: string, stderr: string) => {
         if (error && error.code !== 1 && !error.killed) {
           console.error("Process check error:", error);
           return res.status(500).json({ error: "Failed to check current status" });
@@ -289,7 +289,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
         
         // Start email monitoring workflow
-        const scriptPath = path.join(process.cwd(), "scripts/email_monitor.py");
+        const scriptPath = path.join(process.cwd(), "scripts/realtime_email_monitor.py");
         
         // Security: Validate script path exists and is within expected directory
         if (!fs.existsSync(scriptPath)) {
@@ -326,7 +326,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/email/monitor/stop", rateLimitMiddleware, async (req, res) => {
     try {
       // Kill email monitoring processes
-      exec("pkill -f email_monitor.py", { timeout: 5000 }, (error: any, stdout: string, stderr: string) => {
+      exec("pkill -f realtime_email_monitor.py", { timeout: 5000 }, (error: any, stdout: string, stderr: string) => {
         if (error && error.code !== 1 && !error.killed) {
           // Code 1 means no process found, which is fine
           console.error("Error stopping email monitor:", error);
@@ -346,7 +346,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/email/monitor/status", rateLimitMiddleware, async (req, res) => {
     try {
-      exec("pgrep -f email_monitor.py", { timeout: 5000 }, (error: any, stdout: string, stderr: string) => {
+      exec("pgrep -f realtime_email_monitor.py", { timeout: 5000 }, (error: any, stdout: string, stderr: string) => {
         if (error && error.code !== 1 && !error.killed) {
           console.error("Process check error:", error);
           return res.status(500).json({ error: "Failed to check monitoring status" });
