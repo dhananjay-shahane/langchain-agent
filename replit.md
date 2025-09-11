@@ -43,6 +43,8 @@ Preferred communication style: Simple, everyday language.
 - **Environment-based Configuration**: Secure storage of API keys and database credentials
 - **CORS Handling**: Proper cross-origin resource sharing configuration
 - **File Upload Security**: Sanitized file handling and storage
+- **Agent Configuration Security**: All hardcoded endpoint URLs removed from codebase (Sept 2025)
+- **Dashboard Management**: Agent provider, model, and endpoint configuration via secure UI
 
 # External Dependencies
 
