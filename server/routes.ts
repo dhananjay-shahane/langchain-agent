@@ -42,7 +42,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/agent/config", async (req, res) => {
     try {
-      const validatedConfig = insertAgentConfigSchema.parse(req.body);
+      const configData = { ...req.body };
+      
+      // Convert lastTested string to Date object if present
+      if (configData.lastTested && typeof configData.lastTested === 'string') {
+        configData.lastTested = new Date(configData.lastTested);
+      }
+      
+      // Remove fields that should be omitted by the schema
+      delete configData.id;
+      delete configData.createdAt;
+      
+      const validatedConfig = insertAgentConfigSchema.parse(configData);
       const config = await storage.updateAgentConfig(validatedConfig);
       
       // Emit config update to all clients
@@ -50,7 +61,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       res.json(config);
     } catch (error) {
-      res.status(400).json({ error: "Invalid config data" });
+      console.log("Config validation error:", error);
+      res.status(400).json({ error: "Invalid config data", details: error instanceof Error ? error.message : String(error) });
     }
   });
 

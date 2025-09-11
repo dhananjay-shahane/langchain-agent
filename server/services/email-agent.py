@@ -474,49 +474,57 @@ Customer Service Team"""
             }
             
         except Exception as e:
-            return {
-                "success": False,
-                "error": str(e),
-                "response": f"""Dear valued customer,
-
-Thank you for your email. We have received your message and it has been added to our system for processing.
-
-Due to a temporary technical issue, we are processing your request manually and will respond as soon as possible.
-
-We apologize for any inconvenience and appreciate your patience.
-
-Best regards,
-Customer Service Team""",
-                "metadata": {
-                    "processed_at": datetime.now().isoformat(),
-                    "error": str(e),
-                    "fallback_response": True
-                }
-            }
+            print(f"Email processing error: {str(e)}")
+            raise Exception(f"Email processing failed: {str(e)}")
     
     async def send_email_reply(self, to_email: str, subject: str, reply_content: str) -> Dict[str, Any]:
-        """Send email reply (mock implementation - replace with actual email service)"""
+        """Send actual email reply via SMTP using EMAIL_USER credentials"""
+        import smtplib
+        import os
+        from email.mime.text import MIMEText
+        from email.mime.multipart import MIMEMultipart
+        
+        # Get credentials from environment
+        email_user = os.environ.get("EMAIL_USER")
+        email_pass = os.environ.get("EMAIL_PASS") 
+        smtp_host = os.environ.get("SMTP_HOST", "smtp.gmail.com")
+        smtp_port = int(os.environ.get("SMTP_PORT", "587"))
+        
+        if not email_user or not email_pass:
+            raise Exception("EMAIL_USER and EMAIL_PASS environment variables must be set")
+        
         try:
-            # This is a mock implementation
-            # In production, you would integrate with SendGrid, AWS SES, or SMTP
+            # Create message
+            msg = MIMEMultipart()
+            msg['From'] = email_user
+            msg['To'] = to_email
+            msg['Subject'] = f"Re: {subject}"
             
-            print(f"Mock Email Sent:")
-            print(f"To: {to_email}")
+            # Add body to email
+            msg.attach(MIMEText(reply_content, 'plain'))
+            
+            # Setup SMTP server and send email
+            server = smtplib.SMTP(smtp_host, smtp_port)
+            server.starttls()  # Enable TLS security
+            server.login(email_user, email_pass)
+            text = msg.as_string()
+            server.sendmail(email_user, to_email, text)
+            server.quit()
+            
+            print(f"Email sent successfully to: {to_email}")
             print(f"Subject: Re: {subject}")
-            print(f"Content: {reply_content[:100]}...")
             
             return {
                 "success": True,
-                "message": "Email reply sent successfully",
-                "sent_at": datetime.now().isoformat()
+                "message": "Email reply sent successfully via SMTP",
+                "sent_at": datetime.now().isoformat(),
+                "to": to_email,
+                "from": email_user
             }
             
         except Exception as e:
-            return {
-                "success": False,
-                "error": str(e),
-                "message": "Failed to send email reply"
-            }
+            print(f"SMTP Email Error: {str(e)}")
+            raise Exception(f"Failed to send email via SMTP: {str(e)}")
 
 async def main():
     """Main function for command line usage"""
