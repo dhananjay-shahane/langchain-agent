@@ -1,4 +1,4 @@
-import { type AgentConfig, type ChatMessage, type LasFile, type OutputFile, type Email, type EmailConfig, type InsertAgentConfig, type InsertChatMessage, type InsertLasFile, type InsertOutputFile, type InsertEmail, type InsertEmailConfig, agentConfigs, chatMessages, lasFiles, outputFiles, emails, emailConfigs } from "@shared/schema";
+import { type AgentConfig, type ChatMessage, type LasFile, type OutputFile, type InsertAgentConfig, type InsertChatMessage, type InsertLasFile, type InsertOutputFile, agentConfigs, chatMessages, lasFiles, outputFiles } from "@shared/schema";
 import { randomUUID } from "crypto";
 import { db } from "./db";
 import { eq, desc } from "drizzle-orm";
@@ -21,30 +21,18 @@ export interface IStorage {
   getOutputFiles(): Promise<OutputFile[]>;
   addOutputFile(file: InsertOutputFile): Promise<OutputFile>;
   
-  // Emails
-  getEmails(limit?: number): Promise<Email[]>;
-  addEmail(email: InsertEmail): Promise<Email>;
-  updateEmail(id: string, updates: Partial<Email>): Promise<Email | undefined>;
-  getEmailByUid(uid: string): Promise<Email | undefined>;
-  
-  // Email Config
-  getEmailConfig(): Promise<EmailConfig | undefined>;
-  updateEmailConfig(config: InsertEmailConfig): Promise<EmailConfig>;
 }
 
 export class MemStorage implements IStorage {
   private agentConfig: AgentConfig | undefined;
-  private emailConfig: EmailConfig | undefined;
   private chatMessages: Map<string, ChatMessage>;
   private lasFiles: Map<string, LasFile>;
   private outputFiles: Map<string, OutputFile>;
-  private emails: Map<string, Email>;
 
   constructor() {
     this.chatMessages = new Map();
     this.lasFiles = new Map();
     this.outputFiles = new Map();
-    this.emails = new Map();
     
     // Initialize with default config
     this.agentConfig = {
@@ -136,59 +124,6 @@ export class MemStorage implements IStorage {
     return outputFile;
   }
 
-  async getEmails(limit?: number): Promise<Email[]> {
-    const emails = Array.from(this.emails.values()).sort(
-      (a, b) => b.receivedAt!.getTime() - a.receivedAt!.getTime()
-    );
-    return limit ? emails.slice(0, limit) : emails;
-  }
-
-  async addEmail(email: InsertEmail): Promise<Email> {
-    const id = randomUUID();
-    const emailRecord: Email = {
-      ...email,
-      id,
-      body: email.body || null,
-      createdAt: new Date(),
-      receivedAt: email.receivedAt || new Date(),
-      processedAt: email.processedAt || null,
-      attachments: email.attachments || null,
-      aiAnalysis: email.aiAnalysis || null,
-      jsonFile: email.jsonFile || null,
-      processed: email.processed || false,
-      hasAttachments: email.hasAttachments || false,
-    };
-    this.emails.set(id, emailRecord);
-    return emailRecord;
-  }
-
-  async updateEmail(id: string, updates: Partial<Email>): Promise<Email | undefined> {
-    const existing = this.emails.get(id);
-    if (!existing) return undefined;
-    
-    const updated = { ...existing, ...updates };
-    this.emails.set(id, updated);
-    return updated;
-  }
-
-  async getEmailByUid(uid: string): Promise<Email | undefined> {
-    return Array.from(this.emails.values()).find(email => email.uid === uid);
-  }
-
-  async getEmailConfig(): Promise<EmailConfig | undefined> {
-    return this.emailConfig;
-  }
-
-  async updateEmailConfig(config: InsertEmailConfig): Promise<EmailConfig> {
-    this.emailConfig = {
-      ...this.emailConfig!,
-      ...config,
-      id: this.emailConfig?.id || randomUUID(),
-      createdAt: this.emailConfig?.createdAt || new Date(),
-      updatedAt: new Date(),
-    };
-    return this.emailConfig;
-  }
 
 }
 
@@ -257,53 +192,6 @@ export class DbStorage implements IStorage {
     return created;
   }
 
-  async getEmails(limit?: number): Promise<Email[]> {
-    const query = db.select().from(emails).orderBy(desc(emails.receivedAt));
-    const result = limit ? await query.limit(limit) : await query;
-    return result;
-  }
-
-  async addEmail(email: InsertEmail): Promise<Email> {
-    const [created] = await db.insert(emails)
-      .values(email)
-      .returning();
-    return created;
-  }
-
-  async updateEmail(id: string, updates: Partial<Email>): Promise<Email | undefined> {
-    const [updated] = await db.update(emails)
-      .set(updates)
-      .where(eq(emails.id, id))
-      .returning();
-    return updated;
-  }
-
-  async getEmailByUid(uid: string): Promise<Email | undefined> {
-    const result = await db.select().from(emails).where(eq(emails.uid, uid)).limit(1);
-    return result[0];
-  }
-
-  async getEmailConfig(): Promise<EmailConfig | undefined> {
-    const result = await db.select().from(emailConfigs).limit(1);
-    return result[0];
-  }
-
-  async updateEmailConfig(config: InsertEmailConfig): Promise<EmailConfig> {
-    const existing = await this.getEmailConfig();
-    
-    if (existing) {
-      const [updated] = await db.update(emailConfigs)
-        .set({ ...config, updatedAt: new Date() })
-        .where(eq(emailConfigs.id, existing.id))
-        .returning();
-      return updated;
-    } else {
-      const [created] = await db.insert(emailConfigs)
-        .values({ ...config, updatedAt: new Date() })
-        .returning();
-      return created;
-    }
-  }
 
 }
 

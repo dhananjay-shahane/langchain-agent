@@ -40,35 +40,6 @@ export const outputFiles = pgTable("output_files", {
   createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`),
 });
 
-export const emails = pgTable("emails", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  uid: text("uid").notNull().unique(),
-  sender: text("sender").notNull(),
-  subject: text("subject").notNull(),
-  body: text("body"),
-  hasAttachments: boolean("has_attachments").default(false),
-  attachments: jsonb("attachments"), // JSON array of attachment data
-  processed: boolean("processed").default(false),
-  aiAnalysis: jsonb("ai_analysis"), // LangChain analysis results
-  jsonFile: text("json_file"), // Path to saved JSON file
-  receivedAt: timestamp("received_at").default(sql`CURRENT_TIMESTAMP`),
-  processedAt: timestamp("processed_at"),
-  createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`),
-});
-
-export const emailConfigs = pgTable("email_configs", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  emailAddress: text("email_address").notNull(),
-  emailPassword: text("email_password").notNull(),
-  imapHost: text("imap_host").notNull().default("imap.gmail.com"),
-  smtpHost: text("smtp_host").notNull().default("smtp.gmail.com"),
-  imapPort: text("imap_port").default("993"),
-  smtpPort: text("smtp_port").default("587"),
-  pollInterval: text("poll_interval").default("20"),
-  isEnabled: boolean("is_enabled").default(true),
-  createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`),
-  updatedAt: timestamp("updated_at").default(sql`CURRENT_TIMESTAMP`),
-});
 
 
 export const insertAgentConfigSchema = createInsertSchema(agentConfigs).omit({
@@ -91,16 +62,6 @@ export const insertOutputFileSchema = createInsertSchema(outputFiles).omit({
   createdAt: true,
 });
 
-export const insertEmailSchema = createInsertSchema(emails).omit({
-  id: true,
-  createdAt: true,
-});
-
-export const insertEmailConfigSchema = createInsertSchema(emailConfigs).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
-});
 
 
 export type AgentConfig = typeof agentConfigs.$inferSelect;
