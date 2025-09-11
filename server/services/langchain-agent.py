@@ -45,18 +45,19 @@ class LangChainMCPAgent:
                 api_key = os.getenv("OPENAI_API_KEY")
                 if not api_key:
                     return False
-                from openai import OpenAI
                 self.llm = ChatOpenAI(
                     model=self.model,
-                    openai_api_key=api_key
+                    api_key=api_key
                 )
             elif self.provider == "anthropic":
                 api_key = os.getenv("ANTHROPIC_API_KEY")
                 if not api_key:
                     return False
                 self.llm = ChatAnthropic(
-                    model=self.model,
-                    api_key=api_key
+                    model_name=self.model,
+                    api_key=api_key,
+                    timeout=30,
+                    stop=[]
                 )
             
             # Create comprehensive MCP tools for LAS analysis
@@ -445,15 +446,17 @@ class LangChainMCPAgent:
                     return {"success": False, "message": "OpenAI API key not configured"}
                 self.llm = ChatOpenAI(
                     model=self.model,
-                    openai_api_key=api_key
+                    api_key=api_key
                 )
             elif self.provider == "anthropic":
                 api_key = os.getenv("ANTHROPIC_API_KEY") 
                 if not api_key:
                     return {"success": False, "message": "Anthropic API key not configured"}
                 self.llm = ChatAnthropic(
-                    model=self.model,
-                    api_key=api_key
+                    model_name=self.model,
+                    api_key=api_key,
+                    timeout=30,
+                    stop=[]
                 )
             
             # Test with a simple message with timeout
