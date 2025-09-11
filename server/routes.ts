@@ -2,7 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { Server as SocketIOServer } from "socket.io";
 import { storage } from "./storage";
-import { insertAgentConfigSchema, insertChatMessageSchema, insertLasFileSchema, insertOutputFileSchema } from "@shared/schema";
+import { insertAgentConfigSchema, insertChatMessageSchema, insertLasFileSchema, insertOutputFileSchema, insertEmailSchema, insertEmailMonitorStatusSchema } from "@shared/schema";
 import { spawn, exec } from "child_process";
 import path from "path";
 import fs from "fs";
@@ -187,6 +187,194 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+
+  // Email Routes
+  app.get("/api/emails", async (req, res) => {
+    try {
+      const emails = await storage.getEmails();
+      res.json(emails);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to get emails" });
+    }
+  });
+
+  app.post("/api/emails", async (req, res) => {
+    try {
+      const validatedEmail = insertEmailSchema.parse(req.body);
+      const email = await storage.addEmail(validatedEmail);
+      
+      // Emit new email to all clients
+      io.emit("new_email", email);
+      
+      res.status(201).json(email);
+    } catch (error) {
+      console.error("Email creation error:", error);
+      res.status(400).json({ error: "Invalid email data" });
+    }
+  });
+
+  app.delete("/api/emails/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const success = await storage.deleteEmail(id);
+      
+      if (success) {
+        io.emit("email_deleted", { id });
+        res.json({ success: true });
+      } else {
+        res.status(404).json({ error: "Email not found" });
+      }
+    } catch (error) {
+      res.status(500).json({ error: "Failed to delete email" });
+    }
+  });
+
+  // Email Monitor Status Routes
+  app.get("/api/emails/monitor/status", async (req, res) => {
+    try {
+      const status = await storage.getEmailMonitorStatus();
+      res.json(status || { isRunning: false, emailsProcessed: "0" });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to get monitor status" });
+    }
+  });
+
+  app.put("/api/emails/monitor/status", async (req, res) => {
+    try {
+      const validatedStatus = insertEmailMonitorStatusSchema.parse(req.body);
+      const status = await storage.updateEmailMonitorStatus(validatedStatus);
+      
+      // Emit status update to all clients
+      io.emit("email_monitor_status", status);
+      
+      res.json(status);
+    } catch (error) {
+      console.error("Status update error:", error);
+      res.status(400).json({ error: "Invalid status data" });
+    }
+  });
+
+  // Email Monitor Control Routes
+  app.post("/api/emails/monitor/start", async (req, res) => {
+    try {
+      // Check if monitor is already running
+      const status = await storage.getEmailMonitorStatus();
+      if (status?.isRunning) {
+        return res.status(400).json({ error: "Email monitor is already running" });
+      }
+
+      // Start the Python email monitor script
+      const scriptPath = path.join(process.cwd(), "scripts/email_monitor.py");
+      
+      if (!fs.existsSync(scriptPath)) {
+        return res.status(500).json({ error: "Email monitor script not found" });
+      }
+
+      const python = spawn("uv", ["run", "python", scriptPath, "start"], {
+        detached: true,
+        stdio: ["ignore", "pipe", "pipe"]
+      });
+
+      // Store the process reference globally so we can stop it later
+      global.emailMonitorProcess = python;
+
+      python.stdout?.on("data", (data) => {
+        console.log("Email Monitor:", data.toString());
+      });
+
+      python.stderr?.on("data", (data) => {
+        console.error("Email Monitor Error:", data.toString());
+      });
+
+      python.on("close", async (code) => {
+        console.log(`Email monitor process exited with code ${code}`);
+        await storage.updateEmailMonitorStatus({ isRunning: false });
+        io.emit("email_monitor_status", { isRunning: false });
+      });
+
+      python.on("error", async (err) => {
+        console.error("Email monitor spawn error:", err);
+        await storage.updateEmailMonitorStatus({ 
+          isRunning: false, 
+          lastError: err.message 
+        });
+      });
+
+      // Update status
+      const newStatus = await storage.updateEmailMonitorStatus({ 
+        isRunning: true,
+        lastStarted: new Date().getTime(),
+        lastError: null
+      });
+      
+      io.emit("email_monitor_status", newStatus);
+      
+      res.json({ success: true, message: "Email monitor started" });
+    } catch (error) {
+      console.error("Failed to start email monitor:", error);
+      res.status(500).json({ error: "Failed to start email monitor" });
+    }
+  });
+
+  app.post("/api/emails/monitor/stop", async (req, res) => {
+    try {
+      // Check if monitor is running
+      const status = await storage.getEmailMonitorStatus();
+      if (!status?.isRunning) {
+        return res.status(400).json({ error: "Email monitor is not running" });
+      }
+
+      // Kill the Python process if it exists
+      if (global.emailMonitorProcess) {
+        global.emailMonitorProcess.kill("SIGTERM");
+        global.emailMonitorProcess = undefined;
+      }
+
+      // Update status
+      const newStatus = await storage.updateEmailMonitorStatus({ 
+        isRunning: false,
+        lastStopped: new Date().getTime()
+      });
+      
+      io.emit("email_monitor_status", newStatus);
+      
+      res.json({ success: true, message: "Email monitor stopped" });
+    } catch (error) {
+      console.error("Failed to stop email monitor:", error);
+      res.status(500).json({ error: "Failed to stop email monitor" });
+    }
+  });
+
+  // Email Attachments Route
+  app.get("/api/emails/attachments/:filename", async (req, res) => {
+    try {
+      const filename = req.params.filename;
+      
+      // Security: Validate filename to prevent path traversal
+      if (!filename || filename.includes('..') || filename.includes('/') || filename.includes('\\')) {
+        return res.status(400).json({ error: "Invalid filename" });
+      }
+      
+      const attachmentsDir = path.join(process.cwd(), "data/email-attachments");
+      const filepath = path.join(attachmentsDir, filename);
+      
+      // Security: Ensure the resolved path is within the attachments directory
+      const resolvedPath = path.resolve(filepath);
+      const resolvedAttachmentsDir = path.resolve(attachmentsDir);
+      if (!resolvedPath.startsWith(resolvedAttachmentsDir + path.sep) && resolvedPath !== resolvedAttachmentsDir) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+      
+      if (!fs.existsSync(filepath)) {
+        return res.status(404).json({ error: "Attachment not found" });
+      }
+      
+      res.sendFile(filepath);
+    } catch (error) {
+      console.error("Attachment serving error:", error);
+      res.status(500).json({ error: "Failed to serve attachment" });
+    }
+  });
 
   return httpServer;
 }
@@ -383,4 +571,5 @@ async function processUserMessage(content: string, selectedLasFile?: string) {
 // Global declaration for TypeScript
 declare global {
   var io: SocketIOServer | undefined;
+  var emailMonitorProcess: any | undefined;
 }

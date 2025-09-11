@@ -38,7 +38,8 @@ class EmailMonitor:
         
         # Validate environment variables
         if not EMAIL_USER or not EMAIL_PASSWORD:
-            raise ValueError("EMAIL_USER and EMAIL_PASSWORD environment variables are required")
+            print("❌ EMAIL_USER and EMAIL_PASSWORD environment variables are required")
+            sys.exit(1)
         
         # Signal handlers for graceful shutdown
         signal.signal(signal.SIGTERM, self.signal_handler)
