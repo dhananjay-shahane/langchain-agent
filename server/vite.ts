@@ -40,11 +40,19 @@ export async function setupVite(app: Express, server: Server) {
     appType: "custom",
   });
 
-  // Use negative lookahead regex to exclude API and socket.io from Vite
-  app.use(/^(?!\/api\/|\/socket\.io\/).*/, vite.middlewares);
+  // Use conditional middleware to exclude API and socket.io from Vite
+  app.use((req, res, next) => {
+    if (req.path.startsWith('/api/') || req.path.startsWith('/socket.io/')) {
+      return next();
+    }
+    return vite.middlewares(req, res, next);
+  });
   
   // SPA catch-all for GET requests that accept HTML, excluding API and socket.io
-  app.get(/^(?!\/api\/|\/socket\.io\/).*/, async (req, res, next) => {
+  app.get('*', async (req, res, next) => {
+    if (req.path.startsWith('/api/') || req.path.startsWith('/socket.io/')) {
+      return next();
+    }
     const accept = req.headers.accept || "";
     
     // Only serve HTML for requests that accept it
@@ -87,7 +95,11 @@ export function serveStatic(app: Express) {
   app.use(express.static(distPath));
 
   // SPA fallback for GET requests that accept HTML, excluding API and socket.io
-  app.get(/^(?!\/api\/|\/socket\.io\/).*/, (req, res, next) => {
+  app.get('*', (req, res, next) => {
+    if (req.path.startsWith('/api/') || req.path.startsWith('/socket.io/')) {
+      return next();
+    }
+    
     const accept = req.headers.accept || "";
     
     // Only serve HTML for requests that accept it
