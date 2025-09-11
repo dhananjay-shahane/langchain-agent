@@ -4,7 +4,6 @@ version = "0.1.0"
 description = "Add your description here"
 requires-python = ">=3.11"
 dependencies = [
-    "imap-tools>=1.11.0",
     "langchain-mcp-adapters>=0.1.9",
     "langchain>=0.3.27",
     "langchain-anthropic>=0.3.19",
@@ -21,5 +20,4 @@ dependencies = [
     "lasio>=0.32",
     "sendgrid>=6.12.4",
     "requests>=2.32.5",
-    "imapclient>=3.0.1",
 ]
