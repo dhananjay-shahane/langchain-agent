@@ -26,7 +26,7 @@ export const lasFiles = pgTable("las_files", {
   filename: text("filename").notNull(),
   filepath: text("filepath").notNull(),
   size: text("size"),
-  source: text("source").default("manual"), // 'email' | 'manual' | 'upload'
+  source: text("source").default("manual"), // 'manual' | 'upload'
   processed: boolean("processed").default(false),
   createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`),
 });

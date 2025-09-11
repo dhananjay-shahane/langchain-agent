@@ -246,10 +246,6 @@ export default function AgentConfig() {
             <span className="text-sm text-muted-foreground">LAS Resources</span>
             <Badge variant="secondary" className="text-xs">Ready</Badge>
           </div>
-          <div className="flex items-center justify-between">
-            <span className="text-sm text-muted-foreground">Email Monitor</span>
-            <Badge variant="secondary" className="text-xs">Watching</Badge>
-          </div>
         </div>
       </div>
 

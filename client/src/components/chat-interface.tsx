@@ -282,9 +282,6 @@ export default function ChatInterface() {
                 {lasFiles.map((file) => (
                   <SelectItem key={file.id} value={file.filename}>
                     {file.filename}
-                    {file.source === "email" && (
-                      <Badge variant="secondary" className="ml-2 text-xs">new</Badge>
-                    )}
                   </SelectItem>
                 ))}
               </SelectContent>

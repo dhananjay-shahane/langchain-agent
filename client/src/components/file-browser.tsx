@@ -65,11 +65,6 @@ export default function FileBrowser({ onImageSelect }: FileBrowserProps) {
           <Folder className="w-4 h-4 text-muted-foreground" />
           <span className="text-sm font-medium text-foreground">data/</span>
           <span className="text-xs text-muted-foreground">({lasFiles.length} files)</span>
-          {lasFiles.some(f => f.source === "email") && (
-            <Badge variant="default" className="text-xs ml-2">
-              📧 New arrivals
-            </Badge>
-          )}
         </div>
         
         <ScrollArea className="ml-6 max-h-32">
@@ -96,9 +91,6 @@ export default function FileBrowser({ onImageSelect }: FileBrowserProps) {
                   {getFileIcon(file.filename)}
                   <span className="flex-1 truncate">{file.filename}</span>
                   <div className="flex items-center gap-2">
-                    {file.source === "email" && (
-                      <Badge variant="secondary" className="text-xs">new</Badge>
-                    )}
                     <span className="text-xs text-muted-foreground">{formatFileSize(file.size)}</span>
                   </div>
                 </div>

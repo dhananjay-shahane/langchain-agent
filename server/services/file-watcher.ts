@@ -21,7 +21,7 @@ dataWatcher.on("add", async (filepath) => {
         filename,
         filepath,
         size: `${sizeInMB}MB`,
-        source: "email", // Assume email source for auto-detected files
+        source: "manual", // Auto-detected files from data folder
         processed: false
       });
       
