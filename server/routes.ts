@@ -354,6 +354,59 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Email Processing Routes (Email Agent)
+  app.post("/api/emails/process", async (req, res) => {
+    try {
+      const { emailId, emailContent, emailFrom, emailSubject, attachments } = req.body;
+      
+      if (!emailId || !emailContent || !emailFrom) {
+        return res.status(400).json({ error: "Missing required email data" });
+      }
+
+      // Get agent config for email processing
+      const config = await storage.getAgentConfig();
+      if (!config) {
+        return res.status(404).json({ error: "No agent config found" });
+      }
+
+      // Process email with email agent
+      const result = await processEmailWithAgent({
+        emailId,
+        emailContent,
+        emailFrom,
+        emailSubject: emailSubject || "No Subject",
+        attachments: attachments || []
+      }, config);
+
+      if (result.success) {
+        // Update email status to completed
+        const emails = await storage.getEmails();
+        const email = emails.find(e => e.id === emailId);
+        if (email) {
+          await storage.updateEmailStatus(emailId, "completed");
+          
+          // Emit status update to all clients
+          io.emit("email_status_updated", { emailId, status: "completed" });
+        }
+
+        res.json({
+          success: true,
+          response: result.response,
+          metadata: result.metadata
+        });
+      } else {
+        res.status(500).json({
+          success: false,
+          error: result.error,
+          response: result.response || "Failed to process email"
+        });
+      }
+    } catch (error) {
+      console.error("Email processing error:", error);
+      res.status(500).json({ error: "Failed to process email" });
+    }
+  });
+
   // Email Attachments Route
   app.get("/api/emails/attachments/:filename", async (req, res) => {
     try {
@@ -445,6 +498,107 @@ async function testAgentConnection(config: any): Promise<{ success: boolean; mes
       python.kill();
       resolve({ success: false, message: "Connection timeout" });
     }, 3000);
+  });
+}
+
+async function processEmailWithAgent(emailData: any, config: any): Promise<{ success: boolean; response?: string; error?: string; metadata?: any }> {
+  return new Promise((resolve) => {
+    // Security: Validate config parameters to prevent command injection
+    if (!config || typeof config.provider !== 'string' || typeof config.model !== 'string') {
+      resolve({ success: false, error: "Invalid configuration parameters" });
+      return;
+    }
+    
+    // Security: Sanitize string inputs to prevent command injection
+    const safeProvider = config.provider.replace(/[^a-zA-Z0-9_-]/g, '');
+    const safeModel = config.model.replace(/[^a-zA-Z0-9_.-]/g, '');
+    const safeEndpointUrl = config.endpointUrl || '';
+    
+    const scriptPath = path.join(process.cwd(), "server/services/email-agent.py");
+    
+    // Security: Verify script exists
+    if (!fs.existsSync(scriptPath)) {
+      resolve({ success: false, error: "Email agent script not found" });
+      return;
+    }
+    
+    // Security: Sanitize email data
+    const safeEmailContent = (emailData.emailContent || "").substring(0, 5000); // Limit content length
+    const safeEmailFrom = (emailData.emailFrom || "").replace(/[^\w@.-]/g, ''); // Basic email sanitization
+    const safeEmailSubject = (emailData.emailSubject || "").substring(0, 200); // Limit subject length
+    const safeAttachments = Array.isArray(emailData.attachments) ? emailData.attachments.slice(0, 10) : []; // Limit attachments
+    
+    const python = spawn("uv", [
+      "run",
+      "python", 
+      scriptPath,
+      "process",
+      safeEmailContent,
+      safeEmailFrom,
+      safeEmailSubject,
+      JSON.stringify(safeAttachments),
+      JSON.stringify({
+        provider: safeProvider,
+        model: safeModel,
+        endpointUrl: safeEndpointUrl
+      })
+    ]);
+
+    let output = "";
+    let errorOutput = "";
+    
+    python.stdout.on("data", (data) => {
+      output += data.toString();
+    });
+
+    python.stderr.on("data", (data) => {
+      errorOutput += data.toString();
+      console.error("Email agent error:", data.toString());
+    });
+
+    python.on("close", (code) => {
+      if (code === 0 && output.trim()) {
+        try {
+          const result = JSON.parse(output);
+          resolve({
+            success: result.success || true,
+            response: result.response || "Email processed successfully",
+            metadata: result.metadata || {}
+          });
+        } catch (parseError) {
+          // If JSON parsing fails, treat output as raw response
+          resolve({
+            success: true,
+            response: output.trim() || "Email processed successfully",
+            metadata: { raw_output: true }
+          });
+        }
+      } else {
+        resolve({
+          success: false,
+          error: errorOutput || `Process exited with code ${code}`,
+          response: "Failed to process email with agent"
+        });
+      }
+    });
+
+    python.on('error', (err) => {
+      console.error('Email agent spawn error:', err);
+      resolve({
+        success: false,
+        error: err.message,
+        response: "Failed to start email agent process"
+      });
+    });
+
+    setTimeout(() => {
+      python.kill();
+      resolve({
+        success: false,
+        error: "Email processing timeout",
+        response: "Email processing took too long"
+      });
+    }, 30000); // 30 second timeout
   });
 }
 

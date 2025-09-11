@@ -25,6 +25,7 @@ export interface IStorage {
   getEmails(): Promise<Email[]>;
   addEmail(email: InsertEmail): Promise<Email>;
   deleteEmail(id: string): Promise<boolean>;
+  updateEmailStatus(id: string, status: string): Promise<boolean>;
   
   // Email Monitor Status
   getEmailMonitorStatus(): Promise<EmailMonitorStatus | undefined>;
@@ -171,6 +172,15 @@ export class MemStorage implements IStorage {
     return this.emails.delete(id);
   }
 
+  async updateEmailStatus(id: string, status: string): Promise<boolean> {
+    const email = this.emails.get(id);
+    if (!email) return false;
+    
+    email.replyStatus = status;
+    this.emails.set(id, email);
+    return true;
+  }
+
   async getEmailMonitorStatus(): Promise<EmailMonitorStatus | undefined> {
     return this.emailMonitorStatus;
   }
@@ -267,6 +277,19 @@ export class DbStorage implements IStorage {
       .where(eq(emails.id, id))
       .returning();
     return result.length > 0;
+  }
+
+  async updateEmailStatus(id: string, status: string): Promise<boolean> {
+    try {
+      const result = await db.update(emails)
+        .set({ replyStatus: status })
+        .where(eq(emails.id, id))
+        .returning();
+      return result.length > 0;
+    } catch (error) {
+      console.error("Error updating email status:", error);
+      return false;
+    }
   }
 
   async getEmailMonitorStatus(): Promise<EmailMonitorStatus | undefined> {
