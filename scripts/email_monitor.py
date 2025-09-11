@@ -41,6 +41,10 @@ class EmailMonitor:
             print("❌ EMAIL_USER and EMAIL_PASSWORD environment variables are required")
             sys.exit(1)
         
+        # Ensure we have valid string values
+        self.email_user = EMAIL_USER
+        self.email_password = EMAIL_PASSWORD
+        
         # Signal handlers for graceful shutdown
         signal.signal(signal.SIGTERM, self.signal_handler)
         signal.signal(signal.SIGINT, self.signal_handler)
@@ -61,9 +65,9 @@ class EmailMonitor:
                 data["emailsProcessed"] = str(emails_processed)
             
             if is_running:
-                data["lastStarted"] = time.time() * 1000  # Convert to milliseconds
+                data["lastStarted"] = time.time() * 1000  # Convert to milliseconds for JavaScript
             else:
-                data["lastStopped"] = time.time() * 1000
+                data["lastStopped"] = time.time() * 1000  # Convert to milliseconds for JavaScript
             
             response = requests.put(f"{API_BASE_URL}/emails/monitor/status", json=data)
             if response.status_code == 200:
@@ -152,7 +156,7 @@ class EmailMonitor:
         """Connect to IMAP server"""
         try:
             self.client = IMAPClient(IMAP_SERVER)
-            self.client.login(EMAIL_USER, EMAIL_PASSWORD)
+            self.client.login(self.email_user, self.email_password)
             self.client.select_folder("INBOX")
             print(f"✅ Connected to {IMAP_SERVER}")
             return True
@@ -188,7 +192,10 @@ class EmailMonitor:
         
         try:
             # Get baseline UID (ignore old emails)
-            all_messages = self.client.search("ALL")
+            if self.client:
+                all_messages = self.client.search("ALL")
+            else:
+                return
             self.last_uid = max(all_messages) if all_messages else 0
             print(f"👉 Monitoring from UID {self.last_uid}")
             
@@ -197,10 +204,14 @@ class EmailMonitor:
             while self.running:
                 try:
                     # Keep connection alive
-                    self.client.noop()
+                    if self.client:
+                        self.client.noop()
                     
                     # Check for new messages
-                    all_messages = self.client.search("ALL")
+                    if self.client:
+                        all_messages = self.client.search("ALL")
+                    else:
+                        continue
                     new_messages = [uid for uid in all_messages if uid > self.last_uid]
                     
                     if new_messages:
@@ -209,8 +220,16 @@ class EmailMonitor:
                                 break
                             
                             try:
-                                msg_data = self.client.fetch([uid], ["RFC822"])
-                                msg = email.message_from_bytes(msg_data[uid][b"RFC822"])
+                                if self.client:
+                                    msg_data = self.client.fetch([uid], ["RFC822"])
+                                    raw_email = msg_data[uid][b"RFC822"]
+                                    if isinstance(raw_email, bytes):
+                                        msg = email.message_from_bytes(raw_email)
+                                    else:
+                                        print(f"❌ Invalid email data type for UID {uid}")
+                                        continue
+                                else:
+                                    break
                                 
                                 if self.process_new_email(uid, msg):
                                     emails_processed += 1

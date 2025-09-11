@@ -48,7 +48,7 @@ export default function EmailsPage() {
 
   // Start monitor mutation
   const startMonitorMutation = useMutation({
-    mutationFn: () => apiRequest("/api/emails/monitor/start", "POST", {}),
+    mutationFn: () => apiRequest("POST", "/api/emails/monitor/start", {}),
     onMutate: () => setIsStarting(true),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/emails/monitor/status"] });
@@ -69,7 +69,7 @@ export default function EmailsPage() {
 
   // Stop monitor mutation
   const stopMonitorMutation = useMutation({
-    mutationFn: () => apiRequest("/api/emails/monitor/stop", "POST", {}),
+    mutationFn: () => apiRequest("POST", "/api/emails/monitor/stop", {}),
     onMutate: () => setIsStopping(true),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/emails/monitor/status"] });
@@ -90,7 +90,7 @@ export default function EmailsPage() {
 
   // Delete email mutation
   const deleteEmailMutation = useMutation({
-    mutationFn: (id: string) => apiRequest(`/api/emails/${id}`, "DELETE"),
+    mutationFn: (id: string) => apiRequest("DELETE", `/api/emails/${id}`),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/emails"] });
       toast({
@@ -184,7 +184,7 @@ export default function EmailsPage() {
             <div className="flex gap-2">
               <Button
                 onClick={handleStartMonitor}
-                disabled={isStarting || monitorStatus?.isRunning}
+                disabled={isStarting || (monitorStatus?.isRunning ?? false)}
                 variant="default"
                 size="sm"
                 data-testid="button-start-monitor"

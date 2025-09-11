@@ -241,7 +241,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.put("/api/emails/monitor/status", async (req, res) => {
     try {
-      const validatedStatus = insertEmailMonitorStatusSchema.parse(req.body);
+      // Convert timestamps from Python script to Date objects
+      const body = { ...req.body };
+      if (body.lastStarted && typeof body.lastStarted === 'number') {
+        body.lastStarted = new Date(body.lastStarted);
+      }
+      if (body.lastStopped && typeof body.lastStopped === 'number') {
+        body.lastStopped = new Date(body.lastStopped);
+      }
+      
+      const validatedStatus = insertEmailMonitorStatusSchema.parse(body);
       const status = await storage.updateEmailMonitorStatus(validatedStatus);
       
       // Emit status update to all clients
