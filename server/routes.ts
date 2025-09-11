@@ -266,6 +266,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get("/api/email/monitor/status", async (req, res) => {
+    try {
+      const { exec } = require("child_process");
+      exec("pgrep -f email_monitor.py", (error, stdout, stderr) => {
+        const isRunning = stdout.trim() !== "";
+        res.json({
+          running: isRunning,
+          message: isRunning ? "Email monitoring is running" : "Email monitoring is stopped"
+        });
+      });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to check monitoring status" });
+    }
+  });
+
   return httpServer;
 }
 

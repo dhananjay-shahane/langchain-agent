@@ -29,7 +29,7 @@ export function EmailMonitor() {
     },
   });
 
-  // Fetch emails
+  // Fetch emails with automatic refresh
   const { data: emails = [], isLoading: emailsLoading } = useQuery({
     queryKey: ["/api/emails"],
     queryFn: async () => {
@@ -37,29 +37,29 @@ export function EmailMonitor() {
       if (!response.ok) throw new Error("Failed to fetch emails");
       return response.json();
     },
-    refetchInterval: 30000, // Refresh every 30 seconds
+    refetchInterval: 10000, // Refresh every 10 seconds for better real-time updates
+    refetchOnWindowFocus: true, // Refresh when window gets focus
   });
 
-  // Save email configuration
-  const saveEmailConfigMutation = useMutation({
-    mutationFn: async (config: typeof emailConfig) => {
-      return await apiRequest("POST", "/api/email/config", config);
-    },
-    onSuccess: () => {
-      toast({
-        title: "Configuration Saved",
-        description: "Email configuration has been saved successfully",
-      });
-      queryClient.invalidateQueries({ queryKey: ["/api/email/config"] });
-    },
-    onError: (error: any) => {
-      toast({
-        title: "Save Failed",
-        description: error.message || "Failed to save email configuration",
-        variant: "destructive",
-      });
-    },
-  });
+  // Check monitoring status automatically
+  useEffect(() => {
+    const checkMonitoringStatus = async () => {
+      try {
+        const response = await fetch("/api/email/monitor/status");
+        if (response.ok) {
+          const status = await response.json();
+          setIsMonitoring(status.running || false);
+        }
+      } catch (error) {
+        // Status endpoint might not exist yet, that's ok
+      }
+    };
+    
+    checkMonitoringStatus();
+    const interval = setInterval(checkMonitoringStatus, 15000); // Check every 15 seconds
+    
+    return () => clearInterval(interval);
+  }, []);
 
   // Start email monitoring
   const startMonitoringMutation = useMutation({
@@ -237,12 +237,18 @@ export function EmailMonitor() {
         <div className="lg:col-span-2">
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Mail className="h-5 w-5" />
-                Recent Emails ({emails.length})
+              <CardTitle className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Mail className="h-5 w-5" />
+                  Recent Emails ({emails.length})
+                </div>
+                <div className="flex items-center gap-2 text-xs text-gray-500">
+                  {emailsLoading && <RefreshCw className="h-3 w-3 animate-spin" />}
+                  Auto-refresh: 10s
+                </div>
               </CardTitle>
               <CardDescription>
-                Latest emails received and processed
+                Latest emails received and processed • Updates automatically
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -254,8 +260,10 @@ export function EmailMonitor() {
               ) : emails.length === 0 ? (
                 <div className="text-center py-8 text-gray-500 dark:text-gray-400">
                   <Mail className="h-12 w-12 mx-auto mb-2 opacity-50" />
-                  <p>No emails found</p>
-                  <p className="text-sm">Run the email agent to check for new messages</p>
+                  <p>No emails received yet</p>
+                  <p className="text-sm">
+                    {isMonitoring ? "Monitoring for new emails..." : "Start monitoring to check for new messages"}
+                  </p>
                 </div>
               ) : (
                 <ScrollArea className="h-96">
@@ -278,13 +286,21 @@ export function EmailMonitor() {
                               {email.hasAttachments && (
                                 <Paperclip className="h-3 w-3 text-gray-400" />
                               )}
+                              <span className="text-xs text-gray-400">
+                                {formatDate(email.receivedDate)}
+                              </span>
                             </div>
                             <p className="text-sm font-medium truncate mb-1">
-                              {email.subject}
+                              {email.subject || "(No Subject)"}
                             </p>
                             <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
-                              {email.body ? email.body.substring(0, 100) + "..." : "No content"}
+                              {email.body ? email.body.substring(0, 120) + "..." : "No content"}
                             </p>
+                            {email.hasAttachments && (
+                              <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">
+                                📎 Contains attachments
+                              </p>
+                            )}
                           </div>
                           <div className="flex flex-col items-end gap-1 ml-2">
                             {email.processed ? (
