@@ -38,7 +38,8 @@ class EmailAgent:
                 self.llm = ChatOllama(
                     model=self.model,
                     base_url=base_url,
-                    temperature=0.3  # Slightly higher for more creative responses
+                    temperature=0.3,
+                    timeout=120  # Sufficient time for LLM processing
                 )
             elif self.provider == "openai":
                 api_key = os.getenv("OPENAI_API_KEY")
@@ -47,7 +48,8 @@ class EmailAgent:
                 self.llm = ChatOpenAI(
                     model=self.model,
                     api_key=SecretStr(api_key),
-                    temperature=0.3
+                    temperature=0.3,
+                    timeout=120
                 )
             elif self.provider == "anthropic":
                 api_key = os.getenv("ANTHROPIC_API_KEY")
@@ -57,7 +59,7 @@ class EmailAgent:
                     model_name=self.model,
                     api_key=SecretStr(api_key),
                     temperature=0.3,
-                    timeout=30,
+                    timeout=120,
                     stop=[]
                 )
             

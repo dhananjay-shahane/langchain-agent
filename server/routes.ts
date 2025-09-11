@@ -610,7 +610,7 @@ async function processEmailWithAgent(emailData: any, config: any): Promise<{ suc
         error: "Email processing timeout",
         response: "Email processing took too long"
       });
-    }, 30000); // 30 second timeout
+    }, 120000); // 2 minute timeout for LLM processing
   });
 }
 
