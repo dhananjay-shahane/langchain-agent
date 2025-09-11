@@ -38,7 +38,10 @@ class EmailMonitor:
         self.email_user = os.getenv('EMAIL_USER')
         self.email_password = os.getenv('EMAIL_PASSWORD')
         self.imap_host = os.getenv('IMAP_HOST', 'imap.gmail.com')
-        self.imap_port = int(os.getenv('IMAP_PORT', '993'))
+        imap_port_str = os.getenv('IMAP_PORT', '993').strip()
+        if not imap_port_str:
+            imap_port_str = '993'
+        self.imap_port = int(imap_port_str)
         self.api_base_url = os.getenv('API_BASE_URL', 'http://localhost:5000')
         
         if not self.email_user or not self.email_password:
