@@ -14,6 +14,8 @@ import time
 import signal
 import requests
 from pathlib import Path
+import ssl
+import socket
 from imapclient import IMAPClient
 
 # Configuration
@@ -155,7 +157,10 @@ class EmailMonitor:
     def connect(self):
         """Connect to IMAP server"""
         try:
-            self.client = IMAPClient(IMAP_SERVER)
+            ctx = ssl.create_default_context()
+            if hasattr(ssl, "TLSVersion"):
+                ctx.minimum_version = ssl.TLSVersion.TLSv1_2
+            self.client = IMAPClient(IMAP_SERVER, port=993, ssl=True, ssl_context=ctx, timeout=30)
             self.client.login(self.email_user, self.email_password)
             self.client.select_folder("INBOX")
             print(f"✅ Connected to {IMAP_SERVER}")
@@ -247,10 +252,17 @@ class EmailMonitor:
                             break
                         time.sleep(1)
                         
+                except (ssl.SSLError, ssl.SSLEOFError, ConnectionResetError, TimeoutError, socket.timeout) as e:
+                    print(f"⚠️ Transient IMAP/SSL error: {e} — reconnecting")
+                    self.disconnect()
+                    time.sleep(5)
+                    if not self.connect():
+                        time.sleep(10)
+                    continue
                 except Exception as e:
                     print(f"❌ Error in monitoring loop: {e}")
                     self.update_status(False, error=str(e))
-                    time.sleep(10)  # Wait before retrying
+                    time.sleep(10)
         
         except Exception as e:
             print(f"❌ Critical error in email monitor: {e}")
