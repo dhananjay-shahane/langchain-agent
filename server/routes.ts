@@ -2,51 +2,12 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { Server as SocketIOServer } from "socket.io";
 import { storage } from "./storage";
-import { insertAgentConfigSchema, insertChatMessageSchema, insertLasFileSchema, insertOutputFileSchema, insertEmailSchema } from "@shared/schema";
+import { insertAgentConfigSchema, insertChatMessageSchema, insertLasFileSchema, insertOutputFileSchema } from "@shared/schema";
 import { spawn, exec } from "child_process";
 import path from "path";
 import fs from "fs";
 import "./services/file-watcher";
 
-// Simple rate limiting for email monitor endpoints
-interface RateLimitEntry {
-  count: number;
-  resetTime: number;
-}
-
-const rateLimitMap = new Map<string, RateLimitEntry>();
-const RATE_LIMIT_WINDOW = 60 * 1000; // 1 minute
-const RATE_LIMIT_MAX_REQUESTS = 10; // 10 requests per minute
-
-function checkRateLimit(ip: string): boolean {
-  const now = Date.now();
-  const entry = rateLimitMap.get(ip);
-  
-  if (!entry || now > entry.resetTime) {
-    rateLimitMap.set(ip, { count: 1, resetTime: now + RATE_LIMIT_WINDOW });
-    return true;
-  }
-  
-  if (entry.count >= RATE_LIMIT_MAX_REQUESTS) {
-    return false;
-  }
-  
-  entry.count++;
-  return true;
-}
-
-function rateLimitMiddleware(req: any, res: any, next: any) {
-  const clientIp = req.ip || req.connection?.remoteAddress || 'unknown';
-  
-  if (!checkRateLimit(clientIp)) {
-    return res.status(429).json({ 
-      error: "Too many requests. Please try again later.",
-      retryAfter: Math.ceil(RATE_LIMIT_WINDOW / 1000)
-    });
-  }
-  
-  next();
-}
 
 export async function registerRoutes(app: Express): Promise<Server> {
   const httpServer = createServer(app);
@@ -226,143 +187,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Email Routes
-  app.get("/api/emails", async (req, res) => {
-    try {
-      const emails = await storage.getEmails();
-      res.json(emails);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to get emails" });
-    }
-  });
-
-  app.post("/api/emails", async (req, res) => {
-    try {
-      const validatedEmail = insertEmailSchema.parse(req.body);
-      const email = await storage.addEmail(validatedEmail);
-      
-      // Emit new email to all clients
-      io.emit("new_email", email);
-      
-      res.json(email);
-    } catch (error) {
-      console.error("Email validation error:", error);
-      console.error("Request body:", req.body);
-      if (error instanceof Error && 'issues' in error) {
-        console.error("Validation issues:", (error as any).issues);
-      }
-      res.status(400).json({ error: "Invalid email data", details: error instanceof Error ? error.message : "Unknown error" });
-    }
-  });
-
-  app.get("/api/email/config", async (req, res) => {
-    try {
-      // Return only configuration status for security
-      const hasCredentials = !!(process.env.EMAIL_USER && process.env.EMAIL_PASSWORD);
-      res.json({
-        isConfigured: hasCredentials
-      });
-    } catch (error) {
-      res.status(500).json({ error: "Failed to get email config" });
-    }
-  });
-
-  app.post("/api/email/monitor/start", rateLimitMiddleware, async (req, res) => {
-    try {
-      // Check if credentials are configured
-      if (!process.env.EMAIL_USER || !process.env.EMAIL_PASSWORD) {
-        return res.status(400).json({ error: "Email credentials not configured" });
-      }
-      
-      // Check if already running
-      exec("pgrep -f realtime_email_monitor.py", { timeout: 5000 }, (error: any, stdout: string, stderr: string) => {
-        if (error && error.code !== 1 && !error.killed) {
-          console.error("Process check error:", error);
-          return res.status(500).json({ error: "Failed to check current status" });
-        }
-        
-        if (stdout && stdout.trim()) {
-          return res.json({ 
-            message: "Email monitoring already running",
-            status: "running"
-          });
-        }
-        
-        // Start email monitoring workflow
-        const scriptPath = path.join(process.cwd(), "scripts/realtime_email_monitor.py");
-        
-        // Security: Validate script path exists and is within expected directory
-        if (!fs.existsSync(scriptPath)) {
-          return res.status(500).json({ error: "Email monitor script not found" });
-        }
-        
-        const monitor = spawn("uv", [
-          "run", 
-          "python", 
-          scriptPath
-        ], {
-          detached: true,
-          stdio: ['ignore', 'ignore', 'ignore']
-        });
-        
-        monitor.on('error', (err) => {
-          console.error('Failed to start email monitor:', err);
-        });
-        
-        monitor.unref();
-        
-        res.json({ 
-          message: "Email monitoring started",
-          status: "running"
-        });
-      });
-      
-    } catch (error) {
-      console.error('Email monitor start error:', error);
-      res.status(500).json({ error: "Failed to start email monitoring" });
-    }
-  });
-
-  app.post("/api/email/monitor/stop", rateLimitMiddleware, async (req, res) => {
-    try {
-      // Kill email monitoring processes
-      exec("pkill -f realtime_email_monitor.py", { timeout: 5000 }, (error: any, stdout: string, stderr: string) => {
-        if (error && error.code !== 1 && !error.killed) {
-          // Code 1 means no process found, which is fine
-          console.error("Error stopping email monitor:", error);
-          return res.status(500).json({ error: "Failed to stop email monitoring" });
-        }
-        
-        res.json({ 
-          message: "Email monitoring stopped",
-          status: "stopped"
-        });
-      });
-    } catch (error) {
-      console.error('Email monitor stop error:', error);
-      res.status(500).json({ error: "Failed to stop email monitoring" });
-    }
-  });
-
-  app.get("/api/email/monitor/status", rateLimitMiddleware, async (req, res) => {
-    try {
-      exec("pgrep -f realtime_email_monitor.py", { timeout: 5000 }, (error: any, stdout: string, stderr: string) => {
-        if (error && error.code !== 1 && !error.killed) {
-          console.error("Process check error:", error);
-          return res.status(500).json({ error: "Failed to check monitoring status" });
-        }
-        
-        const isRunning = stdout && stdout.trim() !== "";
-        res.json({
-          running: isRunning,
-          message: isRunning ? "Email monitoring is running" : "Email monitoring is stopped"
-        });
-      });
-    } catch (error) {
-      console.error("Status check error:", error);
-      res.status(500).json({ error: "Failed to check monitoring status" });
-    }
-  });
 
   return httpServer;
 }
