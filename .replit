@@ -16,7 +16,7 @@ localPort = 5000
 externalPort = 80
 
 [[ports]]
-localPort = 34405
+localPort = 40355
 externalPort = 3001
 
 [[ports]]
@@ -38,10 +38,6 @@ author = "agent"
 task = "workflow.run"
 args = "Start application"
 
-[[workflows.workflow.tasks]]
-task = "workflow.run"
-args = "Real-time Email Monitor"
-
 [[workflows.workflow]]
 name = "Start application"
 author = "agent"
@@ -53,17 +49,6 @@ outputType = "webview"
 task = "shell.exec"
 args = "npm run dev"
 waitForPort = 5000
-
-[[workflows.workflow]]
-name = "Real-time Email Monitor"
-author = "agent"
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "python scripts/realtime_email_monitor.py"
-
-[workflows.workflow.metadata]
-outputType = "console"
 
 [agent]
 integrations = ["javascript_mem_db:1.0.0", "javascript_openai:1.0.0", "javascript_anthropic:1.0.0", "javascript_sendgrid:1.0.0", "javascript_websocket:1.0.0", "javascript_database:1.0.0"]
