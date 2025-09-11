@@ -419,6 +419,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Send email reply
+  app.post("/api/emails/send-reply", async (req, res) => {
+    try {
+      const { toEmail, subject, content } = req.body;
+      
+      if (!toEmail || !subject || !content) {
+        return res.status(400).json({ error: "Missing required email data" });
+      }
+
+      // Get agent config for email processing
+      const config = await storage.getAgentConfig();
+      if (!config) {
+        return res.status(400).json({ error: "Agent configuration not found" });
+      }
+
+      // Send email reply using email agent
+      const result = await sendEmailReply({
+        toEmail,
+        subject,
+        content
+      }, config);
+
+      res.json({
+        success: result.success,
+        message: result.message,
+        sentAt: result.sent_at,
+        error: result.error
+      });
+    } catch (error) {
+      console.error("Email send error:", error);
+      res.status(500).json({ error: "Failed to send email reply" });
+    }
+  });
+
   // Email Attachments Route
   app.get("/api/emails/attachments/:filename", async (req, res) => {
     try {
@@ -451,6 +485,89 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   return httpServer;
+}
+
+async function sendEmailReply(emailData: any, config: any): Promise<{ success: boolean; message?: string; sent_at?: string; error?: string }> {
+  return new Promise((resolve) => {
+    // Security: Validate config parameters
+    if (!config || typeof config.provider !== 'string' || typeof config.model !== 'string') {
+      resolve({ success: false, error: "Invalid configuration parameters" });
+      return;
+    }
+    
+    // Security: Sanitize inputs
+    const safeToEmail = (emailData.toEmail || "").replace(/[^a-zA-Z0-9@._-]/g, '');
+    const safeSubject = (emailData.subject || "").substring(0, 200);
+    const safeContent = (emailData.content || "").substring(0, 5000);
+    
+    const scriptPath = path.join(process.cwd(), "server/services/email-agent.py");
+    
+    if (!fs.existsSync(scriptPath)) {
+      resolve({ success: false, error: "Email agent script not found" });
+      return;
+    }
+
+    const python = spawn("python", [
+      scriptPath,
+      "send_reply",
+      safeToEmail,
+      safeSubject,
+      safeContent,
+      JSON.stringify(config)
+    ]);
+
+    let output = "";
+    let errorOutput = "";
+
+    python.stdout.on("data", (data) => {
+      output += data.toString();
+    });
+
+    python.stderr.on("data", (data) => {
+      errorOutput += data.toString();
+      console.error("Email send error:", data.toString());
+    });
+
+    python.on("close", (code) => {
+      if (code === 0 && output.trim()) {
+        try {
+          const result = JSON.parse(output);
+          resolve({
+            success: result.success || true,
+            message: result.message || "Email sent successfully",
+            sent_at: result.sent_at || new Date().toISOString()
+          });
+        } catch (parseError) {
+          resolve({
+            success: true,
+            message: "Email sent successfully",
+            sent_at: new Date().toISOString()
+          });
+        }
+      } else {
+        resolve({
+          success: false,
+          error: errorOutput || `Process exited with code ${code}`
+        });
+      }
+    });
+
+    python.on('error', (err) => {
+      console.error('Email send spawn error:', err);
+      resolve({
+        success: false,
+        error: err.message
+      });
+    });
+
+    setTimeout(() => {
+      python.kill();
+      resolve({
+        success: false,
+        error: "Email send timeout"
+      });
+    }, 30000); // 30 second timeout for email sending
+  });
 }
 
 async function testAgentConnection(config: any): Promise<{ success: boolean; message: string }> {

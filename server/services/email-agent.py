@@ -63,21 +63,10 @@ class EmailAgent:
                     stop=[]
                 )
             
-            # Create agent with tools - use configuration as specified
+            # Use simple LLM without complex tools for faster response
             if self.llm is not None:
-                custom_tools = [
-                    self.create_email_analyzer_tool(),
-                    self.create_response_generator_tool(),
-                    self.create_attachment_handler_tool(),
-                    self.create_sentiment_analyzer_tool(),
-                    self.create_priority_classifier_tool(),
-                    self.create_contact_info_extractor_tool()
-                ]
-                
-                # Create agent with email tools
-                self.agent = create_react_agent(self.llm, custom_tools)
-                self.supports_tools = True
-                print(f"Email agent initialized for model: {self.model}")
+                self.supports_tools = False
+                print(f"Email agent initialized for fast processing with model: {self.model}")
             else:
                 return False
             
@@ -425,35 +414,24 @@ Customer Service Team"""
                 "Then generate a complete, professional email reply."
             ])
             
-            # Process with agent using configuration from Agent Configuration dashboard
-            if self.agent is not None:
-                response = await self.agent.ainvoke({
-                    "messages": [SystemMessage(content="\n".join(context_parts))]
-                })
+            # Use simple LLM for fast email processing
+            if self.llm is not None:
+                # Simple prompt for faster processing
+                simple_prompt = f"""You are a professional email assistant. Generate a brief, professional email response.
+
+Email Details:
+From: {email_from}
+Subject: {email_subject}
+Content: {email_content}
+
+Generate a concise, professional email reply. Keep it brief and helpful."""
+
+                response = await self.llm.ainvoke([
+                    SystemMessage(content="You are a professional email assistant. Generate brief, helpful responses."),
+                    HumanMessage(content=simple_prompt)
+                ])
                 
-                # Extract the response content
-                response_content = ""
-                if isinstance(response, dict):
-                    # Handle dictionary response from agent
-                    if 'messages' in response and response['messages']:
-                        last_message = response['messages'][-1]
-                        if isinstance(last_message, dict) and 'content' in last_message:
-                            response_content = last_message['content']
-                        else:
-                            response_content = str(last_message)
-                    elif 'output' in response:
-                        response_content = str(response['output'])
-                    else:
-                        response_content = str(response)
-                else:
-                    # Handle object response
-                    if hasattr(response, 'messages') and response.messages:
-                        last_message = response.messages[-1]
-                        response_content = last_message.content if hasattr(last_message, 'content') else str(last_message)
-                    elif hasattr(response, 'content'):
-                        response_content = response.content
-                    else:
-                        response_content = str(response)
+                response_content = response.content if hasattr(response, 'content') else str(response)
             else:
                 raise Exception("Email agent not initialized")
             
@@ -482,25 +460,6 @@ Customer Service Team"""
             if not final_response:
                 raise Exception("Failed to generate email response")
             
-            # Send actual email reply
-            reply_sent = False
-            reply_info = {}
-            
-            try:
-                if email_from and email_from.strip():
-                    reply_info = await self.send_email_reply(
-                        to_email=email_from,
-                        subject=email_subject,
-                        reply_content=final_response
-                    )
-                    reply_sent = True
-                    print(f"Email reply sent successfully to: {email_from}")
-                else:
-                    print("No valid sender email address to reply to")
-            except Exception as email_error:
-                print(f"Failed to send email reply: {email_error}")
-                reply_sent = False
-            
             return {
                 "success": True,
                 "response": final_response,
@@ -510,8 +469,8 @@ Customer Service Team"""
                     "original_subject": email_subject,
                     "attachments_processed": len(attachments),
                     "response_type": "automated_agent_reply",
-                    "reply_sent": reply_sent,
-                    "reply_info": reply_info
+                    "sender_email": email_from,
+                    "ready_to_send": True
                 }
             }
             
@@ -657,6 +616,32 @@ async def main():
         }
         
         result = await agent.process_email(email_data)
+        print(json.dumps(result))
+    
+    elif command == "send_reply":
+        # Send email reply
+        if len(sys.argv) < 6:
+            print("Usage: python email-agent.py send_reply <to_email> <subject> <content> <config_json>")
+            sys.exit(1)
+        
+        to_email = sys.argv[2]
+        subject = sys.argv[3]
+        content = sys.argv[4]
+        config_str = sys.argv[5] if len(sys.argv) > 5 else "{}"
+        
+        try:
+            config = json.loads(config_str) if config_str != "{}" else {}
+        except:
+            config = {}
+        
+        provider = config.get('provider', 'ollama')
+        model = config.get('model', 'llama3.2:1b')
+        endpoint = config.get('endpointUrl', '')
+        
+        agent = EmailAgent(provider, model, endpoint)
+        await agent.initialize()
+        
+        result = await agent.send_email_reply(to_email, subject, content)
         print(json.dumps(result))
     
     else:

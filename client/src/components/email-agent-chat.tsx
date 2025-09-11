@@ -35,6 +35,31 @@ export default function EmailAgentChat() {
   // Filter pending emails
   const pendingEmails = emails.filter(email => email.replyStatus === "pending");
 
+  // Send email reply mutation
+  const sendEmailMutation = useMutation({
+    mutationFn: async ({ toEmail, subject, content }: { toEmail: string, subject: string, content: string }) => {
+      const response = await apiRequest("POST", "/api/emails/send-reply", {
+        toEmail,
+        subject,
+        content
+      });
+      return response.json();
+    },
+    onSuccess: (data, variables) => {
+      toast({
+        title: "Email Sent",
+        description: `Reply sent successfully to ${variables.toEmail}`,
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Send Failed",
+        description: "Failed to send email reply. Please try again.",
+        variant: "destructive",
+      });
+    }
+  });
+
   const processEmailMutation = useMutation({
     mutationFn: async (email: Email) => {
       const response = await apiRequest("POST", "/api/emails/process", {
@@ -52,7 +77,11 @@ export default function EmailAgentChat() {
         id: `agent-${Date.now()}`,
         role: "agent",
         content: data.response || "Email processed successfully",
-        metadata: data.metadata || {},
+        metadata: {
+          ...data.metadata,
+          showReplyButton: true,
+          originalEmail: email
+        },
         timestamp: new Date().toISOString(),
         emailId: email.id
       };
@@ -63,8 +92,8 @@ export default function EmailAgentChat() {
       queryClient.invalidateQueries({ queryKey: ["/api/emails"] });
       
       toast({
-        title: "Email Processed",
-        description: `Reply sent for email: ${email.subject}`,
+        title: "Email Response Generated",
+        description: `Ready to send reply for: ${email.subject}`,
       });
     },
     onError: () => {
@@ -212,6 +241,28 @@ export default function EmailAgentChat() {
                     </div>
                   ))}
                 </div>
+              </div>
+            )}
+
+            {/* Show Reply Mail button for agent responses */}
+            {!isUser && msg.metadata?.showReplyButton && (
+              <div className="mt-4 pt-3 border-t border-border/20">
+                <Button
+                  onClick={() => {
+                    const originalEmail = msg.metadata.originalEmail;
+                    sendEmailMutation.mutate({
+                      toEmail: originalEmail.from,
+                      subject: originalEmail.subject,
+                      content: msg.content
+                    });
+                  }}
+                  disabled={sendEmailMutation.isPending}
+                  className="w-full"
+                  data-testid="button-reply-mail"
+                >
+                  <Send className="w-4 h-4 mr-2" />
+                  {sendEmailMutation.isPending ? "Sending..." : "Reply Mail"}
+                </Button>
               </div>
             )}
           </div>
