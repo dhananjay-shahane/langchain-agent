@@ -10,6 +10,20 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import type { Email } from "@shared/schema";
 
+// Helper function to extract clean email address
+function extractEmailAddress(emailString: string): string {
+  if (!emailString) return "";
+  
+  // If contains < and >, extract email from format "Name <email@domain.com>"
+  if (emailString.includes('<') && emailString.includes('>')) {
+    const match = emailString.match(/<([^>]+)>/);
+    return match ? match[1].trim() : emailString;
+  }
+  
+  // Otherwise return as is
+  return emailString;
+}
+
 interface EmailProcessingMessage {
   id: string;
   role: "user" | "agent" | "system";
@@ -50,6 +64,9 @@ export default function EmailAgentChat() {
         title: "Email Sent",
         description: `Reply sent successfully to ${variables.toEmail}`,
       });
+      
+      // Refresh emails to update status
+      queryClient.invalidateQueries({ queryKey: ["/api/emails"] });
     },
     onError: () => {
       toast({
@@ -72,15 +89,32 @@ export default function EmailAgentChat() {
       return response.json();
     },
     onSuccess: (data, email) => {
+      // Extract clean response content instead of raw JSON
+      let responseContent = data.response || "Email processed successfully";
+      
+      // If response is still JSON, extract the actual message
+      if (typeof responseContent === 'string' && responseContent.startsWith('{')) {
+        try {
+          const parsed = JSON.parse(responseContent);
+          responseContent = parsed.response || parsed.message || responseContent;
+        } catch (e) {
+          // If parsing fails, use the content as is
+        }
+      }
+      
       // Add agent response message
       const agentMessage: EmailProcessingMessage = {
         id: `agent-${Date.now()}`,
         role: "agent",
-        content: data.response || "Email processed successfully",
+        content: responseContent,
         metadata: {
           ...data.metadata,
           showReplyButton: true,
-          originalEmail: email
+          originalEmail: {
+            from: data.metadata?.sender_email || extractEmailAddress(email.from || ""),
+            subject: data.metadata?.originalEmail?.subject || `Re: ${email.subject || ""}`,
+            content: email.body || ""
+          }
         },
         timestamp: new Date().toISOString(),
         emailId: email.id
@@ -115,14 +149,14 @@ export default function EmailAgentChat() {
     const userMessage: EmailProcessingMessage = {
       id: `user-${Date.now()}`,
       role: "user",
-      content: email.body,
+      content: email.body || "",
       metadata: {
         from: email.from,
         subject: email.subject,
         attachments: email.attachments,
         emailId: email.id
       },
-      timestamp: email.createdAt,
+      timestamp: email.createdAt || new Date().toISOString(),
       emailId: email.id
     };
     
@@ -195,7 +229,7 @@ export default function EmailAgentChat() {
               <div className="mb-3 text-xs opacity-75 space-y-1">
                 <div className="flex items-center gap-1">
                   <Mail className="w-3 h-3" />
-                  <span>From: {msg.metadata.from}</span>
+                  <span>From: {extractEmailAddress(msg.metadata.from || "")}</span>
                 </div>
                 <div className="flex items-center gap-1">
                   <span>📝</span>
@@ -336,10 +370,10 @@ export default function EmailAgentChat() {
                             {email.subject}
                           </div>
                           <div className="text-sm text-muted-foreground truncate" title={email.from}>
-                            From: {email.from}
+                            From: {extractEmailAddress(email.from || "")}
                           </div>
                           <div className="text-xs text-muted-foreground mt-1">
-                            {formatDate(email.createdAt)}
+                            {formatDate(email.createdAt || new Date().toISOString())}
                           </div>
                         </div>
                         <div className="flex flex-col items-end gap-1">

@@ -460,6 +460,12 @@ Generate a concise, professional email reply. Keep it brief and helpful."""
             if not final_response:
                 raise Exception("Failed to generate email response")
             
+            # Extract clean email address from sender (remove name part)
+            clean_sender_email = email_from
+            if '<' in email_from and '>' in email_from:
+                # Extract email from format "Name <email@domain.com>"
+                clean_sender_email = email_from.split('<')[1].split('>')[0].strip()
+            
             return {
                 "success": True,
                 "response": final_response,
@@ -469,8 +475,14 @@ Generate a concise, professional email reply. Keep it brief and helpful."""
                     "original_subject": email_subject,
                     "attachments_processed": len(attachments),
                     "response_type": "automated_agent_reply",
-                    "sender_email": email_from,
-                    "ready_to_send": True
+                    "sender_email": clean_sender_email,
+                    "ready_to_send": True,
+                    "showReplyButton": True,
+                    "originalEmail": {
+                        "from": clean_sender_email,
+                        "subject": f"Re: {email_subject}",
+                        "content": email_content
+                    }
                 }
             }
             
