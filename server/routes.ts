@@ -325,7 +325,9 @@ async function processUserMessage(content: string, selectedLasFile?: string) {
 
     // Call the LangChain agent
     const config = await storage.getAgentConfig();
-    const python = spawn("python", [
+    const python = spawn("uv", [
+      "run",
+      "python", 
       path.join(process.cwd(), "server/services/langchain-agent.py"),
       "process",
       content,
