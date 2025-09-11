@@ -68,12 +68,8 @@ export type AgentConfig = typeof agentConfigs.$inferSelect;
 export type ChatMessage = typeof chatMessages.$inferSelect;
 export type LasFile = typeof lasFiles.$inferSelect;
 export type OutputFile = typeof outputFiles.$inferSelect;
-export type Email = typeof emails.$inferSelect;
-export type EmailConfig = typeof emailConfigs.$inferSelect;
 
 export type InsertAgentConfig = z.infer<typeof insertAgentConfigSchema>;
 export type InsertChatMessage = z.infer<typeof insertChatMessageSchema>;
 export type InsertLasFile = z.infer<typeof insertLasFileSchema>;
 export type InsertOutputFile = z.infer<typeof insertOutputFileSchema>;
-export type InsertEmail = z.infer<typeof insertEmailSchema>;
-export type InsertEmailConfig = z.infer<typeof insertEmailConfigSchema>;
