@@ -27,6 +27,7 @@ class EmailAgent:
         self.endpoint_url = endpoint_url
         self.llm = None
         self.agent = None
+        self.supports_tools = False
         
     async def initialize(self):
         """Initialize the Email Agent"""
@@ -60,19 +61,29 @@ class EmailAgent:
                     stop=[]
                 )
             
-            # Create email-specific tools
-            custom_tools = [
-                self.create_email_analyzer_tool(),
-                self.create_response_generator_tool(),
-                self.create_attachment_handler_tool(),
-                self.create_sentiment_analyzer_tool(),
-                self.create_priority_classifier_tool(),
-                self.create_contact_info_extractor_tool()
-            ]
-            
-            # Create agent with email tools
+            # Try to create agent with tools, fall back to simple chat if tools not supported
             if self.llm is not None:
-                self.agent = create_react_agent(self.llm, custom_tools)
+                try:
+                    # Test if model supports tools by creating a simple tool-based agent
+                    custom_tools = [
+                        self.create_email_analyzer_tool(),
+                        self.create_response_generator_tool(),
+                        self.create_attachment_handler_tool(),
+                        self.create_sentiment_analyzer_tool(),
+                        self.create_priority_classifier_tool(),
+                        self.create_contact_info_extractor_tool()
+                    ]
+                    
+                    # Create agent with email tools
+                    self.agent = create_react_agent(self.llm, custom_tools)
+                    self.supports_tools = True
+                    print(f"Email agent initialized with tools support for model: {self.model}")
+                    
+                except Exception as e:
+                    print(f"Model {self.model} doesn't support tools, falling back to simple chat: {e}")
+                    # Fall back to simple LLM without tools
+                    self.agent = None
+                    self.supports_tools = False
             else:
                 return False
             
@@ -420,37 +431,79 @@ Customer Service Team"""
                 "Then generate a complete, professional email reply."
             ])
             
-            # Process with agent
-            if self.agent is not None:
-                response = await self.agent.ainvoke({
-                    "messages": [SystemMessage(content="\n".join(context_parts))]
-                })
-                
-                # Extract the response content
-                response_content = ""
-                if isinstance(response, dict):
-                    # Handle dictionary response from agent
-                    if 'messages' in response and response['messages']:
-                        last_message = response['messages'][-1]
-                        if isinstance(last_message, dict) and 'content' in last_message:
-                            response_content = last_message['content']
+            # Process with agent or direct LLM - with runtime fallback for tool errors
+            response_content = ""
+            
+            if self.supports_tools and self.agent is not None:
+                try:
+                    # Use agent with tools
+                    response = await self.agent.ainvoke({
+                        "messages": [SystemMessage(content="\n".join(context_parts))]
+                    })
+                    
+                    # Extract the response content
+                    if isinstance(response, dict):
+                        # Handle dictionary response from agent
+                        if 'messages' in response and response['messages']:
+                            last_message = response['messages'][-1]
+                            if isinstance(last_message, dict) and 'content' in last_message:
+                                response_content = last_message['content']
+                            else:
+                                response_content = str(last_message)
+                        elif 'output' in response:
+                            response_content = str(response['output'])
                         else:
-                            response_content = str(last_message)
-                    elif 'output' in response:
-                        response_content = str(response['output'])
+                            response_content = str(response)
                     else:
-                        response_content = str(response)
-                else:
-                    # Handle object response
-                    if hasattr(response, 'messages') and response.messages:
-                        last_message = response.messages[-1]
-                        response_content = last_message.content if hasattr(last_message, 'content') else str(last_message)
-                    elif hasattr(response, 'content'):
-                        response_content = response.content
+                        # Handle object response
+                        if hasattr(response, 'messages') and response.messages:
+                            last_message = response.messages[-1]
+                            response_content = last_message.content if hasattr(last_message, 'content') else str(last_message)
+                        elif hasattr(response, 'content'):
+                            response_content = response.content
+                        else:
+                            response_content = str(response)
+                            
+                except Exception as e:
+                    error_str = str(e).lower()
+                    if "does not support tools" in error_str or "status code: 400" in error_str:
+                        print(f"Model {self.model} doesn't support tools (runtime detection), falling back to simple chat: {e}")
+                        self.supports_tools = False
+                        # Fall through to simple LLM mode
                     else:
-                        response_content = str(response)
+                        # Re-raise if it's not a tool support error
+                        raise
+            
+            if not response_content and self.llm is not None:
+                # Use simple LLM without tools
+                print(f"Using simple chat mode for model: {self.model}")
+                
+                # Create a more detailed prompt for simple chat
+                simple_prompt = f"""You are a professional email assistant. Please analyze the following email and generate an appropriate professional response.
+
+Email Details:
+From: {email_from}
+Subject: {email_subject}
+Content: {email_content}
+
+Please provide a professional, helpful, and contextually appropriate email response. The response should:
+- Be courteous and professional
+- Address the sender's concerns or questions
+- Be concise but complete
+- Include appropriate greeting and closing
+
+Email Response:"""
+
+                # Use simple chat
+                response = await self.llm.ainvoke([
+                    SystemMessage(content="You are a professional email assistant that generates helpful and courteous email responses."),
+                    HumanMessage(content=simple_prompt)
+                ])
+                
+                response_content = response.content if hasattr(response, 'content') else str(response)
+            
             else:
-                raise Exception("Agent not initialized")
+                raise Exception("Neither agent nor LLM is initialized")
             
             # Clean up the response to extract just the email reply
             lines = response_content.split('\n')
