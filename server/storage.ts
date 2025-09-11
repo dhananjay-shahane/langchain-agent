@@ -47,12 +47,12 @@ export class MemStorage implements IStorage {
     this.outputFiles = new Map();
     this.emails = new Map();
     
-    // Initialize with default config
+    // Initialize with default config (no hardcoded credentials)
     this.agentConfig = {
       id: randomUUID(),
       provider: "ollama",
-      model: "llama3.2:1b",
-      endpointUrl: "https://cee75955aab6.ngrok-free.app",
+      model: "qwen:1.8b",
+      endpointUrl: "",
       isConnected: false,
       lastTested: null,
       createdAt: new Date(),

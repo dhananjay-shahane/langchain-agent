@@ -106,8 +106,8 @@ export default function AgentConfig() {
   });
 
   const handleProviderChange = (provider: string) => {
-    let defaultModel = "llama3.2:1b";
-    let defaultEndpoint = "https://cee75955aab6.ngrok-free.app";
+    let defaultModel = "qwen:1.8b";
+    let defaultEndpoint = "";
 
     if (provider === "openai") {
       defaultModel = "gpt-4";
@@ -115,6 +115,9 @@ export default function AgentConfig() {
     } else if (provider === "anthropic") {
       defaultModel = "claude-3-sonnet-20240229";
       defaultEndpoint = "https://api.anthropic.com";
+    } else if (provider === "ollama") {
+      defaultModel = "qwen:1.8b";
+      defaultEndpoint = ""; // No hardcoded endpoint - user must configure
     }
 
     updateConfigMutation.mutate({
@@ -143,7 +146,7 @@ export default function AgentConfig() {
     
     switch (config.provider) {
       case "ollama":
-        return ["llama3.2:1b", "llama3.2:3b", "llama3.1:8b"];
+        return ["qwen:1.8b", "llama3.2:1b", "llama3.2:3b", "llama3.1:8b"];
       case "openai":
         return ["gpt-4", "gpt-4-turbo", "gpt-3.5-turbo"];
       case "anthropic":

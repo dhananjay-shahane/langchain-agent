@@ -6,8 +6,8 @@ import { z } from "zod";
 export const agentConfigs = pgTable("agent_configs", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   provider: text("provider").notNull().default("ollama"),
-  model: text("model").notNull().default("llama3.2:1b"),
-  endpointUrl: text("endpoint_url").notNull().default("https://cee75955aab6.ngrok-free.app"),
+  model: text("model").notNull().default("qwen:1.8b"),
+  endpointUrl: text("endpoint_url").notNull().default(""),
   isConnected: boolean("is_connected").default(false),
   lastTested: timestamp("last_tested"),
   createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`),
