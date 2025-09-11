@@ -78,6 +78,10 @@ export const insertOutputFileSchema = createInsertSchema(outputFiles).omit({
 export const insertEmailSchema = createInsertSchema(emails).omit({
   id: true,
   createdAt: true,
+}).extend({
+  receivedAt: z.union([z.date(), z.string().datetime()]).transform((val) => {
+    return typeof val === 'string' ? new Date(val) : val;
+  }).optional()
 });
 
 

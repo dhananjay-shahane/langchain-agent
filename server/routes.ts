@@ -246,7 +246,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       res.json(email);
     } catch (error) {
-      res.status(400).json({ error: "Invalid email data" });
+      console.error("Email validation error:", error);
+      console.error("Request body:", req.body);
+      if (error instanceof Error && 'issues' in error) {
+        console.error("Validation issues:", (error as any).issues);
+      }
+      res.status(400).json({ error: "Invalid email data", details: error instanceof Error ? error.message : "Unknown error" });
     }
   });
 

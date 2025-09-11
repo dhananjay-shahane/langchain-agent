@@ -215,7 +215,7 @@ class RealTimeEmailMonitor:
                 'hasAttachments': len(attachments) > 0,
                 'attachments': attachments,
                 'processed': False,
-                'receivedAt': received_at.isoformat()
+                'receivedAt': received_at.isoformat() if received_at else datetime.now().isoformat()
             }
             
             # Save email as JSON
@@ -252,26 +252,34 @@ class RealTimeEmailMonitor:
             return False
 
     def fetch_new_messages(self):
-        """Fetch and process newly arrived messages."""
+        """Fetch and process newly arrived messages WITHOUT marking them as seen."""
         try:
-            # Get unseen messages
-            messages = self.server.search(['UNSEEN'])
+            # Get ALL recent messages (not just unseen) to catch new ones
+            messages = self.server.search(['ALL'])
             
             if messages:
-                logger.info(f"📬 Found {len(messages)} new messages")
+                recent_messages = messages[-10:]  # Check last 10 messages for new ones
+                logger.info(f"📬 Checking {len(recent_messages)} recent messages for new emails")
                 
-                for msg_id in messages[-5:]:  # Process last 5 unseen messages
+                for msg_id in recent_messages:
                     try:
-                        # Fetch full message
-                        msg_data = self.server.fetch([msg_id], ['RFC822'])
+                        # Fetch email WITHOUT marking as seen using BODY.PEEK[]
+                        msg_data = self.server.fetch([msg_id], ['BODY.PEEK[]', 'FLAGS'])
                         
                         if msg_id in msg_data:
-                            email_data = self.process_email(str(msg_id), msg_data[msg_id][b'RFC822'])
+                            # Check if we've already processed this email
+                            email_uid = str(msg_id)
+                            email_file = Path(f'data/emails/{email_uid}.json')
                             
-                            if email_data:
-                                # Send to API
-                                self.send_to_api(email_data)
-                        
+                            if not email_file.exists():
+                                # This is a new email - process it
+                                logger.info(f"🆕 Processing NEW email ID: {email_uid}")
+                                email_data = self.process_email(email_uid, msg_data[msg_id][b'BODY[]'])
+                                
+                                if email_data:
+                                    # Send to API
+                                    self.send_to_api(email_data)
+                            
                     except Exception as e:
                         logger.error(f"❌ Error processing message {msg_id}: {e}")
             
