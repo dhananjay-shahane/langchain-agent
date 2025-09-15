@@ -318,7 +318,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const python = spawn("uv", ["run", "python", scriptPath, "start"], {
         detached: true,
-        stdio: ["ignore", "pipe", "pipe"]
+        stdio: ["ignore", "pipe", "pipe"],
+        env: {
+          ...process.env,
+          EMAIL_USER: process.env.EMAIL_USER,
+          EMAIL_PASSWORD: process.env.EMAIL_PASSWORD,
+          SMTP_SERVER: process.env.SMTP_SERVER || "smtp.gmail.com",
+          SMTP_PORT: process.env.SMTP_PORT || "587"
+        }
       });
 
       // Store the process reference globally so we can stop it later
@@ -530,7 +537,15 @@ async function sendEmailReply(emailData: any, config: any): Promise<{ success: b
       safeSubject,
       safeContent,
       JSON.stringify(config)
-    ]);
+    ], {
+      env: {
+        ...process.env,
+        EMAIL_USER: process.env.EMAIL_USER,
+        EMAIL_PASSWORD: process.env.EMAIL_PASSWORD,
+        SMTP_SERVER: process.env.SMTP_SERVER || "smtp.gmail.com",
+        SMTP_PORT: process.env.SMTP_PORT || "587"
+      }
+    });
 
     let output = "";
     let errorOutput = "";
