@@ -13,11 +13,59 @@ from datetime import datetime
 from typing import List, Dict, Any, Optional
 import json
 import re
+import os
+import sys
 
 server = Server("plotting")
 
 OUTPUT_DIR = Path("output")
 DATA_DIR = Path("data")
+
+def validate_filename(filename: str) -> bool:
+    """
+    Validate filename to prevent path traversal attacks
+    Only allow safe characters and simple filenames without path separators
+    """
+    if not filename or not isinstance(filename, str):
+        return False
+        
+    # Remove any whitespace
+    filename = filename.strip()
+    
+    # Check for path traversal attempts
+    if '..' in filename or '/' in filename or '\\' in filename:
+        return False
+        
+    # Check for null bytes or other problematic characters
+    if '\x00' in filename or any(ord(c) < 32 for c in filename):
+        return False
+        
+    # Only allow alphanumeric, dash, underscore, and dot
+    if not re.match(r'^[a-zA-Z0-9._-]+$', filename):
+        return False
+        
+    # Must end with .las
+    if not filename.lower().endswith('.las'):
+        return False
+        
+    # Reasonable length limit
+    if len(filename) > 255:
+        return False
+        
+    return True
+
+def sanitize_output_prefix(prefix: str) -> str:
+    """
+    Sanitize output prefix to prevent issues with generated filenames
+    """
+    if not prefix or not isinstance(prefix, str):
+        return ""
+        
+    # Only allow safe characters
+    prefix = re.sub(r'[^a-zA-Z0-9._-]', '_', prefix.strip())
+    
+    # Limit length
+    return prefix[:50]
 
 def log_step(step: str, tool_name: str, details: str = "") -> None:
     """Log processing steps for tracking"""
@@ -52,7 +100,7 @@ def log_step(step: str, tool_name: str, details: str = "") -> None:
     with open(log_file, 'w') as f:
         json.dump(logs, f, indent=2)
     
-    print(f"[{timestamp}] {tool_name}: {step} - {details}")
+    print(f"[{timestamp}] {tool_name}: {step} - {details}", file=sys.stderr)
 
 @server.tool("parse_email_query")
 def parse_email_query(email_content: str, subject: str) -> Dict[str, Any]:
@@ -80,10 +128,19 @@ def parse_email_query(email_content: str, subject: str) -> Dict[str, Any]:
         
         # Extract file references
         las_files = []
-        # Look for .las files mentioned
-        las_pattern = r'(\w+\.las)'
-        las_matches = re.findall(las_pattern, content_lower)
+        # Look for .las files mentioned in both content and subject (with case-insensitive pattern for hyphens, dots, etc.)
+        las_pattern = r'([A-Za-z0-9._-]+\.las)'
+        
+        # Search in email content
+        las_matches = re.findall(las_pattern, content_lower, re.IGNORECASE)
         las_files.extend(las_matches)
+        
+        # Also search in subject line
+        subject_matches = re.findall(las_pattern, subject_lower, re.IGNORECASE)
+        las_files.extend(subject_matches)
+        
+        # Remove duplicates while preserving order
+        las_files = list(dict.fromkeys(las_files))
         
         # Look for well names
         well_names = []
@@ -123,6 +180,22 @@ def create_las_plot(filename: str, curve_type: str = "porosity", output_prefix: 
     log_step("Starting plot creation", "create_las_plot", f"File: {filename}, Type: {curve_type}")
     
     try:
+        # Validate filename to prevent path traversal attacks
+        if not validate_filename(filename):
+            error_msg = f"Invalid filename '{filename}': filename contains unsafe characters or path elements"
+            log_step("Invalid filename", "create_las_plot", error_msg)
+            return f"Error: {error_msg}"
+        
+        # Sanitize output prefix
+        output_prefix = sanitize_output_prefix(output_prefix)
+        
+        # Validate curve type
+        allowed_curve_types = ["porosity", "gamma", "resistivity", "density"]
+        if curve_type.lower() not in allowed_curve_types:
+            error_msg = f"Invalid curve type '{curve_type}': must be one of {allowed_curve_types}"
+            log_step("Invalid curve type", "create_las_plot", error_msg)
+            return f"Error: {error_msg}"
+        
         # Find the file in data directory or subdirectories
         las_file = None
         for search_path in [DATA_DIR, DATA_DIR / "samples", DATA_DIR / "email-attachments"]:
@@ -267,6 +340,23 @@ def create_multi_curve_plot(filename: str, curve_types: List[str], output_prefix
     log_step("Starting multi-curve plot", "create_multi_curve_plot", f"File: {filename}, Curves: {curve_types}")
     
     try:
+        # Validate filename to prevent path traversal attacks
+        if not validate_filename(filename):
+            error_msg = f"Invalid filename '{filename}': filename contains unsafe characters or path elements"
+            log_step("Invalid filename", "create_multi_curve_plot", error_msg)
+            return f"Error: {error_msg}"
+        
+        # Sanitize output prefix
+        output_prefix = sanitize_output_prefix(output_prefix)
+        
+        # Validate curve types
+        allowed_curve_types = ["porosity", "gamma", "resistivity", "density"]
+        for curve_type in curve_types:
+            if curve_type.lower() not in allowed_curve_types:
+                error_msg = f"Invalid curve type '{curve_type}': must be one of {allowed_curve_types}"
+                log_step("Invalid curve type", "create_multi_curve_plot", error_msg)
+                return f"Error: {error_msg}"
+        
         # Find the file
         las_file = None
         for search_path in [DATA_DIR, DATA_DIR / "samples", DATA_DIR / "email-attachments"]:

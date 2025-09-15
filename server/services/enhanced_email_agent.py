@@ -76,12 +76,12 @@ class EnhancedEmailAgent:
                 )
             
             if self.llm:
-                print(f"Enhanced Email Agent initialized with {self.provider}:{self.model}")
+                print(f"Enhanced Email Agent initialized with {self.provider}:{self.model}", file=sys.stderr)
                 return True
             return False
             
         except Exception as e:
-            print(f"Error initializing enhanced email agent: {e}")
+            print(f"Error initializing enhanced email agent: {e}", file=sys.stderr)
             return False
     
     def log_processing_step(self, step: str, details: str = "", status: str = "completed"):
@@ -116,7 +116,7 @@ class EnhancedEmailAgent:
         with open(log_file, 'w') as f:
             json.dump(logs, f, indent=2)
         
-        print(f"✓ {step}: {details}")
+        print(f"✓ {step}: {details}", file=sys.stderr)
     
     async def call_mcp_plotting_server(self, tool_name: str, **kwargs) -> Any:
         """Call the MCP plotting server tools"""
@@ -196,15 +196,46 @@ class EnhancedEmailAgent:
             
             # Step 3: Determine which files to use
             target_files = []
+            
+            # First, use files mentioned in email text
             if query_analysis.get('las_files'):
-                # Use files mentioned in email
                 for mentioned_file in query_analysis['las_files']:
                     if mentioned_file in available_files:
                         target_files.append(mentioned_file)
+                        self.log_processing_step("File Found in Text", f"Email references: {mentioned_file}")
             
-            # If no specific files mentioned or found, use available files
+            # Second, check for LAS files in email attachments
+            if attachments:
+                self.log_processing_step("Processing Attachments", f"Found {len(attachments)} attachments")
+                for attachment in attachments:
+                    attachment_name = attachment.get('filename', '') if isinstance(attachment, dict) else str(attachment)
+                    if attachment_name.lower().endswith('.las'):
+                        # Check if this attachment exists in our available files
+                        if attachment_name in available_files:
+                            if attachment_name not in target_files:
+                                target_files.append(attachment_name)
+                                self.log_processing_step("Attachment Added", f"LAS file from attachment: {attachment_name}")
+                        else:
+                            self.log_processing_step("Attachment Not Found", f"LAS attachment '{attachment_name}' not found in data directories", "warning")
+            
+            # If still no files found, try to use any available LAS files as fallback for general requests
+            if not target_files and available_files:
+                # Check if this is a general plotting request without specific files
+                general_keywords = ['plot', 'graph', 'chart', 'visualization', 'analyze', 'show', 'display']
+                if any(keyword in email_content.lower() or keyword in email_subject.lower() for keyword in general_keywords):
+                    # Use the first available file as a reasonable default
+                    target_files.append(available_files[0])
+                    self.log_processing_step("Using Default File", f"No specific files mentioned, using: {available_files[0]}")
+            
+            # Check if we have any valid files to process
             if not target_files:
-                target_files = available_files[:2]  # Use first 2 files
+                self.log_processing_step("No Valid Files", "No LAS files referenced in email, attachments, or available for general processing", "error")
+                available_files_list = ', '.join(available_files[:5]) + ('...' if len(available_files) > 5 else '')
+                return {
+                    "success": False,
+                    "error": "No valid LAS files were referenced in your email or found in attachments",
+                    "response": f"I apologize, but I cannot process your request as no specific LAS files were referenced in your email or found in the attached files. Available files in the system include: {available_files_list}. Please specify which LAS files you would like me to analyze or attach the files to your email."
+                }
             
             self.log_processing_step("Target Files Selected", f"Will process: {', '.join(target_files)}")
             
