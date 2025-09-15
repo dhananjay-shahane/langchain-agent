@@ -1,9 +1,9 @@
 {
   "id": "d26f83df-afa9-4447-914b-d8b2b03e260a",
-  "isRunning": false,
-  "lastStarted": "2025-09-15T09:16:32.422Z",
+  "isRunning": true,
+  "lastStarted": "2025-09-15T09:18:04.786Z",
   "lastStopped": null,
   "lastError": null,
   "emailsProcessed": "0",
-  "updatedAt": "2025-09-15T09:16:32.624Z"
+  "updatedAt": "2025-09-15T09:18:04.786Z"
 }

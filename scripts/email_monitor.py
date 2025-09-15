@@ -20,8 +20,8 @@ from imapclient import IMAPClient
 
 # Configuration
 IMAP_SERVER = "imap.gmail.com"
-EMAIL_USER = os.getenv("EMAIL_USER")
-EMAIL_PASSWORD = os.getenv("EMAIL_PASSWORD")
+EMAIL_USER = "shahanedhananjay0@gmail.com"
+EMAIL_PASSWORD = "zclp zwex hqkr fvqp"
 API_BASE_URL = "http://localhost:5000/api"
 
 # Paths
@@ -46,7 +46,9 @@ class EmailMonitor:
                 "❌ EMAIL_USER and EMAIL_PASSWORD environment variables are required"
             )
             print(f"EMAIL_USER: {'✅ Found' if EMAIL_USER else '❌ Missing'}")
-            print(f"EMAIL_PASSWORD: {'✅ Found' if EMAIL_PASSWORD else '❌ Missing'}")
+            print(
+                f"EMAIL_PASSWORD: {'✅ Found' if EMAIL_PASSWORD else '❌ Missing'}"
+            )
             sys.exit(1)
 
         # Ensure we have valid string values
