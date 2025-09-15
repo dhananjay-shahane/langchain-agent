@@ -3,6 +3,46 @@
     "filename": "sample_well_01_porosity_plot_162320.png",
     "filepath": "/home/runner/workspace/output/sample_well_01_porosity_plot_162320.png",
     "type": "plot",
+    "id": "839a9af3-5bed-4cf8-a887-c06c58c04184",
+    "createdAt": "2025-09-15T10:40:07.593Z",
+    "relatedLasFile": null
+  },
+  {
+    "filename": "_porosity_plot_191801.png",
+    "filepath": "/home/runner/workspace/output/_porosity_plot_191801.png",
+    "type": "plot",
+    "id": "ed9f5ffb-470a-404e-96ad-9a11dabad5d6",
+    "createdAt": "2025-09-15T10:40:07.585Z",
+    "relatedLasFile": null
+  },
+  {
+    "filename": "_porosity_plot_170914.png",
+    "filepath": "/home/runner/workspace/output/_porosity_plot_170914.png",
+    "type": "plot",
+    "id": "2fb19aa5-3d8d-4a1d-b882-e7cd9139770a",
+    "createdAt": "2025-09-15T10:40:07.578Z",
+    "relatedLasFile": null
+  },
+  {
+    "filename": "APACHE_1H-15_porosity_20250911_145020.png",
+    "filepath": "/home/runner/workspace/output/APACHE_1H-15_porosity_20250911_145020.png",
+    "type": "plot",
+    "id": "193d9f67-52fe-4233-849c-18ad7f8dc5c9",
+    "createdAt": "2025-09-15T10:40:07.577Z",
+    "relatedLasFile": null
+  },
+  {
+    "filename": "well_log_02_gamma_plot_163201.png",
+    "filepath": "/home/runner/workspace/output/well_log_02_gamma_plot_163201.png",
+    "type": "plot",
+    "id": "6c06ea23-396a-4125-83d8-3691ab371171",
+    "createdAt": "2025-09-15T09:13:39.753Z",
+    "relatedLasFile": null
+  },
+  {
+    "filename": "sample_well_01_porosity_plot_162320.png",
+    "filepath": "/home/runner/workspace/output/sample_well_01_porosity_plot_162320.png",
+    "type": "plot",
     "id": "769bf81b-aff0-449e-a243-466f70270df9",
     "createdAt": "2025-09-15T09:13:39.751Z",
     "relatedLasFile": null
@@ -235,8 +275,8 @@
     "filename": "well_log_02_gamma_plot_163201.png",
     "filepath": "/home/runner/workspace/output/well_log_02_gamma_plot_163201.png",
     "type": "plot",
-    "id": "6c06ea23-396a-4125-83d8-3691ab371171",
-    "createdAt": "2025-09-15T09:13:39.753Z",
+    "id": "760135a7-0735-4926-9944-33d8d740b9b0",
+    "createdAt": "2025-09-15T10:40:07.594Z",
     "relatedLasFile": null
   }
 ]
