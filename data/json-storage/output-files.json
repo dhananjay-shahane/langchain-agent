@@ -3,6 +3,54 @@
     "filename": "summary_1757933902.png",
     "filepath": "/home/runner/workspace/output/summary_1757933902.png",
     "type": "plot",
+    "id": "383d62ec-407b-4917-a7aa-9e1ca5dbd7c4",
+    "createdAt": "2025-09-15T13:28:17.133Z",
+    "relatedLasFile": null
+  },
+  {
+    "filename": "sample_well_01_porosity_plot_162320.png",
+    "filepath": "/home/runner/workspace/output/sample_well_01_porosity_plot_162320.png",
+    "type": "plot",
+    "id": "4759a8b9-5d16-4c8f-9c99-da39d1a53754",
+    "createdAt": "2025-09-15T13:28:17.131Z",
+    "relatedLasFile": null
+  },
+  {
+    "filename": "_porosity_plot_191801.png",
+    "filepath": "/home/runner/workspace/output/_porosity_plot_191801.png",
+    "type": "plot",
+    "id": "c5ad8f13-f350-439d-93e1-b43391141c82",
+    "createdAt": "2025-09-15T13:28:17.099Z",
+    "relatedLasFile": null
+  },
+  {
+    "filename": "_porosity_plot_170914.png",
+    "filepath": "/home/runner/workspace/output/_porosity_plot_170914.png",
+    "type": "plot",
+    "id": "5c581ce2-9eb5-4adb-9281-3f4945e70685",
+    "createdAt": "2025-09-15T13:28:17.086Z",
+    "relatedLasFile": null
+  },
+  {
+    "filename": "APACHE_1H-15_porosity_20250911_145020.png",
+    "filepath": "/home/runner/workspace/output/APACHE_1H-15_porosity_20250911_145020.png",
+    "type": "plot",
+    "id": "7cace56e-6b18-4da8-93f8-f122b9fda936",
+    "createdAt": "2025-09-15T13:28:17.083Z",
+    "relatedLasFile": null
+  },
+  {
+    "filename": "well_log_02_gamma_plot_163201.png",
+    "filepath": "/home/runner/workspace/output/well_log_02_gamma_plot_163201.png",
+    "type": "plot",
+    "id": "d0d8c3c7-858f-488c-991e-5a62332a1c7b",
+    "createdAt": "2025-09-15T13:27:35.084Z",
+    "relatedLasFile": null
+  },
+  {
+    "filename": "summary_1757933902.png",
+    "filepath": "/home/runner/workspace/output/summary_1757933902.png",
+    "type": "plot",
     "id": "f2db8fdd-27b0-4a52-a3d1-6ec778ce7f42",
     "createdAt": "2025-09-15T13:27:35.082Z",
     "relatedLasFile": null
@@ -707,8 +755,8 @@
     "filename": "well_log_02_gamma_plot_163201.png",
     "filepath": "/home/runner/workspace/output/well_log_02_gamma_plot_163201.png",
     "type": "plot",
-    "id": "d0d8c3c7-858f-488c-991e-5a62332a1c7b",
-    "createdAt": "2025-09-15T13:27:35.084Z",
+    "id": "32f9135e-1347-46d1-b5bb-dce7392f1636",
+    "createdAt": "2025-09-15T13:28:17.138Z",
     "relatedLasFile": null
   }
 ]
