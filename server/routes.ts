@@ -629,6 +629,107 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Enhanced Email Processing with Plot Generation
+  app.post("/api/emails/process-enhanced", async (req, res) => {
+    try {
+      const { emailId, emailContent, emailFrom, emailSubject, attachments } = req.body;
+      
+      if (!emailId || !emailContent || !emailFrom) {
+        return res.status(400).json({ error: "Missing required email data" });
+      }
+
+      console.log(`🚀 Starting enhanced email processing for: ${emailSubject}`);
+
+      // Process email with enhanced agent (plot generation + reply)
+      const result = await processEmailWithEnhancedAgent({
+        id: emailId,
+        body: emailContent,
+        from: emailFrom,
+        subject: emailSubject || "No Subject",
+        attachments: attachments || []
+      });
+
+      if (result.success) {
+        console.log(`✅ Enhanced processing completed for: ${emailSubject}`);
+        
+        // Update email status if reply was sent
+        if (result.reply_sent) {
+          await storage.updateEmailStatus(emailId, "completed");
+          io.emit("email_status_updated", { emailId, status: "completed" });
+        }
+
+        // Emit processing results to clients
+        io.emit("enhanced_processing_completed", {
+          emailId,
+          success: true,
+          generated_plots: result.generated_plots,
+          processing_steps: result.processing_steps,
+          reply_sent: result.reply_sent
+        });
+
+        res.json({
+          success: true,
+          response: result.response,
+          generated_plots: result.generated_plots,
+          processing_steps: result.processing_steps,
+          reply_sent: result.reply_sent,
+          query_analysis: result.query_analysis
+        });
+      } else {
+        console.error(`❌ Enhanced processing failed for: ${emailSubject}`, result.error);
+        
+        io.emit("enhanced_processing_failed", {
+          emailId,
+          error: result.error
+        });
+
+        res.status(500).json({
+          success: false,
+          error: result.error,
+          response: result.response || "Failed to process email with enhanced features"
+        });
+      }
+    } catch (error) {
+      console.error("Enhanced email processing error:", error);
+      res.status(500).json({ error: "Failed to process email with enhanced features" });
+    }
+  });
+
+  // Get Processing Steps for Progress Tracking
+  app.get("/api/emails/processing-steps", async (req, res) => {
+    try {
+      const limit = parseInt(req.query.limit as string) || 20;
+      
+      // Call MCP plotting server to get processing steps
+      const result = await getProcessingSteps(limit);
+      
+      if (result.error) {
+        return res.status(500).json({ error: result.error });
+      }
+
+      res.json(result);
+    } catch (error) {
+      console.error("Error getting processing steps:", error);
+      res.status(500).json({ error: "Failed to get processing steps" });
+    }
+  });
+
+  // Clear Processing Steps
+  app.delete("/api/emails/processing-steps", async (req, res) => {
+    try {
+      const result = await clearProcessingSteps();
+      
+      if (result.includes("Error")) {
+        return res.status(500).json({ error: result });
+      }
+
+      res.json({ success: true, message: result });
+    } catch (error) {
+      console.error("Error clearing processing steps:", error);
+      res.status(500).json({ error: "Failed to clear processing steps" });
+    }
+  });
+
   // Email Attachments Route
   app.get("/api/emails/attachments/:filename", async (req, res) => {
     try {
@@ -1043,6 +1144,149 @@ async function processUserMessage(content: string, selectedLasFile?: string) {
     });
     
     global.io?.emit("new_message", errorMessage);
+  }
+}
+
+// Enhanced Email Processing Function
+async function processEmailWithEnhancedAgent(emailData: any): Promise<any> {
+  return new Promise((resolve) => {
+    // Security: Validate inputs
+    if (!emailData || typeof emailData.body !== 'string' || typeof emailData.from !== 'string') {
+      resolve({ success: false, error: "Invalid email data" });
+      return;
+    }
+    
+    // Security: Sanitize inputs
+    const safeEmailData = {
+      id: (emailData.id || "").substring(0, 100),
+      body: emailData.body.substring(0, 10000),
+      from: emailData.from.substring(0, 200),
+      subject: (emailData.subject || "").substring(0, 500),
+      attachments: Array.isArray(emailData.attachments) ? emailData.attachments.slice(0, 10) : []
+    };
+    
+    const scriptPath = path.join(process.cwd(), "server/services/enhanced_email_agent.py");
+    
+    if (!fs.existsSync(scriptPath)) {
+      resolve({ success: false, error: "Enhanced email agent script not found" });
+      return;
+    }
+
+    console.log("🔄 Calling enhanced email agent with plot generation...");
+
+    const python = spawn("uv", [
+      "run",
+      "python",
+      scriptPath,
+      "process_email",
+      JSON.stringify(safeEmailData)
+    ], {
+      env: {
+        ...process.env,
+        EMAIL_USER: process.env.EMAIL_USER,
+        EMAIL_PASS: process.env.EMAIL_PASS,
+        SMTP_SERVER: process.env.SMTP_SERVER || "smtp.gmail.com",
+        SMTP_PORT: process.env.SMTP_PORT || "587"
+      }
+    });
+
+    let output = "";
+    let errorOutput = "";
+
+    python.stdout.on("data", (data) => {
+      output += data.toString();
+    });
+
+    python.stderr.on("data", (data) => {
+      errorOutput += data.toString();
+      console.error("Enhanced agent error:", data.toString());
+    });
+
+    python.on("close", (code) => {
+      if (code === 0 && output.trim()) {
+        try {
+          const result = JSON.parse(output.trim());
+          console.log("✅ Enhanced email processing completed successfully");
+          resolve(result);
+        } catch (parseError) {
+          console.error("Failed to parse enhanced agent output:", parseError);
+          resolve({
+            success: false,
+            error: "Failed to parse enhanced agent response",
+            response: output.trim()
+          });
+        }
+      } else {
+        console.error("Enhanced agent failed with code:", code);
+        resolve({
+          success: false,
+          error: errorOutput || `Enhanced agent process exited with code ${code}`,
+          response: "Enhanced email processing failed"
+        });
+      }
+    });
+
+    python.on('error', (err) => {
+      console.error('Enhanced agent spawn error:', err);
+      resolve({
+        success: false,
+        error: err.message,
+        response: "Enhanced email processing system unavailable"
+      });
+    });
+
+    // 5 minute timeout for enhanced processing (longer due to plot generation)
+    setTimeout(() => {
+      python.kill();
+      resolve({
+        success: false,
+        error: "Enhanced processing timeout",
+        response: "Email processing with plot generation is taking longer than expected"
+      });
+    }, 300000);
+  });
+}
+
+// Get Processing Steps Function
+async function getProcessingSteps(limit: number = 20): Promise<any> {
+  try {
+    const outputDir = path.join(process.cwd(), "output");
+    const logFile = path.join(outputDir, "processing_steps.json");
+    
+    if (fs.existsSync(logFile)) {
+      const logData = JSON.parse(fs.readFileSync(logFile, 'utf8'));
+      const recentSteps = logData.slice(-limit);
+      
+      return {
+        steps: recentSteps,
+        total: logData.length,
+        showing: recentSteps.length
+      };
+    } else {
+      return {
+        steps: [],
+        total: 0,
+        showing: 0
+      };
+    }
+  } catch (error) {
+    return { error: `Failed to get processing steps: ${error instanceof Error ? error.message : String(error)}` };
+  }
+}
+
+// Clear Processing Steps Function
+async function clearProcessingSteps(): Promise<string> {
+  try {
+    const outputDir = path.join(process.cwd(), "output");
+    const logFile = path.join(outputDir, "processing_steps.json");
+    
+    if (fs.existsSync(logFile)) {
+      fs.unlinkSync(logFile);
+    }
+    
+    return "Processing steps cleared successfully";
+  } catch (error) {
+    return `Error clearing processing steps: ${error instanceof Error ? error.message : String(error)}`;
   }
 }
 
