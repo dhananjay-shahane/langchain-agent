@@ -20,8 +20,8 @@ from imapclient import IMAPClient
 
 # Configuration
 IMAP_SERVER = "imap.gmail.com"
-EMAIL_USER = "shahanedhananjay0@gmail.com"
-EMAIL_PASSWORD = "zclp zwex hqkr fvqp"
+EMAIL_USER = os.getenv("EMAIL_USER")
+EMAIL_PASSWORD = os.getenv("EMAIL_PASS")
 API_BASE_URL = "http://localhost:5000/api"
 
 # Paths
