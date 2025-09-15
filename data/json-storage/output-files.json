@@ -8,6 +8,14 @@
     "relatedLasFile": null
   },
   {
+    "filename": "well_log_02_gamma_plot_163201.png",
+    "filepath": "/home/runner/workspace/output/well_log_02_gamma_plot_163201.png",
+    "type": "plot",
+    "id": "feba96c5-c2b3-46b3-a98b-b599eb4edbc2",
+    "createdAt": "2025-09-15T10:41:39.091Z",
+    "relatedLasFile": null
+  },
+  {
     "filename": "_porosity_plot_191801.png",
     "filepath": "/home/runner/workspace/output/_porosity_plot_191801.png",
     "type": "plot",
@@ -312,11 +320,11 @@
     "relatedLasFile": null
   },
   {
-    "filename": "well_log_02_gamma_plot_163201.png",
-    "filepath": "/home/runner/workspace/output/well_log_02_gamma_plot_163201.png",
+    "filename": "summary_1757933902.png",
+    "filepath": "/home/runner/workspace/output/summary_1757933902.png",
     "type": "plot",
-    "id": "feba96c5-c2b3-46b3-a98b-b599eb4edbc2",
-    "createdAt": "2025-09-15T10:41:39.091Z",
+    "id": "669364cf-7da2-40cf-8f42-877e3e684304",
+    "createdAt": "2025-09-15T10:58:23.014Z",
     "relatedLasFile": null
   }
 ]
