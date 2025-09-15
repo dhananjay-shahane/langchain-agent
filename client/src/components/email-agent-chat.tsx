@@ -107,7 +107,11 @@ export default function EmailAgentChat() {
       // Extract only the clean email response content, no metadata
       let responseContent = "Email processed successfully";
       
-      if (data && data.response) {
+      // Handle error cases first
+      if (data && data.error) {
+        responseContent = typeof data.error === 'string' ? data.error : JSON.stringify(data.error);
+      }
+      else if (data && data.response) {
         // If response is a string, extract clean response
         if (typeof data.response === 'string') {
           let cleanResponse = data.response.trim();
@@ -117,7 +121,7 @@ export default function EmailAgentChat() {
           if (jsonMatch) {
             try {
               const jsonData = JSON.parse(jsonMatch[0]);
-              responseContent = jsonData.response || "Email processed successfully";
+              responseContent = jsonData.response || jsonData.message || "Email processed successfully";
             } catch (e) {
               // If JSON parsing fails, try to extract text between quotes
               const responseMatch = cleanResponse.match(/"response":\s*"([^"]+)"/);
@@ -126,14 +130,22 @@ export default function EmailAgentChat() {
           } else {
             responseContent = cleanResponse;
           }
+        } else if (typeof data.response === 'object') {
+          // If response is an object, safely extract the content
+          responseContent = data.response.message || data.response.content || data.response.response || 
+                          (data.response.error ? String(data.response.error) : String(data.response));
         } else {
-          // If response is already an object, get the response field
-          responseContent = data.response.message || data.response.content || data.response.response || String(data.response);
+          // Convert non-string, non-object responses to string
+          responseContent = String(data.response);
         }
       }
       // If data is an object, extract the response
       else if (data && typeof data === 'object') {
-        responseContent = data.response || data.message || data.content || "Email processed successfully";
+        if (data.error) {
+          responseContent = typeof data.error === 'string' ? data.error : JSON.stringify(data.error);
+        } else {
+          responseContent = data.response || data.message || data.content || String(data);
+        }
       }
       
       // Final cleanup: remove any remaining escape characters and metadata
@@ -174,10 +186,35 @@ export default function EmailAgentChat() {
         description: `Ready to send reply for: ${email.subject}`,
       });
     },
-    onError: () => {
+    onError: (error: any) => {
+      // Handle error objects properly
+      let errorMessage = "Failed to process email. Please try again.";
+      
+      if (error) {
+        if (typeof error === 'string') {
+          errorMessage = error;
+        } else if (error.message) {
+          errorMessage = error.message;
+        } else if (typeof error === 'object') {
+          errorMessage = JSON.stringify(error);
+        }
+      }
+      
+      // Add error message to chat
+      const errorMsg: EmailProcessingMessage = {
+        id: `error-${Date.now()}`,
+        role: "agent",
+        content: `Error: ${errorMessage}`,
+        metadata: { error: true },
+        timestamp: new Date().toISOString(),
+        emailId: selectedEmail?.id
+      };
+      
+      setProcessingMessages(prev => [...prev, errorMsg]);
+      
       toast({
         title: "Processing Failed",
-        description: "Failed to process email. Please try again.",
+        description: errorMessage,
         variant: "destructive",
       });
     },
