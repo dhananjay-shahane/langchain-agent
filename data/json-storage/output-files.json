@@ -3,7 +3,87 @@
     "filename": "sample_well_01_porosity_plot_162320.png",
     "filepath": "/home/runner/workspace/output/sample_well_01_porosity_plot_162320.png",
     "type": "plot",
+    "id": "769bf81b-aff0-449e-a243-466f70270df9",
+    "createdAt": "2025-09-15T09:13:39.751Z",
+    "relatedLasFile": null
+  },
+  {
+    "filename": "_porosity_plot_191801.png",
+    "filepath": "/home/runner/workspace/output/_porosity_plot_191801.png",
+    "type": "plot",
+    "id": "b4295821-6d62-4c2b-9fb7-d7daa80c02ed",
+    "createdAt": "2025-09-15T09:13:39.577Z",
+    "relatedLasFile": null
+  },
+  {
+    "filename": "_porosity_plot_170914.png",
+    "filepath": "/home/runner/workspace/output/_porosity_plot_170914.png",
+    "type": "plot",
+    "id": "e294163c-76f9-4f63-8b6e-c929ad17b194",
+    "createdAt": "2025-09-15T09:13:39.573Z",
+    "relatedLasFile": null
+  },
+  {
+    "filename": "APACHE_1H-15_porosity_20250911_145020.png",
+    "filepath": "/home/runner/workspace/output/APACHE_1H-15_porosity_20250911_145020.png",
+    "type": "plot",
+    "id": "b82468a5-5bbc-4392-86b2-a8eece9afb41",
+    "createdAt": "2025-09-15T09:13:39.572Z",
+    "relatedLasFile": null
+  },
+  {
+    "filename": "well_log_02_gamma_plot_163201.png",
+    "filepath": "/home/runner/workspace/output/well_log_02_gamma_plot_163201.png",
+    "type": "plot",
+    "id": "2a143121-5259-4020-b97b-4e47043c4a7b",
+    "createdAt": "2025-09-15T09:10:14.453Z",
+    "relatedLasFile": null
+  },
+  {
+    "filename": "sample_well_01_porosity_plot_162320.png",
+    "filepath": "/home/runner/workspace/output/sample_well_01_porosity_plot_162320.png",
+    "type": "plot",
+    "id": "d01fa54d-5a8d-43a6-b78c-c7413ebb9ed1",
+    "createdAt": "2025-09-15T09:10:14.450Z",
+    "relatedLasFile": null
+  },
+  {
+    "filename": "_porosity_plot_191801.png",
+    "filepath": "/home/runner/workspace/output/_porosity_plot_191801.png",
+    "type": "plot",
+    "id": "1aea5434-d87d-4813-b0de-c6508e1ce01b",
+    "createdAt": "2025-09-15T09:10:14.261Z",
+    "relatedLasFile": null
+  },
+  {
+    "filename": "_porosity_plot_170914.png",
+    "filepath": "/home/runner/workspace/output/_porosity_plot_170914.png",
+    "type": "plot",
+    "id": "908a4864-afab-48a6-b5f3-aaa752d6cd2d",
+    "createdAt": "2025-09-15T09:10:14.260Z",
+    "relatedLasFile": null
+  },
+  {
+    "filename": "APACHE_1H-15_porosity_20250911_145020.png",
+    "filepath": "/home/runner/workspace/output/APACHE_1H-15_porosity_20250911_145020.png",
+    "type": "plot",
+    "id": "25b6e569-23bc-4862-a4e9-d00b6546e3a7",
+    "createdAt": "2025-09-15T09:10:14.259Z",
+    "relatedLasFile": null
+  },
+  {
+    "filename": "sample_well_01_porosity_plot_162320.png",
+    "filepath": "/home/runner/workspace/output/sample_well_01_porosity_plot_162320.png",
+    "type": "plot",
     "id": "12899f65-a251-41c1-819f-fc09f40fbb1e",
+    "createdAt": "2025-09-15T05:10:30.393Z",
+    "relatedLasFile": null
+  },
+  {
+    "filename": "well_log_02_gamma_plot_163201.png",
+    "filepath": "/home/runner/workspace/output/well_log_02_gamma_plot_163201.png",
+    "type": "plot",
+    "id": "79c6efe0-0f93-4c4e-8143-5acbb613c553",
     "createdAt": "2025-09-15T05:10:30.393Z",
     "relatedLasFile": null
   },
@@ -155,8 +235,8 @@
     "filename": "well_log_02_gamma_plot_163201.png",
     "filepath": "/home/runner/workspace/output/well_log_02_gamma_plot_163201.png",
     "type": "plot",
-    "id": "79c6efe0-0f93-4c4e-8143-5acbb613c553",
-    "createdAt": "2025-09-15T05:10:30.393Z",
+    "id": "6c06ea23-396a-4125-83d8-3691ab371171",
+    "createdAt": "2025-09-15T09:13:39.753Z",
     "relatedLasFile": null
   }
 ]

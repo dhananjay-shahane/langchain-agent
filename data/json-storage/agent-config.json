@@ -1,9 +1,9 @@
 {
   "id": "2c6142e6-10d9-4561-8fdc-c403c06aad59",
   "provider": "ollama",
-  "model": "qwen:1.8b",
-  "endpointUrl": "",
+  "model": "llama3.2:1b",
+  "endpointUrl": "https://70458cc0971e.ngrok-free.app",
   "isConnected": false,
-  "lastTested": "2025-09-15T05:09:58.359Z",
+  "lastTested": "2025-09-15T09:14:37.180Z",
   "createdAt": "2025-09-15T04:21:27.910Z"
 }
