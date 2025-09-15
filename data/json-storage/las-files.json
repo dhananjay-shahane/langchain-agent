@@ -5,6 +5,33 @@
     "size": "0.00MB",
     "source": "manual",
     "processed": false,
+    "id": "10c5c424-8439-493c-84ef-4a1e82a60935",
+    "createdAt": "2025-09-15T14:01:09.668Z"
+  },
+  {
+    "filename": "4771-36-SESE.las",
+    "filepath": "/home/runner/workspace/data/email-attachments/4771-36-SESE.las",
+    "size": "0.02MB",
+    "source": "manual",
+    "processed": false,
+    "id": "c5c0a872-7d4e-4790-a15f-3202ccedffe6",
+    "createdAt": "2025-09-15T14:01:09.665Z"
+  },
+  {
+    "filename": "well_log_02.las",
+    "filepath": "/home/runner/workspace/data/samples/well_log_02.las",
+    "size": "0.00MB",
+    "source": "manual",
+    "processed": false,
+    "id": "f6f907e6-0d86-4cc8-b70f-c7e4b9558be0",
+    "createdAt": "2025-09-15T13:28:17.146Z"
+  },
+  {
+    "filename": "sample_well_01.las",
+    "filepath": "/home/runner/workspace/data/samples/sample_well_01.las",
+    "size": "0.00MB",
+    "source": "manual",
+    "processed": false,
     "id": "fb3d768f-4101-4213-b69f-dd8274346d03",
     "createdAt": "2025-09-15T13:28:17.145Z"
   },
@@ -455,7 +482,7 @@
     "size": "0.00MB",
     "source": "manual",
     "processed": false,
-    "id": "f6f907e6-0d86-4cc8-b70f-c7e4b9558be0",
-    "createdAt": "2025-09-15T13:28:17.146Z"
+    "id": "951e70b4-e021-427c-9bdd-231144b92056",
+    "createdAt": "2025-09-15T14:01:09.670Z"
   }
 ]
