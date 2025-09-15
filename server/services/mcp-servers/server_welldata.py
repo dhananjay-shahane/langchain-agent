@@ -25,7 +25,15 @@ def list_wells():
 def get_logs(well: str, curves: list[str]):
     """Get log curves data for a specific well"""
     try:
+        # Sanitize well filename to prevent path traversal
+        if not well or '/' in well or '\\' in well or '..' in well:
+            return {"error": f"Invalid well filename: {well}"}
+        
         well_path = os.path.join(DATA_DIR, well)
+        # Ensure the resolved path is still within DATA_DIR
+        if not os.path.realpath(well_path).startswith(os.path.realpath(DATA_DIR)):
+            return {"error": f"Access denied to file: {well}"}
+        
         if not os.path.exists(well_path):
             return {"error": f"Well file {well} not found"}
         
@@ -46,7 +54,15 @@ def get_logs(well: str, curves: list[str]):
 def get_well_info(well: str):
     """Get well header information and available curves"""
     try:
+        # Sanitize well filename to prevent path traversal
+        if not well or '/' in well or '\\' in well or '..' in well:
+            return {"error": f"Invalid well filename: {well}"}
+        
         well_path = os.path.join(DATA_DIR, well)
+        # Ensure the resolved path is still within DATA_DIR
+        if not os.path.realpath(well_path).startswith(os.path.realpath(DATA_DIR)):
+            return {"error": f"Access denied to file: {well}"}
+        
         if not os.path.exists(well_path):
             return {"error": f"Well file {well} not found"}
         

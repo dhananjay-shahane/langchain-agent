@@ -20,212 +20,85 @@ from langchain_core.messages import HumanMessage, SystemMessage
 
 # MCP client imports (placeholder - would use actual MCP client library)
 class MCPClient:
-    """Simplified MCP client for connecting to servers"""
+    """MCP client for connecting to actual MCP servers"""
     def __init__(self, server_endpoint: str):
         self.endpoint = server_endpoint
+        self.server_type = self._determine_server_type()
+        
+    def _determine_server_type(self):
+        """Determine server type based on endpoint"""
+        if "8001" in self.endpoint:
+            return "well_data"
+        elif "8002" in self.endpoint:
+            return "analysis"
+        elif "8003" in self.endpoint:
+            return "reporting"
+        return "unknown"
         
     async def call(self, tool_name: str, **kwargs):
-        """Simulate MCP tool call - replace with actual MCP client implementation"""
+        """Route calls to appropriate server implementations"""
         try:
-            # In real implementation, this would make actual MCP calls
-            if "8001" in self.endpoint or "email" in self.endpoint:
-                return await self._mock_email_server_call(tool_name, **kwargs)
-            elif "8002" in self.endpoint or "document" in self.endpoint:
-                return await self._mock_document_server_call(tool_name, **kwargs)
-            
+            if self.server_type == "well_data":
+                return await self._call_well_data_server(tool_name, **kwargs)
+            elif self.server_type == "analysis":
+                return await self._call_analysis_server(tool_name, **kwargs)
+            elif self.server_type == "reporting":
+                return await self._call_reporting_server(tool_name, **kwargs)
+            else:
+                return {"error": f"Unknown server type for endpoint: {self.endpoint}"}
         except Exception as e:
             print(f"MCP client error: {e}")
             return {"error": str(e)}
     
-    async def _mock_email_server_call(self, tool_name: str, **kwargs):
-        """Mock email server responses for development"""
-        if tool_name == "analyze_email_intent":
-            return {
-                "intent": "data_analysis_request",
-                "confidence": 0.9,
-                "entities": ["well_data", "report_generation"],
-                "requires_documents": True,
-                "urgency": "normal",
-                "response_strategy": {
-                    "include_analysis": True,
-                    "include_plots": True,
-                    "include_report": True,
-                    "response_tone": "professional"
-                }
-            }
-        elif tool_name == "prepare_email_context":
-            return {
-                "email_id": kwargs.get("email_data", {}).get("id", ""),
-                "sender": kwargs.get("email_data", {}).get("from", ""),
-                "subject": kwargs.get("email_data", {}).get("subject", ""),
-                "content": kwargs.get("email_data", {}).get("body", ""),
-                "attachments": kwargs.get("email_data", {}).get("attachments", []),
-                "metadata": {"word_count": 50, "has_attachments": True}
-            }
-        return {}
+    async def _call_well_data_server(self, tool_name: str, **kwargs):
+        """Call well data server tools"""
+        import sys
+        import os
+        sys.path.append(os.path.join(os.path.dirname(__file__), 'mcp-servers'))
+        from server_welldata import list_wells, get_logs, get_well_info
+        
+        if tool_name == "list_wells":
+            return list_wells()
+        elif tool_name == "get_logs":
+            return get_logs(kwargs.get("well"), kwargs.get("curves", []))
+        elif tool_name == "get_well_info":
+            return get_well_info(kwargs.get("well"))
+        else:
+            return {"error": f"Unknown tool: {tool_name}"}
     
-    async def _mock_document_server_call(self, tool_name: str, **kwargs):
-        """Real document generation that creates actual files"""
-        import matplotlib.pyplot as plt
-        import numpy as np
-        import time
-        from pathlib import Path
+    async def _call_analysis_server(self, tool_name: str, **kwargs):
+        """Call analysis server tools"""
+        import sys
+        import os
+        sys.path.append(os.path.join(os.path.dirname(__file__), 'mcp-servers'))
+        from server_analysis import classify_zones, compute_averages, calculate_net_to_gross, analyze_formation_quality
         
-        # Ensure output directory exists
-        output_dir = Path("./output")
-        output_dir.mkdir(exist_ok=True)
+        if tool_name == "classify_zones":
+            return classify_zones(kwargs.get("phie", []), kwargs.get("vsh", []), kwargs.get("swe", []))
+        elif tool_name == "compute_averages":
+            return compute_averages(kwargs.get("values", {}))
+        elif tool_name == "calculate_net_to_gross":
+            return calculate_net_to_gross(kwargs.get("flags", []))
+        elif tool_name == "analyze_formation_quality":
+            return analyze_formation_quality(kwargs.get("porosity", []), kwargs.get("permeability", []))
+        else:
+            return {"error": f"Unknown tool: {tool_name}"}
+            
+    async def _call_reporting_server(self, tool_name: str, **kwargs):
+        """Call reporting server tools"""
+        import sys
+        import os
+        sys.path.append(os.path.join(os.path.dirname(__file__), 'mcp-servers'))
+        from server_reporting import plot_logs, make_report, create_summary_chart
         
-        try:
-            if tool_name == "create_analysis_plot":
-                return await self._create_real_plot(output_dir, **kwargs)
-            elif tool_name == "generate_analysis_report":
-                return await self._create_real_report(output_dir, **kwargs)
-            elif tool_name == "create_summary_visualization":
-                return await self._create_real_summary(output_dir, **kwargs)
-            elif tool_name == "format_email_response":
-                # Return a properly formatted email response
-                response_content = kwargs.get("response_content", "Thank you for your email.")
-                attachments = kwargs.get("attachments", [])
-                
-                formatted_response = f"{response_content}\n\n"
-                if attachments:
-                    formatted_response += f"I have generated {len(attachments)} analysis files for your review.\n"
-                
-                formatted_response += "\nBest regards,\nWell Log Analysis Team"
-                return formatted_response
-        except Exception as e:
-            print(f"Error generating document: {e}")
-            return f"error_{int(time.time())}.txt"
-    
-    async def _create_real_plot(self, output_dir: Path, **kwargs):
-        """Create actual analysis plot file"""
-        import matplotlib.pyplot as plt
-        import numpy as np
-        import time
-        
-        # Generate realistic well log data
-        depth = np.linspace(1000, 2000, 150)
-        porosity = 0.15 + 0.08 * np.sin(depth / 150) + np.random.normal(0, 0.015, 150)
-        porosity = np.clip(porosity, 0.02, 0.35)  # Realistic range
-        
-        fig, ax = plt.subplots(figsize=(8, 10))
-        ax.plot(porosity, depth, 'b-', linewidth=2, label='Porosity')
-        ax.set_xlabel('Porosity (fraction)')
-        ax.set_ylabel('Depth (ft)')
-        ax.set_title('Well Log Analysis - Porosity vs Depth')
-        ax.grid(True, alpha=0.3)
-        ax.legend()
-        ax.invert_yaxis()  # Standard well log convention
-        
-        # Save plot
-        timestamp = int(time.time())
-        filename = f"analysis_plot_{timestamp}.png"
-        filepath = output_dir / filename
-        plt.savefig(filepath, dpi=300, bbox_inches='tight')
-        plt.close()
-        
-        print(f"Generated plot: {filepath}")
-        return filename
-    
-    async def _create_real_report(self, output_dir: Path, **kwargs):
-        """Create actual analysis report file"""
-        import time
-        
-        timestamp = int(time.time())
-        filename = f"report_{timestamp}.txt"
-        filepath = output_dir / filename
-        
-        well_name = kwargs.get("well_name", "Unknown Well")
-        
-        report_content = f"""
-WELL LOG ANALYSIS REPORT
-Generated: {time.strftime('%Y-%m-%d %H:%M:%S')}
-Well: {well_name}
-
-EXECUTIVE SUMMARY
-Comprehensive well log analysis completed using advanced petrophysical interpretation.
-
-ANALYSIS RESULTS
-- Average Porosity: 15.2% (range: 8-22%)
-- Estimated Permeability: 50-180 mD
-- Net-to-Gross Ratio: 0.72
-- Primary Lithology: Sandstone (65%), Shale (25%), Carbonate (10%)
-
-ZONE ANALYSIS
-Zone 1 (1000-1200 ft): High quality reservoir, porosity 18-20%
-Zone 2 (1200-1400 ft): Moderate quality, porosity 12-15%
-Zone 3 (1400-1600 ft): Good quality, porosity 16-19%
-Zone 4 (1600-2000 ft): Variable quality, porosity 10-18%
-
-COMPLETION RECOMMENDATIONS
-1. Focus on high porosity zones (Zone 1 and Zone 3)
-2. Consider horizontal drilling in 1300-1500 ft interval
-3. Multi-stage fracturing recommended for tight sections
-4. Monitor water production in lower zones
-
-TECHNICAL NOTES
-Analysis performed using industry-standard methods.
-All measurements subject to tool accuracy limitations.
-
-End of Report
-"""
-        
-        with open(filepath, 'w') as f:
-            f.write(report_content.strip())
-        
-        print(f"Generated report: {filepath}")
-        return filename
-    
-    async def _create_real_summary(self, output_dir: Path, **kwargs):
-        """Create actual summary visualization"""
-        import matplotlib.pyplot as plt
-        import numpy as np
-        import time
-        
-        # Create summary dashboard
-        fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2, figsize=(12, 10))
-        
-        # Zone Summary
-        zones = ['Zone 1', 'Zone 2', 'Zone 3', 'Zone 4']
-        porosity_avg = [0.18, 0.15, 0.12, 0.20]
-        colors = ['skyblue', 'lightgreen', 'orange', 'lightcoral']
-        ax1.bar(zones, porosity_avg, color=colors)
-        ax1.set_title('Average Porosity by Zone')
-        ax1.set_ylabel('Porosity (fraction)')
-        
-        # Property Distribution
-        properties = ['Porosity', 'Permeability', 'Water Sat', 'Net Pay']
-        values = [15.2, 125, 30, 85]
-        ax2.pie(values, labels=properties, autopct='%1.1f%%', startangle=90)
-        ax2.set_title('Property Distribution')
-        
-        # Quality Index vs Depth
-        depths = np.linspace(1000, 2000, 40)
-        quality = 0.7 + 0.2 * np.sin(depths / 200) + np.random.normal(0, 0.05, 40)
-        ax3.scatter(quality, depths, alpha=0.7, color='green', s=50)
-        ax3.set_xlabel('Reservoir Quality Index')
-        ax3.set_ylabel('Depth (ft)')
-        ax3.set_title('Reservoir Quality vs Depth')
-        ax3.invert_yaxis()
-        
-        # Completion Potential
-        intervals = ['Int 1', 'Int 2', 'Int 3', 'Int 4']
-        potential = [8.5, 7.2, 9.1, 6.8]
-        ax4.barh(intervals, potential, color='orange')
-        ax4.set_xlabel('Completion Potential (1-10)')
-        ax4.set_title('Completion Potential by Interval')
-        
-        plt.tight_layout()
-        
-        # Save visualization
-        timestamp = int(time.time())
-        filename = f"summary_{timestamp}.png"
-        filepath = output_dir / filename
-        plt.savefig(filepath, dpi=300, bbox_inches='tight')
-        plt.close()
-        
-        print(f"Generated summary: {filepath}")
-        return filename
+        if tool_name == "plot_logs":
+            return plot_logs(kwargs.get("well", ""), kwargs.get("logs", {}))
+        elif tool_name == "make_report":
+            return make_report(kwargs.get("well", ""), kwargs.get("summary", ""), kwargs.get("plots", []))
+        elif tool_name == "create_summary_chart":
+            return create_summary_chart(kwargs.get("well", ""), kwargs.get("data_summary", {}))
+        else:
+            return {"error": f"Unknown tool: {tool_name}"}
 
 class IntelligentEmailAgent:
     """Main email agent that uses MCP servers and LLM for natural language processing"""
@@ -237,8 +110,9 @@ class IntelligentEmailAgent:
         self.llm = None
         
         # Connect to MCP servers
-        self.email_server = MCPClient("ws://localhost:8001")  # Email processing server
-        self.document_server = MCPClient("ws://localhost:8002")  # Document generation server
+        self.well_data_server = MCPClient("ws://localhost:8001")  # Well data server
+        self.analysis_server = MCPClient("ws://localhost:8002")  # Analysis server
+        self.reporting_server = MCPClient("ws://localhost:8003")  # Reporting server
         
     async def initialize(self):
         """Initialize the LLM and MCP connections"""
@@ -284,20 +158,20 @@ class IntelligentEmailAgent:
         try:
             print(f"Processing email intelligently: {email_data.get('subject', 'No Subject')}")
             
-            # Step 1: Analyze email intent using MCP email server
-            intent_analysis = await self.email_server.call(
-                "analyze_email_intent",
-                email_content=email_data.get("body", ""),
-                subject=email_data.get("subject", "")
-            )
+            # Step 1: Get available wells using well data server
+            available_wells = await self.well_data_server.call("list_wells")
+            print(f"Available wells: {available_wells}")
             
-            print(f"Intent analysis: {intent_analysis}")
+            # Step 2: Determine analysis intent based on attachments and LLM understanding
+            has_attachments = bool(email_data.get("attachments", []))
+            has_well_data = any(attachment.endswith('.las') for attachment in email_data.get("attachments", []))
             
-            # Step 2: Prepare email context
-            email_context = await self.email_server.call(
-                "prepare_email_context",
-                email_data=email_data
-            )
+            intent_analysis = {
+                "intent": "data_analysis_request" if has_well_data else "general",
+                "confidence": 0.9 if has_well_data else 0.5,
+                "requires_documents": has_attachments,
+                "available_wells": available_wells
+            }
             
             # Step 3: Use LLM to understand and generate response strategy
             llm_prompt = f"""
@@ -329,42 +203,59 @@ class IntelligentEmailAgent:
             # Step 4: Generate documents based on intent and LLM response
             generated_files = []
             
-            if intent_analysis.get("requires_documents", False):
-                # Create analysis plots
-                if email_data.get("attachments"):
-                    for attachment in email_data.get("attachments", []):
-                        if attachment.endswith(('.las', '.txt', '.csv')):
-                            plot_file = await self.document_server.call(
-                                "create_analysis_plot",
-                                data_file=attachment,
-                                plot_type="well_log"
-                            )
+            if intent_analysis.get("requires_documents", False) and available_wells:
+                # Use first available well for demonstration
+                well_name = available_wells[0] if available_wells else "sample_well"
+                
+                # Get well data for analysis
+                well_logs = await self.well_data_server.call("get_logs", 
+                                                           well=well_name, 
+                                                           curves=["PHIE", "VSH", "GR", "RHOB"])
+                
+                if well_logs and not well_logs.get("error"):
+                    # Perform analysis on the well data
+                    if all(curve in well_logs for curve in ["PHIE", "VSH"]):
+                        # Add default SWE values for analysis
+                        swe_values = [0.5] * len(well_logs["PHIE"])
+                        
+                        # Classify zones using analysis server
+                        zone_flags = await self.analysis_server.call("classify_zones",
+                                                                    phie=well_logs["PHIE"],
+                                                                    vsh=well_logs["VSH"],
+                                                                    swe=swe_values)
+                        
+                        # Compute averages
+                        averages = await self.analysis_server.call("compute_averages", values=well_logs)
+                        
+                        # Create plots using reporting server
+                        plot_file = await self.reporting_server.call("plot_logs", well=well_name, logs=well_logs)
+                        if plot_file and not isinstance(plot_file, dict):
                             generated_files.append(plot_file)
-                
-                # Create summary visualization
-                summary_plot = await self.document_server.call(
-                    "create_summary_visualization",
-                    data_summary={"zones": 4, "properties": 4},
-                    chart_type="summary"
-                )
-                generated_files.append(summary_plot)
-                
-                # Generate comprehensive report
-                well_name = email_data.get("attachments", ["unknown_well"])[0].split('.')[0] if email_data.get("attachments") else "analysis"
-                report_file = await self.document_server.call(
-                    "generate_analysis_report",
-                    well_name=well_name,
-                    analysis_summary=response_content[:500],  # Truncate for summary
-                    plot_files=generated_files
-                )
-                generated_files.append(report_file)
+                        
+                        # Create summary chart
+                        summary_chart = await self.reporting_server.call("create_summary_chart",
+                                                                        well=well_name,
+                                                                        data_summary={"zones": 4, "properties": 4})
+                        if summary_chart and not isinstance(summary_chart, dict):
+                            generated_files.append(summary_chart)
+                        
+                        # Generate report
+                        report_summary = f"Analysis completed for {well_name}. Zone classification and formation analysis performed."
+                        report_file = await self.reporting_server.call("make_report",
+                                                                      well=well_name,
+                                                                      summary=report_summary,
+                                                                      plots=generated_files)
+                        if report_file and not isinstance(report_file, dict):
+                            generated_files.append(report_file)
             
             # Step 5: Format final response
-            formatted_response = await self.document_server.call(
-                "format_email_response",
-                response_content=response_content,
-                attachments=generated_files
-            )
+            if generated_files:
+                formatted_response = f"{response_content}\n\nGenerated analysis files:\n"
+                for file in generated_files:
+                    formatted_response += f"- {file}\n"
+                formatted_response += "\nBest regards,\nWell Log Analysis Team"
+            else:
+                formatted_response = response_content
             
             return {
                 "success": True,
