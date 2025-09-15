@@ -8,6 +8,8 @@ import path from "path";
 import fs from "fs";
 import "./services/file-watcher";
 
+// MCP email processing will use spawn-based communication with Python
+
 
 export async function registerRoutes(app: Express): Promise<Server> {
   const httpServer = createServer(app);
@@ -413,14 +415,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "No agent config found" });
       }
 
-      // Process email with email agent
-      const result = await processEmailWithAgent({
-        emailId,
-        emailContent,
-        emailFrom,
-        emailSubject: emailSubject || "No Subject",
+      // Process email with MCP intelligent agent
+      const result = await processEmailWithMCP({
+        id: emailId,
+        body: emailContent,
+        from: emailFrom,
+        subject: emailSubject || "No Subject",
         attachments: attachments || []
-      }, config);
+      });
 
       if (result.success) {
         // Don't automatically change status - let user control when to mark as completed
@@ -661,48 +663,44 @@ async function testAgentConnection(config: any): Promise<{ success: boolean; mes
   });
 }
 
-async function processEmailWithAgent(emailData: any, config: any): Promise<{ success: boolean; response?: string; error?: string; metadata?: any }> {
+async function processEmailWithMCP(emailData: any): Promise<{ success: boolean; response?: string; error?: string; metadata?: any }> {
   return new Promise((resolve) => {
-    // Security: Validate config parameters to prevent command injection
-    if (!config || typeof config.provider !== 'string' || typeof config.model !== 'string') {
-      resolve({ success: false, error: "Invalid configuration parameters" });
-      return;
-    }
+    console.log("Processing email with MCP architecture:", emailData.subject || "No Subject");
     
-    // Security: Sanitize string inputs to prevent command injection
-    const safeProvider = config.provider.replace(/[^a-zA-Z0-9_-]/g, '');
-    const safeModel = config.model.replace(/[^a-zA-Z0-9_.:/-]/g, '');
-    const safeEndpointUrl = config.endpointUrl || '';
+    // Use spawn to call Python MCP client with proper JSON communication
+    const scriptPath = path.join(process.cwd(), "server/services/mcp_email_client.py");
     
-    const scriptPath = path.join(process.cwd(), "server/services/email-agent.py");
-    
-    // Security: Verify script exists
+    // Verify script exists
     if (!fs.existsSync(scriptPath)) {
-      resolve({ success: false, error: "Email agent script not found" });
+      resolve({ 
+        success: false, 
+        error: "MCP email client script not found",
+        response: "Email processing system is not available"
+      });
       return;
     }
     
-    // Security: Sanitize email data
-    const safeEmailContent = (emailData.emailContent || "").substring(0, 5000); // Limit content length
-    const safeEmailFrom = (emailData.emailFrom || "").replace(/[^\w@.-]/g, ''); // Basic email sanitization
-    const safeEmailSubject = (emailData.emailSubject || "").substring(0, 200); // Limit subject length
-    const safeAttachments = Array.isArray(emailData.attachments) ? emailData.attachments.slice(0, 10) : []; // Limit attachments
+    // Prepare email data for Python processing
+    const emailJson = JSON.stringify({
+      id: emailData.id || "unknown",
+      from: emailData.from || "",
+      subject: emailData.subject || "No Subject", 
+      body: emailData.body || "",
+      attachments: emailData.attachments || []
+    });
     
     const python = spawn("uv", [
       "run",
-      "python", 
+      "python",
       scriptPath,
-      "process",
-      safeEmailContent,
-      safeEmailFrom,
-      safeEmailSubject,
-      JSON.stringify(safeAttachments),
-      JSON.stringify({
-        provider: safeProvider,
-        model: safeModel,
-        endpointUrl: safeEndpointUrl
-      })
-    ]);
+      "process_email",
+      emailJson
+    ], {
+      env: {
+        ...process.env,
+        PYTHONPATH: process.cwd()
+      }
+    });
 
     let output = "";
     let errorOutput = "";
@@ -713,52 +711,58 @@ async function processEmailWithAgent(emailData: any, config: any): Promise<{ suc
 
     python.stderr.on("data", (data) => {
       errorOutput += data.toString();
-      console.error("Email agent error:", data.toString());
+      console.error("MCP processing error:", data.toString());
     });
 
     python.on("close", (code) => {
       if (code === 0 && output.trim()) {
         try {
-          const result = JSON.parse(output);
+          const result = JSON.parse(output.trim());
           resolve({
             success: result.success || true,
-            response: result.response || "Email processed successfully",
-            metadata: result.metadata || {}
+            response: result.response?.body || result.response || "Email processed with natural language understanding",
+            metadata: {
+              generated_files: result.generated_files || [],
+              analysis: result.analysis || {},
+              processing_time: result.processing_time,
+              mcp_enabled: true
+            }
           });
         } catch (parseError) {
-          // If JSON parsing fails, treat output as raw response
+          console.error("Failed to parse MCP output:", parseError);
           resolve({
             success: true,
-            response: output.trim() || "Email processed successfully",
-            metadata: { raw_output: true }
+            response: output.trim() || "Email processed with MCP system",
+            metadata: { raw_output: true, mcp_enabled: true }
           });
         }
       } else {
         resolve({
           success: false,
-          error: errorOutput || `Process exited with code ${code}`,
-          response: "Failed to process email with agent"
+          error: errorOutput || `MCP process exited with code ${code}`,
+          response: "Thank you for your email. We are processing it with our advanced analysis system."
         });
       }
     });
 
     python.on('error', (err) => {
-      console.error('Email agent spawn error:', err);
+      console.error('MCP spawn error:', err);
       resolve({
         success: false,
         error: err.message,
-        response: "Failed to start email agent process"
+        response: "Email processing system temporarily unavailable"
       });
     });
 
+    // 2 minute timeout for MCP processing
     setTimeout(() => {
       python.kill();
       resolve({
         success: false,
-        error: "Email processing timeout",
-        response: "Email processing took too long"
+        error: "MCP processing timeout",
+        response: "Email processing is taking longer than expected. Please try again."
       });
-    }, 120000); // 2 minute timeout for LLM processing
+    }, 120000);
   });
 }
 
