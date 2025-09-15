@@ -33,17 +33,8 @@ class MCPClient:
             elif "8002" in self.endpoint or "document" in self.endpoint:
                 return await self._mock_document_server_call(tool_name, **kwargs)
             
-            # Fallback for unknown servers
-            if tool_name == "format_email_response":
-                return "Thank you for your email. We have received your message and will respond shortly."
-            elif tool_name in ["analyze_email_intent", "prepare_email_context"]:
-                return {"intent": "general", "confidence": 0.5, "requires_documents": False}
-            else:
-                return "fallback_response"
         except Exception as e:
             print(f"MCP client error: {e}")
-            if tool_name == "format_email_response":
-                return "Thank you for your email. We have received your message and will respond shortly."
             return {"error": str(e)}
     
     async def _mock_email_server_call(self, tool_name: str, **kwargs):
@@ -104,14 +95,7 @@ class MCPClient:
                 return formatted_response
         except Exception as e:
             print(f"Error generating document: {e}")
-            if tool_name == "format_email_response":
-                return "Thank you for your email. We have received your message and will respond shortly."
             return f"error_{int(time.time())}.txt"
-        
-        # Fallback for unhandled tool names
-        if tool_name == "format_email_response":
-            return "Thank you for your email. We have received your message and will respond shortly."
-        return f"fallback_{int(time.time())}.txt"
     
     async def _create_real_plot(self, output_dir: Path, **kwargs):
         """Create actual analysis plot file"""
@@ -392,13 +376,10 @@ class IntelligentEmailAgent:
             
         except Exception as e:
             print(f"Error in intelligent email processing: {e}")
-            # Ensure we always return a proper JSON structure
             return {
-                "success": True,  # Change to True so frontend handles it properly
-                "response": "Thank you for your email. I apologize but I encountered an issue processing your request. Our team will review your message and respond manually.",
+                "success": False,
                 "error": str(e),
                 "generated_files": [],
-                "analysis": {"intent": "error_recovery", "confidence": 0.0},
                 "processing_time": datetime.now().isoformat()
             }
     
@@ -416,7 +397,7 @@ class IntelligentEmailAgent:
             else:
                 return response if isinstance(response, str) else str(response)
         else:
-            return result.get("fallback_response", "Error processing email")
+            return f"Error processing email: {result.get('error', 'Unknown error')}"
     
     def _save_processing_result(self, email_id: str, result: Dict[str, Any]):
         """Save processing result for tracking and debugging"""
@@ -486,7 +467,6 @@ async def main():
                     "success": True,
                     "response": str(result),
                     "generated_files": [],
-                    "analysis": {"intent": "fallback", "confidence": 0.5},
                     "processing_time": datetime.now().isoformat()
                 }
             
@@ -503,8 +483,7 @@ async def main():
         except Exception as e:
             error_result = {
                 "success": False,
-                "error": str(e),
-                "response": "Thank you for your email. We have received it and will respond shortly."
+                "error": str(e)
             }
             print(json.dumps(error_result, ensure_ascii=False))
     else:
