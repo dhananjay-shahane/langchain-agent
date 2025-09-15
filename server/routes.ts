@@ -241,6 +241,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Update email status
+  app.put("/api/emails/:id/status", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { status } = req.body;
+      
+      if (!status) {
+        return res.status(400).json({ error: "Status is required" });
+      }
+      
+      const success = await storage.updateEmailStatus(id, status);
+      
+      if (success) {
+        // Emit status update to all clients
+        io.emit("email_status_updated", { emailId: id, status });
+        res.json({ success: true, status });
+      } else {
+        res.status(404).json({ error: "Email not found" });
+      }
+    } catch (error) {
+      console.error("Error updating email status:", error);
+      res.status(500).json({ error: "Failed to update email status" });
+    }
+  });
+
   // Email Monitor Status Routes
   app.get("/api/emails/monitor/status", async (req, res) => {
     try {
@@ -391,16 +416,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }, config);
 
       if (result.success) {
-        // Update email status to completed
-        const emails = await storage.getEmails();
-        const email = emails.find(e => e.id === emailId);
-        if (email) {
-          await storage.updateEmailStatus(emailId, "completed");
-          
-          // Emit status update to all clients
-          io.emit("email_status_updated", { emailId, status: "completed" });
-        }
-
+        // Don't automatically change status - let user control when to mark as completed
         res.json({
           success: true,
           response: result.response,

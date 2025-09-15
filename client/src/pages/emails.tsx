@@ -11,6 +11,34 @@ import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useSocket } from "@/hooks/use-socket";
 import type { Email, EmailMonitorStatus } from "@shared/schema";
 
+// Helper function to extract clean email address
+function extractEmailAddress(emailString: string): string {
+  if (!emailString) return "";
+  
+  // If contains < and >, extract email from format "Name <email@domain.com>"
+  if (emailString.includes('<') && emailString.includes('>')) {
+    const match = emailString.match(/<([^>]+)>/);
+    return match ? match[1].trim() : emailString;
+  }
+  
+  // Otherwise return as is
+  return emailString.trim();
+}
+
+// Helper function to extract name from email string
+function extractSenderName(emailString: string): string {
+  if (!emailString) return "";
+  
+  // If contains < and >, extract name from format "Name <email@domain.com>"
+  if (emailString.includes('<') && emailString.includes('>')) {
+    const namePart = emailString.split('<')[0].trim();
+    return namePart.replace(/"/g, ''); // Remove quotes if present
+  }
+  
+  // If no name format, return the email itself
+  return emailString.trim();
+}
+
 export default function EmailsPage() {
   const [isStarting, setIsStarting] = useState(false);
   const [isStopping, setIsStopping] = useState(false);
@@ -107,6 +135,30 @@ export default function EmailsPage() {
     },
   });
 
+  // Mark email as completed mutation
+  const markCompletedMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const response = await apiRequest("PUT", `/api/emails/${id}/status`, {
+        status: "completed"
+      });
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/emails"] });
+      toast({
+        title: "✅ Email Marked Complete",
+        description: "Email has been marked as completed",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "❌ Failed to Update Status",
+        description: error.message || "Unknown error occurred",
+        variant: "destructive",
+      });
+    },
+  });
+
   const handleStartMonitor = () => {
     startMonitorMutation.mutate();
   };
@@ -117,6 +169,10 @@ export default function EmailsPage() {
 
   const handleDeleteEmail = (id: string) => {
     deleteEmailMutation.mutate(id);
+  };
+
+  const markEmailCompleted = (id: string) => {
+    markCompletedMutation.mutate(id);
   };
 
   const formatDate = (dateString: string | Date | null) => {
@@ -301,7 +357,8 @@ export default function EmailsPage() {
                             {email.subject}
                           </div>
                           <div className="text-sm text-muted-foreground truncate" title={email.from}>
-                            From: {email.from}
+                            From: {extractSenderName(email.from)} 
+                            <span className="text-xs opacity-70">({extractEmailAddress(email.from)})</span>
                           </div>
                           <div className="text-xs text-muted-foreground mt-1">
                             {formatDate(email.createdAt)}
@@ -332,16 +389,30 @@ export default function EmailsPage() {
             <CardTitle className="flex items-center justify-between">
               <span>Email Details</span>
               {selectedEmail && (
-                <Button
-                  onClick={() => handleDeleteEmail(selectedEmail.id)}
-                  variant="destructive"
-                  size="sm"
-                  disabled={deleteEmailMutation.isPending}
-                  data-testid="button-delete-email"
-                >
-                  <Trash2 className="w-4 h-4 mr-2" />
-                  Delete
-                </Button>
+                <div className="flex gap-2">
+                  {selectedEmail.replyStatus !== "completed" && (
+                    <Button
+                      onClick={() => markEmailCompleted(selectedEmail.id)}
+                      variant="outline"
+                      size="sm"
+                      disabled={markCompletedMutation.isPending}
+                      data-testid="button-mark-completed"
+                    >
+                      <CheckCircle className="w-4 h-4 mr-2" />
+                      Mark Completed
+                    </Button>
+                  )}
+                  <Button
+                    onClick={() => handleDeleteEmail(selectedEmail.id)}
+                    variant="destructive"
+                    size="sm"
+                    disabled={deleteEmailMutation.isPending}
+                    data-testid="button-delete-email"
+                  >
+                    <Trash2 className="w-4 h-4 mr-2" />
+                    Delete
+                  </Button>
+                </div>
               )}
             </CardTitle>
             <CardDescription>
@@ -368,7 +439,10 @@ export default function EmailsPage() {
                     <div>
                       <div className="text-sm text-muted-foreground">From</div>
                       <div className="font-medium" data-testid="text-email-from">
-                        {selectedEmail.from}
+                        {extractSenderName(selectedEmail.from)}
+                        <div className="text-sm text-muted-foreground font-normal">
+                          {extractEmailAddress(selectedEmail.from)}
+                        </div>
                       </div>
                     </div>
                     <div>

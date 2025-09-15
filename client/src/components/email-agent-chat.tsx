@@ -10,7 +10,7 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import type { Email } from "@shared/schema";
 
-// Helper function to extract clean email address
+// Helper function to extract clean email address and name
 function extractEmailAddress(emailString: string): string {
   if (!emailString) return "";
   
@@ -21,7 +21,21 @@ function extractEmailAddress(emailString: string): string {
   }
   
   // Otherwise return as is
-  return emailString;
+  return emailString.trim();
+}
+
+// Helper function to extract name from email string
+function extractSenderName(emailString: string): string {
+  if (!emailString) return "";
+  
+  // If contains < and >, extract name from format "Name <email@domain.com>"
+  if (emailString.includes('<') && emailString.includes('>')) {
+    const namePart = emailString.split('<')[0].trim();
+    return namePart.replace(/"/g, ''); // Remove quotes if present
+  }
+  
+  // If no name format, return the email itself
+  return emailString.trim();
 }
 
 interface EmailProcessingMessage {
@@ -68,10 +82,11 @@ export default function EmailAgentChat() {
       // Refresh emails to update status
       queryClient.invalidateQueries({ queryKey: ["/api/emails"] });
     },
-    onError: () => {
+    onError: (error: any) => {
+      console.error("Email send error:", error);
       toast({
         title: "Send Failed",
-        description: "Failed to send email reply. Please try again.",
+        description: error?.message || "Failed to send email reply. Please try again.",
         variant: "destructive",
       });
     }
@@ -89,35 +104,42 @@ export default function EmailAgentChat() {
       return response.json();
     },
     onSuccess: (data, email) => {
-      // Extract clean response content instead of raw JSON
+      // Extract clean email body content response only, no metadata
       let responseContent = "Email processed successfully";
       
-      // Check if data has response field directly
+      // Extract only the main email content/response, strip out metadata
       if (data && data.response) {
-        responseContent = data.response;
+        // If response is a string, use it directly
+        if (typeof data.response === 'string') {
+          responseContent = data.response.trim();
+        } else {
+          // If response is an object, try to get the message content
+          responseContent = data.response.message || data.response.content || String(data.response);
+        }
       }
-      // Check if data itself is a string containing JSON
+      // Check if data itself is a string
       else if (typeof data === 'string') {
         try {
           const parsed = JSON.parse(data);
-          responseContent = parsed.response || parsed.message || "Email processed successfully";
+          responseContent = parsed.response || parsed.message || parsed.content || "Email processed successfully";
         } catch (e) {
-          responseContent = data;
+          // If not JSON, use the string directly
+          responseContent = data.trim();
         }
       }
-      // Check if the response is an object that was stringified
+      // If data is an object, extract the main message
       else if (data && typeof data === 'object') {
-        responseContent = data.response || data.message || JSON.stringify(data);
-        
-        // If it's still JSON-like, try to extract the message
-        if (typeof responseContent === 'string' && responseContent.includes('"response":')) {
-          try {
-            const parsed = JSON.parse(responseContent);
-            responseContent = parsed.response || responseContent;
-          } catch (e) {
-            // Keep as is if parsing fails
-          }
-        }
+        responseContent = data.response || data.message || data.content || "Email processed successfully";
+      }
+      
+      // Clean up any remaining JSON artifacts or metadata
+      if (typeof responseContent === 'string') {
+        // Remove any JSON wrapper patterns
+        responseContent = responseContent.replace(/^{"[^"]+":\s*"/, '').replace(/"\s*}$/, '');
+        // Remove any escaped quotes
+        responseContent = responseContent.replace(/\\"/g, '"');
+        // Trim whitespace
+        responseContent = responseContent.trim();
       }
       
       // Add agent response message
@@ -126,11 +148,11 @@ export default function EmailAgentChat() {
         role: "agent",
         content: responseContent,
         metadata: {
-          ...data.metadata,
+          ...(data?.metadata || {}),
           showReplyButton: true,
           originalEmail: {
-            from: data.metadata?.sender_email || extractEmailAddress(email.from || ""),
-            subject: data.metadata?.originalEmail?.subject || `Re: ${email.subject || ""}`,
+            from: data?.metadata?.sender_email || extractEmailAddress(email.from || ""),
+            subject: data?.metadata?.originalEmail?.subject || `Re: ${email.subject || ""}`,
             content: email.body || ""
           }
         },
@@ -174,7 +196,7 @@ export default function EmailAgentChat() {
         attachments: email.attachments,
         emailId: email.id
       },
-      timestamp: email.createdAt || new Date().toISOString(),
+      timestamp: typeof email.createdAt === 'string' ? email.createdAt : (email.createdAt ? email.createdAt.toISOString() : new Date().toISOString()),
       emailId: email.id
     };
     
@@ -247,7 +269,7 @@ export default function EmailAgentChat() {
               <div className="mb-3 text-xs opacity-75 space-y-1">
                 <div className="flex items-center gap-1">
                   <Mail className="w-3 h-3" />
-                  <span>From: {extractEmailAddress(msg.metadata.from || "")}</span>
+                  <span>From: {extractSenderName(msg.metadata.from || "")} ({extractEmailAddress(msg.metadata.from || "")})</span>
                 </div>
                 <div className="flex items-center gap-1">
                   <span>📝</span>
@@ -388,7 +410,7 @@ export default function EmailAgentChat() {
                             {email.subject}
                           </div>
                           <div className="text-sm text-muted-foreground truncate" title={email.from}>
-                            From: {extractEmailAddress(email.from || "")}
+                            From: {extractSenderName(email.from || "")} ({extractEmailAddress(email.from || "")})
                           </div>
                           <div className="text-xs text-muted-foreground mt-1">
                             {formatDate(typeof email.createdAt === 'string' ? email.createdAt : new Date().toISOString())}
