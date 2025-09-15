@@ -144,8 +144,21 @@ export default function EmailAgentChat() {
         if (data.error) {
           responseContent = typeof data.error === 'string' ? data.error : JSON.stringify(data.error);
         } else {
-          responseContent = data.response || data.message || data.content || String(data);
+          // Safely extract content and ensure it's a string
+          let content = data.response || data.message || data.content;
+          if (typeof content === 'string') {
+            responseContent = content;
+          } else if (content !== undefined && content !== null) {
+            responseContent = JSON.stringify(content);
+          } else {
+            responseContent = String(data);
+          }
         }
+      }
+      
+      // Final defensive guard: ensure responseContent is always a string
+      if (typeof responseContent !== 'string') {
+        responseContent = JSON.stringify(responseContent);
       }
       
       // Final cleanup: remove any remaining escape characters and metadata
