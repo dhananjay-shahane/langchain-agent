@@ -444,6 +444,157 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Automatic email processing - process all pending emails one by one
+  app.post("/api/emails/process-auto", async (req, res) => {
+    try {
+      // Get all pending emails
+      const allEmails = await storage.getEmails();
+      const pendingEmails = allEmails.filter(email => email.replyStatus === "pending");
+      
+      if (pendingEmails.length === 0) {
+        return res.json({ 
+          success: true, 
+          message: "No pending emails to process", 
+          processed: 0 
+        });
+      }
+
+      // Get agent config
+      const config = await storage.getAgentConfig();
+      if (!config) {
+        return res.status(400).json({ error: "Agent configuration not found" });
+      }
+
+      const results = [];
+      let processed = 0;
+      let errors = 0;
+
+      // Emit processing start event
+      io.emit("auto_processing_started", { totalEmails: pendingEmails.length });
+
+      // Process emails one by one
+      for (const email of pendingEmails) {
+        try {
+          console.log(`🔄 Auto-processing email ${processed + 1}/${pendingEmails.length}: ${email.subject}`);
+          
+          // Emit current email being processed
+          io.emit("processing_email", { 
+            emailId: email.id, 
+            step: processed + 1, 
+            total: pendingEmails.length,
+            subject: email.subject 
+          });
+
+          // Process email with step-by-step tracking
+          const result = await processEmailWithMCP({
+            id: email.id,
+            body: email.body,
+            from: email.from,
+            subject: email.subject || "No Subject",
+            attachments: email.attachments || []
+          });
+
+          if (result.success) {
+            console.log(`✅ Generated response for: ${email.subject}`);
+            
+            // Emit response generated event
+            io.emit("response_generated", { 
+              emailId: email.id, 
+              response: result.response 
+            });
+
+            // Automatically send the reply
+            const replyResult = await sendEmailReply({
+              toEmail: email.from.includes('<') ? email.from.split('<')[1].split('>')[0].trim() : email.from,
+              subject: `Re: ${email.subject}`,
+              content: result.response
+            }, config);
+
+            if (replyResult.success) {
+              console.log(`📧 Auto-sent reply to: ${email.from}`);
+              
+              // Update email status to completed
+              await storage.updateEmailStatus(email.id, "completed");
+              
+              // Emit reply sent and status updated events
+              io.emit("reply_sent", { 
+                emailId: email.id, 
+                sentAt: replyResult.sent_at 
+              });
+              io.emit("email_status_updated", { 
+                emailId: email.id, 
+                status: "completed" 
+              });
+              
+              processed++;
+              results.push({
+                emailId: email.id,
+                subject: email.subject,
+                success: true,
+                message: "Processed and reply sent automatically",
+                sentAt: replyResult.sent_at
+              });
+            } else {
+              console.error(`❌ Failed to send reply for: ${email.subject}`, replyResult.error);
+              errors++;
+              results.push({
+                emailId: email.id,
+                subject: email.subject,
+                success: false,
+                error: `Reply generation succeeded but sending failed: ${replyResult.error}`
+              });
+            }
+          } else {
+            console.error(`❌ Failed to process: ${email.subject}`, result.error);
+            errors++;
+            results.push({
+              emailId: email.id,
+              subject: email.subject,
+              success: false,
+              error: result.error
+            });
+          }
+
+          // Add small delay between processing emails
+          await new Promise(resolve => setTimeout(resolve, 1000));
+
+        } catch (emailError) {
+          console.error(`❌ Error processing email ${email.id}:`, emailError);
+          errors++;
+          results.push({
+            emailId: email.id,
+            subject: email.subject,
+            success: false,
+            error: emailError instanceof Error ? emailError.message : String(emailError)
+          });
+        }
+      }
+
+      // Emit processing completed event
+      io.emit("auto_processing_completed", { 
+        totalProcessed: processed, 
+        totalErrors: errors, 
+        results 
+      });
+
+      console.log(`🎯 Auto-processing completed: ${processed} successful, ${errors} errors`);
+
+      res.json({
+        success: true,
+        message: `Automatic processing completed: ${processed} emails processed successfully, ${errors} errors`,
+        totalEmails: pendingEmails.length,
+        processed,
+        errors,
+        results
+      });
+
+    } catch (error) {
+      console.error("Auto-processing error:", error);
+      io.emit("auto_processing_error", { error: error instanceof Error ? error.message : String(error) });
+      res.status(500).json({ error: "Failed to auto-process emails" });
+    }
+  });
+
   // Send email reply
   app.post("/api/emails/send-reply", async (req, res) => {
     try {

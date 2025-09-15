@@ -5,9 +5,11 @@ import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { Bot, Mail, Send, CheckCircle, Clock, User, Download, Paperclip } from "lucide-react";
+import { Progress } from "@/components/ui/progress";
+import { Bot, Mail, Send, CheckCircle, Clock, User, Download, Paperclip, Zap, PlayCircle, StopCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
+import { useSocket } from "@/hooks/use-socket";
 import type { Email } from "@shared/schema";
 
 // Helper function to extract clean email address and name
@@ -47,13 +49,112 @@ interface EmailProcessingMessage {
   emailId?: string;
 }
 
+interface AutoProcessingStatus {
+  isRunning: boolean;
+  currentStep: number;
+  totalEmails: number;
+  currentEmail?: {
+    id: string;
+    subject: string;
+  };
+  completed: number;
+  errors: number;
+}
+
 export default function EmailAgentChat() {
   const [selectedEmail, setSelectedEmail] = useState<Email | null>(null);
   const [processingMessages, setProcessingMessages] = useState<EmailProcessingMessage[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [autoProcessingStatus, setAutoProcessingStatus] = useState<AutoProcessingStatus>({
+    isRunning: false,
+    currentStep: 0,
+    totalEmails: 0,
+    completed: 0,
+    errors: 0
+  });
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  
+  // Socket with auto-processing event handlers
+  const socket = useSocket({
+    onAutoProcessingStarted: (data) => {
+      setAutoProcessingStatus({
+        isRunning: true,
+        currentStep: 0,
+        totalEmails: data.totalEmails,
+        completed: 0,
+        errors: 0
+      });
+    },
+    onProcessingEmail: (data) => {
+      setAutoProcessingStatus(prev => ({
+        ...prev,
+        currentStep: data.step,
+        currentEmail: {
+          id: data.emailId,
+          subject: data.subject
+        }
+      }));
+    },
+    onResponseGenerated: (data) => {
+      // Add response to processing messages
+      const agentMessage: EmailProcessingMessage = {
+        id: `auto-agent-${Date.now()}-${data.emailId}`,
+        role: "agent",
+        content: data.response,
+        metadata: { autoProcessed: true },
+        timestamp: new Date().toISOString(),
+        emailId: data.emailId
+      };
+      setProcessingMessages(prev => [...prev, agentMessage]);
+    },
+    onReplySent: (data) => {
+      // Add system message about reply being sent
+      const systemMessage: EmailProcessingMessage = {
+        id: `auto-system-${Date.now()}-${data.emailId}`,
+        role: "system",
+        content: `✅ Reply sent to ${data.toEmail}`,
+        timestamp: new Date().toISOString(),
+        emailId: data.emailId
+      };
+      setProcessingMessages(prev => [...prev, systemMessage]);
+    },
+    onAutoProcessingCompleted: (data) => {
+      setAutoProcessingStatus(prev => ({
+        ...prev,
+        isRunning: false,
+        completed: data.processed,
+        errors: data.errors
+      }));
+      
+      // Add final summary message
+      const summaryMessage: EmailProcessingMessage = {
+        id: `auto-summary-${Date.now()}`,
+        role: "system",
+        content: `🎉 Auto-processing completed! Processed ${data.processed} email(s)${data.errors > 0 ? ` with ${data.errors} error(s)` : ' successfully'}.`,
+        timestamp: new Date().toISOString()
+      };
+      setProcessingMessages(prev => [...prev, summaryMessage]);
+    },
+    onAutoProcessingError: (data) => {
+      setAutoProcessingStatus(prev => ({
+        ...prev,
+        isRunning: false,
+        errors: prev.errors + 1
+      }));
+      
+      // Add error message
+      const errorMessage: EmailProcessingMessage = {
+        id: `auto-error-${Date.now()}`,
+        role: "agent",
+        content: `❌ Auto-processing error: ${data.error}`,
+        metadata: { error: true },
+        timestamp: new Date().toISOString()
+      };
+      setProcessingMessages(prev => [...prev, errorMessage]);
+    }
+  });
 
   // Fetch pending emails
   const { data: emails = [], isLoading: loadingEmails } = useQuery<Email[]>({
@@ -236,6 +337,70 @@ export default function EmailAgentChat() {
     }
   });
 
+  // Auto-processing mutation for batch email processing
+  const autoProcessEmailsMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest("POST", "/api/emails/process-auto", {});
+      return response.json();
+    },
+    onSuccess: (data) => {
+      // Clear any existing messages and show auto-processing started message
+      const startMessage: EmailProcessingMessage = {
+        id: `auto-start-${Date.now()}`,
+        role: "system",
+        content: `🚀 Starting automatic processing of ${pendingEmails.length} pending email(s)...`,
+        timestamp: new Date().toISOString()
+      };
+      setProcessingMessages([startMessage]);
+      
+      toast({
+        title: "Auto-Processing Started",
+        description: `Processing ${pendingEmails.length} pending email(s)`,
+      });
+    },
+    onError: (error: any) => {
+      console.error("Auto-processing error:", error);
+      
+      let errorMessage = "Failed to start auto-processing. Please try again.";
+      
+      if (error) {
+        if (typeof error === 'string') {
+          errorMessage = error;
+        } else if (error.message) {
+          errorMessage = error.message;
+        } else if (typeof error === 'object') {
+          errorMessage = JSON.stringify(error);
+        }
+      }
+      
+      // Add error message to chat
+      const errorMsg: EmailProcessingMessage = {
+        id: `auto-error-${Date.now()}`,
+        role: "agent",
+        content: `❌ Auto-processing error: ${errorMessage}`,
+        metadata: { error: true },
+        timestamp: new Date().toISOString()
+      };
+      
+      setProcessingMessages(prev => [...prev, errorMsg]);
+      
+      // Reset auto-processing status
+      setAutoProcessingStatus({
+        isRunning: false,
+        currentStep: 0,
+        totalEmails: 0,
+        completed: 0,
+        errors: 0
+      });
+      
+      toast({
+        title: "Auto-Processing Failed",
+        description: errorMessage,
+        variant: "destructive",
+      });
+    }
+  });
+
   const handleSelectEmail = (email: Email) => {
     setSelectedEmail(email);
     
@@ -276,6 +441,13 @@ export default function EmailAgentChat() {
     
     // Process the email
     await processEmailMutation.mutateAsync(selectedEmail);
+  };
+
+  const handleAutoProcessEmails = async () => {
+    if (autoProcessingStatus.isRunning || pendingEmails.length === 0) return;
+    
+    // Start auto-processing
+    await autoProcessEmailsMutation.mutateAsync();
   };
 
   useEffect(() => {
@@ -417,6 +589,102 @@ export default function EmailAgentChat() {
           Process pending emails one by one and generate automated responses
         </p>
       </div>
+
+      {/* Auto-Processing Section */}
+      <Card className="mb-6">
+        <CardHeader>
+          <CardTitle className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Zap className="w-5 h-5" />
+              Automatic Email Processing
+            </div>
+            <Button
+              onClick={handleAutoProcessEmails}
+              disabled={autoProcessingStatus.isRunning || pendingEmails.length === 0 || autoProcessEmailsMutation.isPending}
+              variant={autoProcessingStatus.isRunning ? "secondary" : "default"}
+              data-testid="button-auto-process"
+            >
+              {autoProcessingStatus.isRunning ? (
+                <>
+                  <StopCircle className="w-4 h-4 mr-2" />
+                  Processing...
+                </>
+              ) : (
+                <>
+                  <PlayCircle className="w-4 h-4 mr-2" />
+                  Process All ({pendingEmails.length})
+                </>
+              )}
+            </Button>
+          </CardTitle>
+          <CardDescription>
+            Automatically process all pending emails and generate responses in batch
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {autoProcessingStatus.isRunning ? (
+            <div className="space-y-4">
+              {/* Progress Bar */}
+              <div className="space-y-2">
+                <div className="flex justify-between text-sm">
+                  <span>Processing Progress</span>
+                  <span>{autoProcessingStatus.currentStep} of {autoProcessingStatus.totalEmails}</span>
+                </div>
+                <Progress 
+                  value={(autoProcessingStatus.currentStep / autoProcessingStatus.totalEmails) * 100} 
+                  className="w-full"
+                  data-testid="progress-auto-processing"
+                />
+              </div>
+              
+              {/* Current Email Being Processed */}
+              {autoProcessingStatus.currentEmail && (
+                <div className="bg-muted/50 p-3 rounded-lg">
+                  <div className="flex items-center gap-2 text-sm">
+                    <div className="w-2 h-2 bg-primary rounded-full animate-pulse"></div>
+                    <span className="font-medium">Currently processing:</span>
+                  </div>
+                  <p className="text-sm text-muted-foreground mt-1 truncate" data-testid="text-current-email">
+                    {autoProcessingStatus.currentEmail.subject}
+                  </p>
+                </div>
+              )}
+              
+              {/* Statistics */}
+              <div className="grid grid-cols-3 gap-4 text-center">
+                <div>
+                  <div className="text-2xl font-bold text-green-600" data-testid="text-completed-count">
+                    {autoProcessingStatus.completed}
+                  </div>
+                  <div className="text-xs text-muted-foreground">Completed</div>
+                </div>
+                <div>
+                  <div className="text-2xl font-bold text-blue-600" data-testid="text-remaining-count">
+                    {autoProcessingStatus.totalEmails - autoProcessingStatus.currentStep}
+                  </div>
+                  <div className="text-xs text-muted-foreground">Remaining</div>
+                </div>
+                <div>
+                  <div className="text-2xl font-bold text-red-600" data-testid="text-errors-count">
+                    {autoProcessingStatus.errors}
+                  </div>
+                  <div className="text-xs text-muted-foreground">Errors</div>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="text-center py-4">
+              <div className="text-muted-foreground">
+                {pendingEmails.length === 0 ? (
+                  <p>No pending emails to process</p>
+                ) : (
+                  <p>Ready to process {pendingEmails.length} pending email(s) automatically</p>
+                )}
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Pending Emails List */}

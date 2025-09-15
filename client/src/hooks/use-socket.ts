@@ -9,6 +9,13 @@ interface SocketEventHandlers {
   onNewEmail?: (email: any) => void;
   onEmailDeleted?: (data: { id: string }) => void;
   onEmailMonitorStatus?: (status: any) => void;
+  onAutoProcessingStarted?: (data: { totalEmails: number }) => void;
+  onProcessingEmail?: (data: { emailId: string; step: number; total: number; subject: string }) => void;
+  onResponseGenerated?: (data: { emailId: string; response: string }) => void;
+  onReplySent?: (data: { emailId: string; toEmail: string; subject: string }) => void;
+  onEmailStatusUpdated?: (data: { emailId: string; status: string }) => void;
+  onAutoProcessingCompleted?: (data: { processed: number; errors: number; results: any[] }) => void;
+  onAutoProcessingError?: (data: { error: string }) => void;
 }
 
 export function useSocket(handlers: SocketEventHandlers = {}) {
@@ -100,6 +107,71 @@ export function useSocket(handlers: SocketEventHandlers = {}) {
       }
     };
 
+    // Auto-processing event handlers
+    const handleAutoProcessingStarted = (data: { totalEmails: number }) => {
+      if (handlers.onAutoProcessingStarted) {
+        handlers.onAutoProcessingStarted(data);
+      } else {
+        toast({
+          title: "🚀 Auto-Processing Started",
+          description: `Processing ${data.totalEmails} pending email(s)`,
+        });
+      }
+    };
+
+    const handleProcessingEmail = (data: { emailId: string; step: number; total: number; subject: string }) => {
+      if (handlers.onProcessingEmail) {
+        handlers.onProcessingEmail(data);
+      }
+      // Note: Individual email processing notifications are handled by the component
+    };
+
+    const handleResponseGenerated = (data: { emailId: string; response: string }) => {
+      if (handlers.onResponseGenerated) {
+        handlers.onResponseGenerated(data);
+      }
+      // Note: Response generation notifications are handled by the component
+    };
+
+    const handleReplySent = (data: { emailId: string; toEmail: string; subject: string }) => {
+      if (handlers.onReplySent) {
+        handlers.onReplySent(data);
+      }
+      // Note: Reply sent notifications are handled by the component
+    };
+
+    const handleEmailStatusUpdated = (data: { emailId: string; status: string }) => {
+      if (handlers.onEmailStatusUpdated) {
+        handlers.onEmailStatusUpdated(data);
+      } else {
+        queryClient.invalidateQueries({ queryKey: ["/api/emails"] });
+      }
+    };
+
+    const handleAutoProcessingCompleted = (data: { processed: number; errors: number; results: any[] }) => {
+      if (handlers.onAutoProcessingCompleted) {
+        handlers.onAutoProcessingCompleted(data);
+      } else {
+        queryClient.invalidateQueries({ queryKey: ["/api/emails"] });
+        toast({
+          title: "✅ Auto-Processing Completed",
+          description: `Processed ${data.processed} emails${data.errors > 0 ? ` (${data.errors} errors)` : ''}`,
+        });
+      }
+    };
+
+    const handleAutoProcessingError = (data: { error: string }) => {
+      if (handlers.onAutoProcessingError) {
+        handlers.onAutoProcessingError(data);
+      } else {
+        toast({
+          title: "❌ Auto-Processing Error",
+          description: data.error,
+          variant: "destructive",
+        });
+      }
+    };
+
 
     // Register event listeners
     socket.on("connect", handleConnect);
@@ -113,6 +185,15 @@ export function useSocket(handlers: SocketEventHandlers = {}) {
     socket.on("new_email", handleNewEmail);
     socket.on("email_deleted", handleEmailDeleted);
     socket.on("email_monitor_status", handleEmailMonitorStatus);
+    
+    // Auto-processing event listeners
+    socket.on("auto_processing_started", handleAutoProcessingStarted);
+    socket.on("processing_email", handleProcessingEmail);
+    socket.on("response_generated", handleResponseGenerated);
+    socket.on("reply_sent", handleReplySent);
+    socket.on("email_status_updated", handleEmailStatusUpdated);
+    socket.on("auto_processing_completed", handleAutoProcessingCompleted);
+    socket.on("auto_processing_error", handleAutoProcessingError);
 
     return () => {
       // Clean up listeners but keep connection alive
@@ -127,6 +208,15 @@ export function useSocket(handlers: SocketEventHandlers = {}) {
       socket?.off("new_email", handleNewEmail);
       socket?.off("email_deleted", handleEmailDeleted);
       socket?.off("email_monitor_status", handleEmailMonitorStatus);
+      
+      // Auto-processing event listener cleanup
+      socket?.off("auto_processing_started", handleAutoProcessingStarted);
+      socket?.off("processing_email", handleProcessingEmail);
+      socket?.off("response_generated", handleResponseGenerated);
+      socket?.off("reply_sent", handleReplySent);
+      socket?.off("email_status_updated", handleEmailStatusUpdated);
+      socket?.off("auto_processing_completed", handleAutoProcessingCompleted);
+      socket?.off("auto_processing_error", handleAutoProcessingError);
     };
   }, [queryClient, toast]);
 
