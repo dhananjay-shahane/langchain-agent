@@ -3,6 +3,102 @@
     "filename": "summary_1757933902.png",
     "filepath": "/home/runner/workspace/output/summary_1757933902.png",
     "type": "plot",
+    "id": "c5f097b6-6034-46e2-aee8-f1bf8b9e6688",
+    "createdAt": "2025-09-15T12:46:06.685Z",
+    "relatedLasFile": null
+  },
+  {
+    "filename": "sample_well_01_porosity_plot_162320.png",
+    "filepath": "/home/runner/workspace/output/sample_well_01_porosity_plot_162320.png",
+    "type": "plot",
+    "id": "9cff7213-7f51-417b-8a23-ba25e8a721ca",
+    "createdAt": "2025-09-15T12:46:06.684Z",
+    "relatedLasFile": null
+  },
+  {
+    "filename": "_porosity_plot_191801.png",
+    "filepath": "/home/runner/workspace/output/_porosity_plot_191801.png",
+    "type": "plot",
+    "id": "7d012cda-38ce-4dd8-a654-67256f85d050",
+    "createdAt": "2025-09-15T12:46:06.638Z",
+    "relatedLasFile": null
+  },
+  {
+    "filename": "_porosity_plot_170914.png",
+    "filepath": "/home/runner/workspace/output/_porosity_plot_170914.png",
+    "type": "plot",
+    "id": "29ab95ad-0c62-47ac-b151-63b224d60f95",
+    "createdAt": "2025-09-15T12:46:06.635Z",
+    "relatedLasFile": null
+  },
+  {
+    "filename": "APACHE_1H-15_porosity_20250911_145020.png",
+    "filepath": "/home/runner/workspace/output/APACHE_1H-15_porosity_20250911_145020.png",
+    "type": "plot",
+    "id": "f0840ca1-2859-4785-9573-27f39a58cd62",
+    "createdAt": "2025-09-15T12:46:06.633Z",
+    "relatedLasFile": null
+  },
+  {
+    "filename": "well_log_02_gamma_plot_163201.png",
+    "filepath": "/home/runner/workspace/output/well_log_02_gamma_plot_163201.png",
+    "type": "plot",
+    "id": "5495530d-bd2f-4a64-ae4e-8a76d5b5f546",
+    "createdAt": "2025-09-15T12:45:51.389Z",
+    "relatedLasFile": null
+  },
+  {
+    "filename": "summary_1757933902.png",
+    "filepath": "/home/runner/workspace/output/summary_1757933902.png",
+    "type": "plot",
+    "id": "c24f19d1-e153-4f9c-b566-b6e39ba9b7e7",
+    "createdAt": "2025-09-15T12:45:51.387Z",
+    "relatedLasFile": null
+  },
+  {
+    "filename": "sample_well_01_porosity_plot_162320.png",
+    "filepath": "/home/runner/workspace/output/sample_well_01_porosity_plot_162320.png",
+    "type": "plot",
+    "id": "84f0ff6b-f613-49b0-a37d-4c63ac9e23f3",
+    "createdAt": "2025-09-15T12:45:51.384Z",
+    "relatedLasFile": null
+  },
+  {
+    "filename": "_porosity_plot_191801.png",
+    "filepath": "/home/runner/workspace/output/_porosity_plot_191801.png",
+    "type": "plot",
+    "id": "d66d8422-9ea1-451f-ab5b-66d6b12d42fe",
+    "createdAt": "2025-09-15T12:45:51.371Z",
+    "relatedLasFile": null
+  },
+  {
+    "filename": "_porosity_plot_170914.png",
+    "filepath": "/home/runner/workspace/output/_porosity_plot_170914.png",
+    "type": "plot",
+    "id": "3522e505-d184-4ed8-a633-421a98125af9",
+    "createdAt": "2025-09-15T12:45:51.360Z",
+    "relatedLasFile": null
+  },
+  {
+    "filename": "APACHE_1H-15_porosity_20250911_145020.png",
+    "filepath": "/home/runner/workspace/output/APACHE_1H-15_porosity_20250911_145020.png",
+    "type": "plot",
+    "id": "3f1a241f-c49e-48cd-82c1-eaebff177272",
+    "createdAt": "2025-09-15T12:45:51.358Z",
+    "relatedLasFile": null
+  },
+  {
+    "filename": "well_log_02_gamma_plot_163201.png",
+    "filepath": "/home/runner/workspace/output/well_log_02_gamma_plot_163201.png",
+    "type": "plot",
+    "id": "4d026674-0ad7-493f-b3ad-c413608411e3",
+    "createdAt": "2025-09-15T12:09:18.837Z",
+    "relatedLasFile": null
+  },
+  {
+    "filename": "summary_1757933902.png",
+    "filepath": "/home/runner/workspace/output/summary_1757933902.png",
+    "type": "plot",
     "id": "4cfdeb19-2f66-4279-a52a-134ef1b1bf42",
     "createdAt": "2025-09-15T12:09:18.836Z",
     "relatedLasFile": null
@@ -563,8 +659,8 @@
     "filename": "well_log_02_gamma_plot_163201.png",
     "filepath": "/home/runner/workspace/output/well_log_02_gamma_plot_163201.png",
     "type": "plot",
-    "id": "4d026674-0ad7-493f-b3ad-c413608411e3",
-    "createdAt": "2025-09-15T12:09:18.837Z",
+    "id": "d07fd9a5-b7d3-4152-9b2d-47ead27b01e0",
+    "createdAt": "2025-09-15T12:46:06.688Z",
     "relatedLasFile": null
   }
 ]
