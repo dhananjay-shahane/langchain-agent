@@ -39,7 +39,7 @@ class EmailAgent:
                     model=self.model,
                     base_url=base_url,
                     temperature=0.3,
-                    timeout=120  # Sufficient time for LLM processing
+                    # timeout=120  # Sufficient time for LLM processing
                 )
             elif self.provider == "openai":
                 api_key = os.getenv("OPENAI_API_KEY")
@@ -436,7 +436,7 @@ Generate a concise, professional email reply. Keep it brief and helpful."""
                 raise Exception("Email agent not initialized")
             
             # Clean up the response to extract just the email reply
-            lines = response_content.split('\n')
+            lines = str(response_content).split('\n')
             email_reply_lines = []
             in_email_section = False
             
@@ -541,12 +541,12 @@ Generate a concise, professional email reply. Keep it brief and helpful."""
         
         # Get credentials from environment
         email_user = os.environ.get("EMAIL_USER")
-        email_pass = os.environ.get("EMAIL_PASS") 
+        email_pass = os.environ.get("EMAIL_PASSWORD") 
         smtp_host = os.environ.get("SMTP_HOST", "smtp.gmail.com")
         smtp_port = int(os.environ.get("SMTP_PORT", "587"))
         
         if not email_user or not email_pass:
-            raise Exception("EMAIL_USER and EMAIL_PASS environment variables must be set")
+            raise Exception("EMAIL_USER and EMAIL_PASSWORD environment variables must be set")
         
         try:
             # Create message

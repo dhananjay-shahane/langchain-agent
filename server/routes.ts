@@ -523,7 +523,7 @@ async function sendEmailReply(emailData: any, config: any): Promise<{ success: b
       return;
     }
 
-    const python = spawn("python", [
+    const python = spawn("uv", ["run", "python", 
       scriptPath,
       "send_reply",
       safeToEmail,
