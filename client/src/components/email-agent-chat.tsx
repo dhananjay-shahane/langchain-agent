@@ -269,7 +269,7 @@ export default function EmailAgentChat() {
               <div className="mb-3 text-xs opacity-75 space-y-1">
                 <div className="flex items-center gap-1">
                   <Mail className="w-3 h-3" />
-                  <span>From: {extractSenderName(msg.metadata.from || "")} ({extractEmailAddress(msg.metadata.from || "")})</span>
+                  <span>From: {extractEmailAddress(msg.metadata.from || "")}</span>
                 </div>
                 <div className="flex items-center gap-1">
                   <span>📝</span>
@@ -325,7 +325,7 @@ export default function EmailAgentChat() {
                   onClick={() => {
                     const originalEmail = msg.metadata.originalEmail;
                     sendEmailMutation.mutate({
-                      toEmail: originalEmail.from,
+                      toEmail: extractEmailAddress(originalEmail.from),
                       subject: originalEmail.subject,
                       content: msg.content
                     });
@@ -410,7 +410,7 @@ export default function EmailAgentChat() {
                             {email.subject}
                           </div>
                           <div className="text-sm text-muted-foreground truncate" title={email.from}>
-                            From: {extractSenderName(email.from || "")} ({extractEmailAddress(email.from || "")})
+                            From: {extractEmailAddress(email.from || "")}
                           </div>
                           <div className="text-xs text-muted-foreground mt-1">
                             {formatDate(typeof email.createdAt === 'string' ? email.createdAt : new Date().toISOString())}

@@ -50,7 +50,7 @@ export default function EmailsPage() {
       queryClient.invalidateQueries({ queryKey: ["/api/emails"] });
       toast({
         title: "📧 New Email Received",
-        description: `From: ${email.from}\nSubject: ${email.subject}`,
+        description: `From: ${extractEmailAddress(email.from)}\nSubject: ${email.subject}`,
       });
     },
     onEmailDeleted: (data: { id: string }) => {
@@ -357,8 +357,7 @@ export default function EmailsPage() {
                             {email.subject}
                           </div>
                           <div className="text-sm text-muted-foreground truncate" title={email.from}>
-                            From: {extractSenderName(email.from)} 
-                            <span className="text-xs opacity-70">({extractEmailAddress(email.from)})</span>
+                            From: {extractEmailAddress(email.from)}
                           </div>
                           <div className="text-xs text-muted-foreground mt-1">
                             {formatDate(email.createdAt)}
@@ -439,10 +438,7 @@ export default function EmailsPage() {
                     <div>
                       <div className="text-sm text-muted-foreground">From</div>
                       <div className="font-medium" data-testid="text-email-from">
-                        {extractSenderName(selectedEmail.from)}
-                        <div className="text-sm text-muted-foreground font-normal">
-                          {extractEmailAddress(selectedEmail.from)}
-                        </div>
+                        {extractEmailAddress(selectedEmail.from)}
                       </div>
                     </div>
                     <div>
