@@ -376,7 +376,12 @@ class IntelligentEmailAgent:
         if result.get("success"):
             # Save generated files info for tracking
             self._save_processing_result(email_data.get("id", ""), result)
-            return result["response"]["body"]
+            # Return the response directly, not a nested body property
+            response = result["response"]
+            if isinstance(response, dict) and "body" in response:
+                return response["body"]
+            else:
+                return response if isinstance(response, str) else str(response)
         else:
             return result.get("fallback_response", "Error processing email")
     
