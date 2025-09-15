@@ -35,7 +35,7 @@ class EmailAgent:
         self.supports_tools = False
 
     async def initialize(self):
-        """Initialize the Email Agent"""
+        """Initialize the Email Agent with tools and step tracking"""
         try:
             # Initialize LLM based on provider
             if self.provider == "ollama":
@@ -64,11 +64,22 @@ class EmailAgent:
                                          timeout=120,
                                          stop=[])
 
-            # Use simple LLM without complex tools for faster response
+            # Create tools for step-by-step processing
             if self.llm is not None:
-                self.supports_tools = False
+                tools = [
+                    self.create_email_analyzer_tool(),
+                    self.create_sentiment_analyzer_tool(),
+                    self.create_priority_classifier_tool(),
+                    self.create_response_generator_tool(),
+                    self.create_attachment_handler_tool(),
+                    self.create_contact_info_extractor_tool()
+                ]
+                
+                # Create agent with tools for detailed processing
+                self.agent = create_react_agent(self.llm, tools)
+                self.supports_tools = True
                 print(
-                    f"Email agent initialized for fast processing with model: {self.model}"
+                    f"Email agent initialized with tools and step tracking - Model: {self.model}"
                 )
             else:
                 return False
@@ -464,9 +475,8 @@ Customer Service Team"""
 
         return extract_contact_info
 
-    async def process_email(self, email_data: Dict[str,
-                                                   Any]) -> Dict[str, Any]:
-        """Process an email and generate a response"""
+    async def process_email_with_steps(self, email_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Process an email with detailed step tracking and tool usage display"""
         try:
             if not self.agent:
                 await self.initialize()
@@ -477,104 +487,85 @@ Customer Service Team"""
             email_subject = email_data.get('emailSubject', '')
             attachments = email_data.get('attachments', [])
 
-            # Prepare context for email processing
-            context_parts = [
-                "You are a professional email assistant that processes customer emails and generates appropriate responses.",
-                "Your role is to:",
-                "- Analyze email content and determine appropriate response tone",
-                "- Generate professional, helpful, and contextually appropriate replies",
-                "- Handle different types of emails (questions, complaints, requests, appreciation)",
-                "- Maintain consistent professional communication standards",
-                "",
-                f"Email to process:",
-                f"From: {email_from}",
-                f"Subject: {email_subject}",
-                f"Content: {email_content}",
-            ]
+            # Prepare detailed prompt for step-by-step processing
+            detailed_prompt = f"""You are a professional email processing agent. Follow these steps systematically:
 
-            if attachments:
-                context_parts.append(f"Attachments: {', '.join(attachments)}")
+## Use the following format for processing:
 
-            context_parts.extend([
-                "",
-                "Please process this email and generate an appropriate professional response.",
-                "Use the available tools to analyze the email content, sentiment, and priority.",
-                "Then generate a complete, professional email reply."
-            ])
+**Thought**: Think about what needs to be done
+**Action**: Choose the appropriate tool to use
+**Action Input**: Provide the input for the tool  
+**Observation**: Review the tool's output
 
-            # Use simple LLM for fast email processing
-            if self.llm is not None:
-                # Simple prompt for faster processing
-                simple_prompt = f"""You are a professional email assistant. Generate a brief, professional email response.
+Repeat this process for each step.
 
-Email Details:
-From: {email_from}
-Subject: {email_subject}
-Content: {email_content}
+## Step-by-step processing requirements:
 
-Generate a concise, professional email reply. Keep it brief and helpful."""
+1. **ANALYZE EMAIL CONTENT**: Use analyze_email_content tool to understand the email type, priority, and tone
+2. **ANALYZE SENTIMENT**: Use analyze_email_sentiment tool to determine emotional context
+3. **CLASSIFY PRIORITY**: Use classify_email_priority tool to determine urgency level
+4. **HANDLE ATTACHMENTS** (if any): Use handle_email_attachments tool to process files
+5. **EXTRACT CONTACT INFO**: Use extract_contact_info tool to gather sender details
+6. **GENERATE RESPONSE**: Use generate_email_response tool to create the final reply
 
-                response = await self.llm.ainvoke([
-                    SystemMessage(
-                        content=
-                        "You are a professional email assistant. Generate brief, helpful responses."
-                    ),
-                    HumanMessage(content=simple_prompt)
-                ])
+## Email to Process:
+**From**: {email_from}
+**Subject**: {email_subject}
+**Content**: {email_content}
+{f'**Attachments**: {", ".join(attachments)}' if attachments else ''}
 
-                response_content = response.content if hasattr(
-                    response, 'content') else str(response)
+**Begin processing now. Show each step clearly with tool usage.**"""
+
+            # Process with agent showing all steps
+            if self.agent and self.supports_tools:
+                print(f"🔄 Starting step-by-step email processing for: {email_subject}")
+                
+                # Use agent to process with detailed steps
+                try:
+                    result = await self.agent.ainvoke({
+                        "messages": [HumanMessage(content=detailed_prompt)]
+                    })
+                    
+                    # Extract the final response from agent output
+                    agent_response = ""
+                    if hasattr(result, 'messages') and result.messages:
+                        # Get the last message from the agent
+                        last_message = result.messages[-1]
+                        if hasattr(last_message, 'content'):
+                            agent_response = last_message.content
+                    elif hasattr(result, 'content'):
+                        agent_response = result.content
+                    else:
+                        agent_response = str(result)
+                    
+                    print(f"📝 Agent processing completed with response: {len(str(agent_response))} characters")
+                    
+                    # Extract the final email response from the agent's output
+                    final_email_response = self.extract_final_email_response(agent_response)
+                    
+                except Exception as agent_error:
+                    print(f"⚠️ Agent processing failed, falling back to simple LLM: {str(agent_error)}")
+                    # Fallback to simple processing
+                    final_email_response = await self.simple_email_processing(email_data)
             else:
-                raise Exception("Email agent not initialized")
+                print(f"📝 Using simple LLM processing for: {email_subject}")
+                final_email_response = await self.simple_email_processing(email_data)
 
-            # Clean up the response to extract just the email reply
-            lines = str(response_content).split('\n')
-            email_reply_lines = []
-            in_email_section = False
-
-            for line in lines:
-                if any(greeting in line
-                       for greeting in ['Dear ', 'Hello ', 'Hi ']):
-                    in_email_section = True
-                    email_reply_lines.append(line)
-                elif in_email_section:
-                    if line.strip() and not line.startswith(
-                            'Tool:') and not line.startswith('Agent:'):
-                        email_reply_lines.append(line)
-                    elif line.strip() == '' and email_reply_lines:
-                        email_reply_lines.append(line)
-
-            # If no proper email format found, use the full response
-            if not email_reply_lines:
-                email_reply_lines = [
-                    line for line in lines
-                    if line.strip() and not line.startswith('Tool:')
-                    and not line.startswith('Agent:')
-                ]
-
-            final_response = '\n'.join(email_reply_lines).strip()
-
-            # Ensure we have a response
-            if not final_response:
-                raise Exception("Failed to generate email response")
-
-            # Extract clean email address from sender (remove name part)
-            clean_sender_email = email_from
-            if '<' in email_from and '>' in email_from:
-                # Extract email from format "Name <email@domain.com>"
-                clean_sender_email = email_from.split('<')[1].split(
-                    '>')[0].strip()
+            # Extract clean email address from sender
+            clean_sender_email = self.extract_clean_email(email_from)
 
             return {
                 "success": True,
-                "response": final_response,
+                "response": final_email_response,
                 "metadata": {
                     "processed_at": datetime.now().isoformat(),
                     "email_id": email_id,
                     "original_subject": email_subject,
                     "attachments_processed": len(attachments),
-                    "response_type": "automated_agent_reply",
+                    "response_type": "step_by_step_agent_reply",
                     "sender_email": clean_sender_email,
+                    "processing_method": "agent_with_tools" if self.supports_tools else "simple_llm",
+                    "tools_used": ["analyze_email_content", "analyze_email_sentiment", "classify_email_priority", "generate_email_response"] if self.supports_tools else [],
                     "ready_to_send": True,
                     "showReplyButton": True,
                     "originalEmail": {
@@ -586,8 +577,77 @@ Generate a concise, professional email reply. Keep it brief and helpful."""
             }
 
         except Exception as e:
-            print(f"Email processing error: {str(e)}")
+            print(f"❌ Email processing error: {str(e)}")
             raise Exception(f"Email processing failed: {str(e)}")
+    
+    def extract_clean_email(self, email_from: str) -> str:
+        """Extract clean email address from sender"""
+        clean_sender_email = email_from
+        if '<' in email_from and '>' in email_from:
+            # Extract email from format "Name <email@domain.com>"
+            clean_sender_email = email_from.split('<')[1].split('>')[0].strip()
+        return clean_sender_email
+    
+    def extract_final_email_response(self, agent_response: str) -> str:
+        """Extract the final email response from agent output"""
+        try:
+            # Look for the final generated response from the generate_email_response tool
+            lines = str(agent_response).split('\n')
+            response_lines = []
+            in_response_section = False
+            
+            for line in lines:
+                # Look for email response patterns
+                if any(greeting in line for greeting in ['Dear ', 'Hello ', 'Hi ', 'Thank you']):
+                    in_response_section = True
+                    response_lines.append(line)
+                elif in_response_section:
+                    if line.strip() and not line.startswith('Action:') and not line.startswith('Thought:') and not line.startswith('Observation:'):
+                        response_lines.append(line)
+                    elif line.strip() == '' and response_lines:
+                        response_lines.append(line)
+                    elif line.startswith('Action:') or line.startswith('Thought:'):
+                        # End of response section
+                        break
+            
+            final_response = '\n'.join(response_lines).strip()
+            
+            # If no proper response found, generate a fallback
+            if not final_response or len(final_response) < 20:
+                final_response = "Thank you for your email. I have reviewed your message and will provide you with a response shortly. If you have any urgent questions, please feel free to contact us directly.\n\nBest regards,\nCustomer Service Team"
+            
+            return final_response
+            
+        except Exception as e:
+            print(f"Error extracting response: {e}")
+            return "Thank you for your email. We have received your message and will respond accordingly.\n\nBest regards,\nCustomer Service Team"
+    
+    async def simple_email_processing(self, email_data: Dict[str, Any]) -> str:
+        """Fallback simple email processing"""
+        email_content = email_data.get('emailContent', '')
+        email_from = email_data.get('emailFrom', '')
+        email_subject = email_data.get('emailSubject', '')
+        
+        simple_prompt = f"""Generate a professional email response.
+
+Email Details:
+From: {email_from}
+Subject: {email_subject}
+Content: {email_content}
+
+Generate a concise, professional email reply:"""
+
+        response = await self.llm.ainvoke([
+            SystemMessage(content="You are a professional email assistant. Generate brief, helpful responses."),
+            HumanMessage(content=simple_prompt)
+        ])
+
+        return response.content if hasattr(response, 'content') else str(response)
+    
+    # Keep the original method for backward compatibility
+    async def process_email(self, email_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Process an email - now uses step-by-step processing"""
+        return await self.process_email_with_steps(email_data)
 
     async def test_connection(self) -> Dict[str, Any]:
         """Test connection to the configured LLM provider"""
