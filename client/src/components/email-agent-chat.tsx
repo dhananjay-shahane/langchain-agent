@@ -104,42 +104,46 @@ export default function EmailAgentChat() {
       return response.json();
     },
     onSuccess: (data, email) => {
-      // Extract clean email body content response only, no metadata
+      // Extract only the clean email response content, no metadata
       let responseContent = "Email processed successfully";
       
-      // Extract only the main email content/response, strip out metadata
       if (data && data.response) {
-        // If response is a string, use it directly
+        // If response is a string, extract clean response
         if (typeof data.response === 'string') {
-          responseContent = data.response.trim();
+          let cleanResponse = data.response.trim();
+          
+          // Remove initialization text (everything before JSON)
+          const jsonMatch = cleanResponse.match(/{.*}$/);
+          if (jsonMatch) {
+            try {
+              const jsonData = JSON.parse(jsonMatch[0]);
+              responseContent = jsonData.response || "Email processed successfully";
+            } catch (e) {
+              // If JSON parsing fails, try to extract text between quotes
+              const responseMatch = cleanResponse.match(/"response":\s*"([^"]+)"/);
+              responseContent = responseMatch ? responseMatch[1] : cleanResponse;
+            }
+          } else {
+            responseContent = cleanResponse;
+          }
         } else {
-          // If response is an object, try to get the message content
-          responseContent = data.response.message || data.response.content || String(data.response);
+          // If response is already an object, get the response field
+          responseContent = data.response.message || data.response.content || data.response.response || String(data.response);
         }
       }
-      // Check if data itself is a string
-      else if (typeof data === 'string') {
-        try {
-          const parsed = JSON.parse(data);
-          responseContent = parsed.response || parsed.message || parsed.content || "Email processed successfully";
-        } catch (e) {
-          // If not JSON, use the string directly
-          responseContent = data.trim();
-        }
-      }
-      // If data is an object, extract the main message
+      // If data is an object, extract the response
       else if (data && typeof data === 'object') {
         responseContent = data.response || data.message || data.content || "Email processed successfully";
       }
       
-      // Clean up any remaining JSON artifacts or metadata
+      // Final cleanup: remove any remaining escape characters and metadata
       if (typeof responseContent === 'string') {
-        // Remove any JSON wrapper patterns
-        responseContent = responseContent.replace(/^{"[^"]+":\s*"/, '').replace(/"\s*}$/, '');
-        // Remove any escaped quotes
-        responseContent = responseContent.replace(/\\"/g, '"');
-        // Trim whitespace
-        responseContent = responseContent.trim();
+        responseContent = responseContent
+          .replace(/\\n/g, '\n')
+          .replace(/\\"/g, '"')
+          .replace(/^["']/g, '')
+          .replace(/["']$/g, '')
+          .trim();
       }
       
       // Add agent response message
@@ -151,8 +155,8 @@ export default function EmailAgentChat() {
           ...(data?.metadata || {}),
           showReplyButton: true,
           originalEmail: {
-            from: data?.metadata?.sender_email || extractEmailAddress(email.from || ""),
-            subject: data?.metadata?.originalEmail?.subject || `Re: ${email.subject || ""}`,
+            from: extractEmailAddress(email.from || ""),
+            subject: `Re: ${email.subject || ""}`,
             content: email.body || ""
           }
         },
