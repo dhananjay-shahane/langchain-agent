@@ -1,0 +1,29 @@
+[
+  {
+    "filename": "4771-36-SESE.las",
+    "filepath": "/home/runner/workspace/data/email-attachments/4771-36-SESE.las",
+    "size": "0.02MB",
+    "source": "manual",
+    "processed": false,
+    "id": "e69e2a77-9035-47bf-9c36-f9652b59676c",
+    "createdAt": "2025-09-15T04:21:21.243Z"
+  },
+  {
+    "filename": "sample_well_01.las",
+    "filepath": "/home/runner/workspace/data/samples/sample_well_01.las",
+    "size": "0.00MB",
+    "source": "manual",
+    "processed": false,
+    "id": "eb99cb90-25c0-4a18-84db-960b961e9b7c",
+    "createdAt": "2025-09-15T04:21:21.243Z"
+  },
+  {
+    "filename": "well_log_02.las",
+    "filepath": "/home/runner/workspace/data/samples/well_log_02.las",
+    "size": "0.00MB",
+    "source": "manual",
+    "processed": false,
+    "id": "ca2674a9-263e-4186-b677-9491d0cbcc3b",
+    "createdAt": "2025-09-15T04:21:21.244Z"
+  }
+]

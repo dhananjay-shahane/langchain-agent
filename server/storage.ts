@@ -1,7 +1,7 @@
-import { type AgentConfig, type ChatMessage, type LasFile, type OutputFile, type Email, type EmailMonitorStatus, type InsertAgentConfig, type InsertChatMessage, type InsertLasFile, type InsertOutputFile, type InsertEmail, type InsertEmailMonitorStatus, agentConfigs, chatMessages, lasFiles, outputFiles, emails, emailMonitorStatus } from "@shared/schema";
+import { type AgentConfig, type ChatMessage, type LasFile, type OutputFile, type Email, type EmailMonitorStatus, type InsertAgentConfig, type InsertChatMessage, type InsertLasFile, type InsertOutputFile, type InsertEmail, type InsertEmailMonitorStatus } from "@shared/schema";
 import { randomUUID } from "crypto";
-import { db } from "./db";
-import { eq, desc } from "drizzle-orm";
+import fs from "fs";
+import path from "path";
 
 export interface IStorage {
   // Agent Config
@@ -196,125 +196,228 @@ export class MemStorage implements IStorage {
 
 }
 
-// Database Storage Implementation
-export class DbStorage implements IStorage {
+// JSON File Storage Implementation
+export class JsonStorage implements IStorage {
+  private dataDir: string;
+  private agentConfigFile: string;
+  private chatMessagesFile: string;
+  private lasFilesFile: string;
+  private outputFilesFile: string;
+  private emailsFile: string;
+  private emailMonitorStatusFile: string;
+
+  constructor() {
+    this.dataDir = path.join(process.cwd(), "data", "json-storage");
+    this.agentConfigFile = path.join(this.dataDir, "agent-config.json");
+    this.chatMessagesFile = path.join(this.dataDir, "chat-messages.json");
+    this.lasFilesFile = path.join(this.dataDir, "las-files.json");
+    this.outputFilesFile = path.join(this.dataDir, "output-files.json");
+    this.emailsFile = path.join(this.dataDir, "emails.json");
+    this.emailMonitorStatusFile = path.join(this.dataDir, "email-monitor-status.json");
+    
+    // Ensure data directory exists
+    this.ensureDataDir();
+  }
+
+  private ensureDataDir(): void {
+    if (!fs.existsSync(this.dataDir)) {
+      fs.mkdirSync(this.dataDir, { recursive: true });
+    }
+  }
+
+  private readJsonFile<T>(filePath: string, defaultValue: T): T {
+    try {
+      if (!fs.existsSync(filePath)) {
+        return defaultValue;
+      }
+      const data = fs.readFileSync(filePath, 'utf8');
+      return JSON.parse(data, (key, value) => {
+        // Convert ISO date strings back to Date objects
+        if (typeof value === 'string' && /\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(value)) {
+          return new Date(value);
+        }
+        return value;
+      });
+    } catch (error) {
+      console.error(`Error reading JSON file ${filePath}:`, error);
+      return defaultValue;
+    }
+  }
+
+  private writeJsonFile<T>(filePath: string, data: T): void {
+    try {
+      fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
+    } catch (error) {
+      console.error(`Error writing JSON file ${filePath}:`, error);
+    }
+  }
+
   async getAgentConfig(): Promise<AgentConfig | undefined> {
-    const result = await db.select().from(agentConfigs).limit(1);
-    return result[0];
+    const config = this.readJsonFile<AgentConfig | undefined>(this.agentConfigFile, undefined);
+    if (!config) {
+      // Initialize with default config
+      const defaultConfig: AgentConfig = {
+        id: randomUUID(),
+        provider: "ollama",
+        model: "qwen:1.8b",
+        endpointUrl: "",
+        isConnected: false,
+        lastTested: null,
+        createdAt: new Date(),
+      };
+      this.writeJsonFile(this.agentConfigFile, defaultConfig);
+      return defaultConfig;
+    }
+    return config;
   }
 
   async updateAgentConfig(config: InsertAgentConfig): Promise<AgentConfig> {
     const existing = await this.getAgentConfig();
-    
-    if (existing) {
-      const [updated] = await db.update(agentConfigs)
-        .set({ ...config, lastTested: new Date() })
-        .where(eq(agentConfigs.id, existing.id))
-        .returning();
-      return updated;
-    } else {
-      const [created] = await db.insert(agentConfigs)
-        .values({ ...config, lastTested: new Date() })
-        .returning();
-      return created;
-    }
-  }
-
-  async getChatMessages(): Promise<ChatMessage[]> {
-    return db.select().from(chatMessages).orderBy(chatMessages.timestamp);
-  }
-
-  async addChatMessage(message: InsertChatMessage): Promise<ChatMessage> {
-    const [created] = await db.insert(chatMessages)
-      .values(message)
-      .returning();
-    return created;
-  }
-
-  async getLasFiles(): Promise<LasFile[]> {
-    return db.select().from(lasFiles).orderBy(desc(lasFiles.createdAt));
-  }
-
-  async addLasFile(file: InsertLasFile): Promise<LasFile> {
-    const [created] = await db.insert(lasFiles)
-      .values(file)
-      .returning();
-    return created;
-  }
-
-  async updateLasFile(id: string, updates: Partial<LasFile>): Promise<LasFile | undefined> {
-    const [updated] = await db.update(lasFiles)
-      .set(updates)
-      .where(eq(lasFiles.id, id))
-      .returning();
+    const updated: AgentConfig = {
+      ...existing!,
+      ...config,
+      lastTested: new Date(),
+    };
+    this.writeJsonFile(this.agentConfigFile, updated);
     return updated;
   }
 
+  async getChatMessages(): Promise<ChatMessage[]> {
+    const messages = this.readJsonFile<ChatMessage[]>(this.chatMessagesFile, []);
+    return messages.sort((a, b) => a.timestamp!.getTime() - b.timestamp!.getTime());
+  }
+
+  async addChatMessage(message: InsertChatMessage): Promise<ChatMessage> {
+    const messages = await this.getChatMessages();
+    const chatMessage: ChatMessage = {
+      ...message,
+      id: randomUUID(),
+      timestamp: new Date(),
+      metadata: message.metadata || null,
+    };
+    messages.push(chatMessage);
+    this.writeJsonFile(this.chatMessagesFile, messages);
+    return chatMessage;
+  }
+
+  async getLasFiles(): Promise<LasFile[]> {
+    const files = this.readJsonFile<LasFile[]>(this.lasFilesFile, []);
+    return files.sort((a, b) => b.createdAt!.getTime() - a.createdAt!.getTime());
+  }
+
+  async addLasFile(file: InsertLasFile): Promise<LasFile> {
+    const files = await this.getLasFiles();
+    const lasFile: LasFile = {
+      ...file,
+      id: randomUUID(),
+      createdAt: new Date(),
+      source: file.source || "manual",
+      size: file.size || null,
+      processed: file.processed || false,
+    };
+    files.push(lasFile);
+    this.writeJsonFile(this.lasFilesFile, files);
+    return lasFile;
+  }
+
+  async updateLasFile(id: string, updates: Partial<LasFile>): Promise<LasFile | undefined> {
+    const files = await this.getLasFiles();
+    const index = files.findIndex(f => f.id === id);
+    if (index === -1) return undefined;
+    
+    files[index] = { ...files[index], ...updates };
+    this.writeJsonFile(this.lasFilesFile, files);
+    return files[index];
+  }
+
   async getOutputFiles(): Promise<OutputFile[]> {
-    return db.select().from(outputFiles).orderBy(desc(outputFiles.createdAt));
+    const files = this.readJsonFile<OutputFile[]>(this.outputFilesFile, []);
+    return files.sort((a, b) => b.createdAt!.getTime() - a.createdAt!.getTime());
   }
 
   async addOutputFile(file: InsertOutputFile): Promise<OutputFile> {
-    const [created] = await db.insert(outputFiles)
-      .values(file)
-      .returning();
-    return created;
+    const files = await this.getOutputFiles();
+    const outputFile: OutputFile = {
+      ...file,
+      id: randomUUID(),
+      createdAt: new Date(),
+      relatedLasFile: file.relatedLasFile || null,
+    };
+    files.push(outputFile);
+    this.writeJsonFile(this.outputFilesFile, files);
+    return outputFile;
   }
 
   async getEmails(): Promise<Email[]> {
-    return db.select().from(emails).orderBy(desc(emails.createdAt));
+    const emails = this.readJsonFile<Email[]>(this.emailsFile, []);
+    return emails.sort((a, b) => b.createdAt!.getTime() - a.createdAt!.getTime());
   }
 
   async addEmail(email: InsertEmail): Promise<Email> {
-    const [created] = await db.insert(emails)
-      .values(email)
-      .returning();
-    return created;
+    const emails = await this.getEmails();
+    const emailRecord: Email = {
+      ...email,
+      id: randomUUID(),
+      createdAt: new Date(),
+      body: email.body || "",
+      attachments: email.attachments || [],
+      replyStatus: email.replyStatus || "pending",
+    };
+    emails.push(emailRecord);
+    this.writeJsonFile(this.emailsFile, emails);
+    return emailRecord;
   }
 
   async deleteEmail(id: string): Promise<boolean> {
-    const result = await db.delete(emails)
-      .where(eq(emails.id, id))
-      .returning();
-    return result.length > 0;
+    const emails = await this.getEmails();
+    const index = emails.findIndex(e => e.id === id);
+    if (index === -1) return false;
+    
+    emails.splice(index, 1);
+    this.writeJsonFile(this.emailsFile, emails);
+    return true;
   }
 
   async updateEmailStatus(id: string, status: string): Promise<boolean> {
-    try {
-      const result = await db.update(emails)
-        .set({ replyStatus: status })
-        .where(eq(emails.id, id))
-        .returning();
-      return result.length > 0;
-    } catch (error) {
-      console.error("Error updating email status:", error);
-      return false;
-    }
+    const emails = await this.getEmails();
+    const email = emails.find(e => e.id === id);
+    if (!email) return false;
+    
+    email.replyStatus = status;
+    this.writeJsonFile(this.emailsFile, emails);
+    return true;
   }
 
   async getEmailMonitorStatus(): Promise<EmailMonitorStatus | undefined> {
-    const result = await db.select().from(emailMonitorStatus).limit(1);
-    return result[0];
+    const status = this.readJsonFile<EmailMonitorStatus | undefined>(this.emailMonitorStatusFile, undefined);
+    if (!status) {
+      // Initialize with default status
+      const defaultStatus: EmailMonitorStatus = {
+        id: randomUUID(),
+        isRunning: false,
+        lastStarted: null,
+        lastStopped: null,
+        lastError: null,
+        emailsProcessed: "0",
+        updatedAt: new Date(),
+      };
+      this.writeJsonFile(this.emailMonitorStatusFile, defaultStatus);
+      return defaultStatus;
+    }
+    return status;
   }
 
   async updateEmailMonitorStatus(status: InsertEmailMonitorStatus): Promise<EmailMonitorStatus> {
     const existing = await this.getEmailMonitorStatus();
-    
-    if (existing) {
-      const [updated] = await db.update(emailMonitorStatus)
-        .set({ ...status, updatedAt: new Date() })
-        .where(eq(emailMonitorStatus.id, existing.id))
-        .returning();
-      return updated;
-    } else {
-      const [created] = await db.insert(emailMonitorStatus)
-        .values({ ...status, updatedAt: new Date() })
-        .returning();
-      return created;
-    }
+    const updated: EmailMonitorStatus = {
+      ...existing!,
+      ...status,
+      updatedAt: new Date(),
+    };
+    this.writeJsonFile(this.emailMonitorStatusFile, updated);
+    return updated;
   }
-
 }
 
-// Database is now provisioned, using PostgreSQL storage
-export const storage = new DbStorage();
+// Using JSON file storage instead of database
+export const storage = new JsonStorage();
