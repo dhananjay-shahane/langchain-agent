@@ -4,6 +4,7 @@ Email Monitor Service for LAS File Analysis System
 
 This script monitors Gmail IMAP for new emails and saves them to JSON format
 with their attachments. It's designed to be started/stopped via API calls.
+SECURITY: Uses environment variables instead of hardcoded credentials.
 """
 
 import os
@@ -18,11 +19,11 @@ import ssl
 import socket
 from imapclient import IMAPClient
 
-# Configuration
-IMAP_SERVER = "imap.gmail.com"
-EMAIL_USER = "shahanedhananjay0@gmail.com"
-EMAIL_PASSWORD = "zclp zwex hqkr fvqp"
-API_BASE_URL = "http://localhost:5000/api"
+# Configuration from environment variables
+IMAP_SERVER = os.getenv("IMAP_SERVER", "imap.gmail.com")
+EMAIL_USER = os.getenv("EMAIL_USER")
+EMAIL_PASSWORD = os.getenv("EMAIL_PASSWORD")
+API_BASE_URL = os.getenv("API_BASE_URL", "http://localhost:5000/api")
 
 # Paths
 DATA_DIR = Path("data")
@@ -42,13 +43,12 @@ class EmailMonitor:
 
         # Validate environment variables
         if not EMAIL_USER or not EMAIL_PASSWORD:
-            print(
-                "❌ EMAIL_USER and EMAIL_PASSWORD environment variables are required"
-            )
+            print("❌ EMAIL_USER and EMAIL_PASSWORD environment variables are required")
+            print("Set them in your environment or .env file:")
+            print("export EMAIL_USER='your-email@gmail.com'")
+            print("export EMAIL_PASSWORD='your-app-password'")
             print(f"EMAIL_USER: {'✅ Found' if EMAIL_USER else '❌ Missing'}")
-            print(
-                f"EMAIL_PASSWORD: {'✅ Found' if EMAIL_PASSWORD else '❌ Missing'}"
-            )
+            print(f"EMAIL_PASSWORD: {'✅ Found' if EMAIL_PASSWORD else '❌ Missing'}")
             sys.exit(1)
 
         # Ensure we have valid string values
@@ -75,14 +75,11 @@ class EmailMonitor:
                 data["emailsProcessed"] = str(emails_processed)
 
             if is_running:
-                data["lastStarted"] = time.time(
-                ) * 1000  # Convert to milliseconds for JavaScript
+                data["lastStarted"] = time.time() * 1000  # Convert to milliseconds for JavaScript
             else:
-                data["lastStopped"] = time.time(
-                ) * 1000  # Convert to milliseconds for JavaScript
+                data["lastStopped"] = time.time() * 1000  # Convert to milliseconds for JavaScript
 
-            response = requests.put(f"{API_BASE_URL}/emails/monitor/status",
-                                    json=data)
+            response = requests.put(f"{API_BASE_URL}/emails/monitor/status", json=data)
             if response.status_code == 200:
                 print(f"✅ Status updated: Running={is_running}")
             else:
@@ -98,9 +95,7 @@ class EmailMonitor:
                 print(f"✅ Email saved to database: UID {entry['uid']}")
                 return True
             else:
-                print(
-                    f"⚠️ Failed to save email: {response.status_code} - {response.text}"
-                )
+                print(f"⚠️ Failed to save email: {response.status_code} - {response.text}")
                 return False
         except Exception as e:
             print(f"❌ Error saving email to API: {e}")
@@ -116,18 +111,15 @@ class EmailMonitor:
             body = ""
             if msg.is_multipart():
                 for part in msg.walk():
-                    if part.get_content_type(
-                    ) == "text/plain" and not part.get_filename():
+                    if part.get_content_type() == "text/plain" and not part.get_filename():
                         try:
-                            body = part.get_payload(decode=True).decode(
-                                "utf-8", errors="ignore")
+                            body = part.get_payload(decode=True).decode("utf-8", errors="ignore")
                             break
                         except Exception:
                             pass
             else:
                 try:
-                    body = msg.get_payload(decode=True).decode("utf-8",
-                                                               errors="ignore")
+                    body = msg.get_payload(decode=True).decode("utf-8", errors="ignore")
                 except Exception:
                     pass
 
@@ -137,15 +129,40 @@ class EmailMonitor:
                 for part in msg.walk():
                     filename = part.get_filename()
                     if filename:
-                        # Save attachment to disk
-                        filepath = ATTACHMENTS_DIR / filename
+                        # Sanitize filename for security
+                        import re
+                        safe_filename = os.path.basename(filename)  # Remove path components
+                        safe_filename = re.sub(r'[<>:"|?*]', '_', safe_filename)  # Remove dangerous chars
+                        safe_filename = re.sub(r'\.\.+', '.', safe_filename)  # Remove multiple dots
+                        
+                        # Validate file extension
+                        allowed_extensions = ['.las', '.txt', '.csv', '.pdf', '.doc', '.docx', '.jpg', '.jpeg', '.png']
+                        file_ext = os.path.splitext(safe_filename)[1].lower()
+                        
+                        if not safe_filename or safe_filename in ['.', '..']:
+                            safe_filename = f"attachment_{len(attachments)}.bin"
+                        
+                        if file_ext not in allowed_extensions:
+                            print(f"⚠️ Skipping attachment {filename}: file type not allowed")
+                            continue
+                        
+                        # Check file size limit (100MB)
+                        payload = part.get_payload(decode=True)
+                        if len(payload) > 100 * 1024 * 1024:  # 100MB limit
+                            print(f"⚠️ Skipping attachment {filename}: file too large")
+                            continue
+                        
+                        # Save attachment with sanitized name
+                        filepath = ATTACHMENTS_DIR / safe_filename
                         try:
                             with open(filepath, "wb") as f:
-                                f.write(part.get_payload(decode=True))
-                            attachments.append(filename)
-                            print(f"📎 Saved attachment: {filename}")
+                                f.write(payload)
+                            attachments.append(safe_filename)
+                            print(f"📎 Saved attachment: {safe_filename}")
+                            if safe_filename != filename:
+                                print(f"   (sanitized from: {filename})")
                         except Exception as e:
-                            print(f"❌ Error saving attachment {filename}: {e}")
+                            print(f"❌ Error saving attachment {safe_filename}: {e}")
 
             # Create email entry
             entry = {
@@ -157,9 +174,7 @@ class EmailMonitor:
                 "replyStatus": "pending"
             }
 
-            print(
-                f"📧 Processing Email UID {uid} | From: {from_} | Subject: {subject}"
-            )
+            print(f"📧 Processing Email UID {uid} | From: {from_} | Subject: {subject}")
 
             # Save to database via API
             if self.save_email_to_api(entry):
@@ -178,14 +193,10 @@ class EmailMonitor:
             ctx = ssl.create_default_context()
             if hasattr(ssl, "TLSVersion"):
                 ctx.minimum_version = ssl.TLSVersion.TLSv1_2
-            self.client = IMAPClient(IMAP_SERVER,
-                                     port=993,
-                                     ssl=True,
-                                     ssl_context=ctx,
-                                     timeout=30)
+            self.client = IMAPClient(IMAP_SERVER, port=993, ssl=True, ssl_context=ctx, timeout=30)
             self.client.login(self.email_user, self.email_password)
             self.client.select_folder("INBOX")
-            print(f"✅ Connected to {IMAP_SERVER}")
+            print(f"✅ Connected to {IMAP_SERVER} as {self.email_user}")
             return True
         except Exception as e:
             print(f"❌ Connection failed: {e}")
@@ -239,9 +250,7 @@ class EmailMonitor:
                         all_messages = self.client.search("ALL")
                     else:
                         continue
-                    new_messages = [
-                        uid for uid in all_messages if uid > self.last_uid
-                    ]
+                    new_messages = [uid for uid in all_messages if uid > self.last_uid]
 
                     if new_messages:
                         for uid in sorted(new_messages):
@@ -250,30 +259,23 @@ class EmailMonitor:
 
                             try:
                                 if self.client:
-                                    msg_data = self.client.fetch([uid],
-                                                                 ["RFC822"])
+                                    msg_data = self.client.fetch([uid], ["RFC822"])
                                     raw_email = msg_data[uid][b"RFC822"]
                                     if isinstance(raw_email, bytes):
-                                        msg = email.message_from_bytes(
-                                            raw_email)
+                                        msg = email.message_from_bytes(raw_email)
                                     else:
-                                        print(
-                                            f"❌ Invalid email data type for UID {uid}"
-                                        )
+                                        print(f"❌ Invalid email data type for UID {uid}")
                                         continue
                                 else:
                                     break
 
                                 if self.process_new_email(uid, msg):
                                     emails_processed += 1
-                                    self.update_status(
-                                        True,
-                                        emails_processed=emails_processed)
+                                    self.update_status(True, emails_processed=emails_processed)
 
                                 self.last_uid = max(self.last_uid, uid)
                             except Exception as e:
-                                print(
-                                    f"❌ Error processing email UID {uid}: {e}")
+                                print(f"❌ Error processing email UID {uid}: {e}")
                     else:
                         print("✅ No new emails found")
 
@@ -283,8 +285,7 @@ class EmailMonitor:
                             break
                         time.sleep(1)
 
-                except (ssl.SSLError, ssl.SSLEOFError, ConnectionResetError,
-                        TimeoutError, socket.timeout) as e:
+                except (ssl.SSLError, ssl.SSLEOFError, ConnectionResetError, TimeoutError, socket.timeout) as e:
                     print(f"⚠️ Transient IMAP/SSL error: {e} — reconnecting")
                     self.disconnect()
                     time.sleep(5)
@@ -319,6 +320,14 @@ def main():
     """Main entry point"""
     if len(sys.argv) != 2 or sys.argv[1] not in ["start", "stop"]:
         print("Usage: python email_monitor.py [start|stop]")
+        print()
+        print("Required environment variables:")
+        print("  EMAIL_USER     - Your email address (e.g., user@gmail.com)")
+        print("  EMAIL_PASSWORD - Your app password (not regular password)")
+        print()
+        print("Optional environment variables:")
+        print("  IMAP_SERVER    - IMAP server (default: imap.gmail.com)")
+        print("  API_BASE_URL   - API base URL (default: http://localhost:5000/api)")
         sys.exit(1)
 
     command = sys.argv[1]
