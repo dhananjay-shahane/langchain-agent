@@ -48,9 +48,25 @@
     "metadata": {
       "tool_usage": true,
       "selected_file": "",
-      "processing_time": "2025-09-15T13:39:40.047355"
+      "processing_time": "2025-09-15T13:39:40.047Z"
     },
     "id": "cb621363-624f-4a1b-9426-e763faf535f9",
     "timestamp": "2025-09-15T13:39:40.363Z"
+  },
+  {
+    "role": "user",
+    "content": "Analyze all LAS files",
+    "id": "d9ec3834-eae1-4030-bf87-94f2de9ccc9a",
+    "timestamp": "2025-09-16T10:38:40.010Z",
+    "metadata": null
+  },
+  {
+    "role": "agent",
+    "content": "Processing your request...",
+    "metadata": {
+      "thinking": true
+    },
+    "id": "aa3a2998-32b1-4038-b4fb-6913dc57c21a",
+    "timestamp": "2025-09-16T10:38:40.011Z"
   }
 ]
