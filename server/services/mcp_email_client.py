@@ -27,8 +27,25 @@ async def process_email_command(email_json: str) -> None:
         # Parse the email data
         email_data = json.loads(email_json)
         
-        # Create and initialize the EmailAgent
-        agent = EmailAgent()
+        # Load agent configuration from storage file (at project root)
+        config_file = Path(__file__).resolve().parents[2] / "data" / "json-storage" / "agent-config.json"
+        
+        provider = "ollama"
+        model = "llama3.2:1b"
+        endpoint_url = ""
+        
+        if config_file.exists():
+            try:
+                with open(config_file, 'r') as f:
+                    config = json.load(f)
+                    provider = config.get('provider', 'ollama')
+                    model = config.get('model', 'llama3.2:1b')
+                    endpoint_url = config.get('endpointUrl', '')
+            except Exception as e:
+                print(f"Warning: Could not load config from {config_file}: {e}", file=sys.stderr)
+        
+        # Create and initialize the EmailAgent with proper configuration
+        agent = EmailAgent(provider=provider, model=model, endpoint_url=endpoint_url)
         result = await agent.process_email(email_data)
         
         # Output the result as JSON
