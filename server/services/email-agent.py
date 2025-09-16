@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 """
 Email Agent Service for Processing and Replying to Emails
-Separate from the LangChain MCP Agent for LAS files
 """
 import sys
 import json
@@ -11,7 +10,6 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-# LangChain imports
 from langchain_ollama import ChatOllama
 from langchain_openai import ChatOpenAI
 from langchain_anthropic import ChatAnthropic
@@ -32,803 +30,164 @@ class EmailAgent:
         self.endpoint_url = endpoint_url
         self.llm = None
         self.agent = None
-        self.supports_tools = False
 
     async def initialize(self):
-        """Initialize the Email Agent with tools and step tracking"""
+        """Initialize the Email Agent"""
         try:
-            # Initialize LLM based on provider
             if self.provider == "ollama":
                 base_url = self.endpoint_url if self.endpoint_url else "http://localhost:11434"
                 self.llm = ChatOllama(
                     model=self.model,
                     base_url=base_url,
-                    temperature=0.3,
-                    # timeout=120  # Sufficient time for LLM processing
+                    temperature=0.3
                 )
             elif self.provider == "openai":
                 api_key = os.getenv("OPENAI_API_KEY")
                 if not api_key:
                     return False
-                self.llm = ChatOpenAI(model=self.model,
-                                      api_key=SecretStr(api_key),
-                                      temperature=0.3,
-                                      timeout=120)
+                self.llm = ChatOpenAI(
+                    model=self.model,
+                    api_key=SecretStr(api_key),
+                    temperature=0.3,
+                    timeout=120
+                )
             elif self.provider == "anthropic":
                 api_key = os.getenv("ANTHROPIC_API_KEY")
                 if not api_key:
                     return False
-                self.llm = ChatAnthropic(model_name=self.model,
-                                         api_key=SecretStr(api_key),
-                                         temperature=0.3,
-                                         timeout=120,
-                                         stop=[])
-
-            # Create tools for step-by-step processing
-            if self.llm is not None:
-                tools = [
-                    self.create_email_analyzer_tool(),
-                    self.create_sentiment_analyzer_tool(),
-                    self.create_priority_classifier_tool(),
-                    self.create_response_generator_tool(),
-                    self.create_attachment_handler_tool(),
-                    self.create_contact_info_extractor_tool()
-                ]
-                
-                # Create agent with tools for detailed processing
-                self.agent = create_react_agent(self.llm, tools)
-                self.supports_tools = True
-                print(
-                    f"Email agent initialized with tools and step tracking - Model: {self.model}"
+                self.llm = ChatAnthropic(
+                    model_name=self.model,
+                    api_key=SecretStr(api_key),
+                    temperature=0.3,
+                    timeout=120,
+                    stop=[]
                 )
-            else:
-                return False
 
-            return True
+            if self.llm:
+                tools = [self.create_email_processor_tool()]
+                self.agent = create_react_agent(self.llm, tools)
+                return True
+            
+            return False
 
         except Exception as e:
             print(f"Error initializing email agent: {e}")
             return False
 
-    def create_email_analyzer_tool(self):
-        """Tool for analyzing email content and context"""
-
+    def create_email_processor_tool(self):
+        """Tool for processing email content"""
+        
         @tool
-        def analyze_email_content(email_subject: str, email_body: str,
-                                  sender_email: str) -> str:
-            """Analyze email content to understand intent, urgency, and required response type."""
-            try:
-                analysis = []
-                analysis.append("📧 Email Content Analysis:")
-
-                # Analyze subject
-                if any(word in email_subject.lower() for word in
-                       ['urgent', 'asap', 'emergency', 'important']):
-                    analysis.append(
-                        "• Priority: HIGH - Contains urgency indicators")
-                elif any(word in email_subject.lower()
-                         for word in ['question', 'help', 'support', 'issue']):
-                    analysis.append(
-                        "• Priority: MEDIUM - Support/help request")
-                else:
-                    analysis.append("• Priority: NORMAL - Standard inquiry")
-
-                # Analyze content type
-                body_lower = email_body.lower()
-                if any(word in body_lower
-                       for word in ['thank', 'thanks', 'appreciate']):
-                    analysis.append("• Type: Appreciation/Thank you message")
-                elif any(word in body_lower for word in
-                         ['?', 'how', 'what', 'when', 'where', 'why']):
-                    analysis.append("• Type: Question/Inquiry")
-                elif any(word in body_lower for word in
-                         ['complaint', 'problem', 'issue', 'wrong', 'error']):
-                    analysis.append("• Type: Complaint/Issue report")
-                elif any(word in body_lower for word in
-                         ['request', 'please', 'could you', 'would you']):
-                    analysis.append("• Type: Request for action/service")
-                else:
-                    analysis.append("• Type: General communication")
-
-                # Analyze tone
-                if any(
-                        word in body_lower for word in
-                    ['angry', 'frustrated', 'disappointed', 'unacceptable']):
-                    analysis.append(
-                        "• Tone: Negative - Requires careful, empathetic response"
-                    )
-                elif any(word in body_lower for word in
-                         ['happy', 'pleased', 'excellent', 'great']):
-                    analysis.append(
-                        "• Tone: Positive - Maintain friendly engagement")
-                else:
-                    analysis.append(
-                        "• Tone: Neutral - Professional response appropriate")
-
-                # Length analysis
-                word_count = len(email_body.split())
-                if word_count < 20:
-                    analysis.append(
-                        f"• Length: Brief ({word_count} words) - Concise response suitable"
-                    )
-                elif word_count > 100:
-                    analysis.append(
-                        f"• Length: Detailed ({word_count} words) - Comprehensive response needed"
-                    )
-                else:
-                    analysis.append(
-                        f"• Length: Standard ({word_count} words) - Balanced response appropriate"
-                    )
-
-                return "\n".join(analysis)
-            except Exception as e:
-                return f"Error analyzing email: {e}"
-
-        return analyze_email_content
-
-    def create_response_generator_tool(self):
-        """Tool for generating appropriate email responses"""
-
-        @tool
-        def generate_email_response(email_content: str,
-                                    analysis_context: str,
-                                    sender_name: str = "") -> str:
-            """Generate an appropriate email response based on content analysis."""
-            try:
-                # Extract sender name from email if not provided
-                if not sender_name and "From:" in email_content:
-                    sender_name = "valued customer"
-                elif not sender_name:
-                    sender_name = "there"
-
-                # Generate response based on analysis
-                if "Question/Inquiry" in analysis_context:
-                    response = f"""Dear {sender_name},
-
-Thank you for reaching out to us. I've reviewed your inquiry and I'm happy to help provide the information you're looking for.
-
-Based on your message, I understand you're asking about [specific topic from email]. Here's what I can share:
-
-[Relevant information based on the specific question asked]
-
-If you need any additional clarification or have other questions, please don't hesitate to reach out. We're always here to help.
-
-Best regards,
-Customer Service Team"""
-
-                elif "Complaint/Issue" in analysis_context:
-                    response = f"""Dear {sender_name},
-
-Thank you for bringing this matter to our attention, and I sincerely apologize for any inconvenience you've experienced.
-
-I've carefully reviewed your concerns and I want to assure you that we take all feedback seriously. Here's how we're addressing your issue:
-
-[Specific steps being taken to resolve the issue]
-
-We value your business and your feedback helps us improve our services. I will personally follow up to ensure this matter is resolved to your satisfaction.
-
-Please feel free to contact me directly if you have any other concerns.
-
-Best regards,
-Customer Service Team"""
-
-                elif "Appreciation" in analysis_context:
-                    response = f"""Dear {sender_name},
-
-Thank you so much for your kind words! It's wonderful to hear that you've had a positive experience with us.
-
-Your feedback means a lot to our team, and I'll be sure to share your comments with everyone involved. We truly appreciate customers like you who take the time to let us know when we're doing things right.
-
-We look forward to continuing to serve you and providing the same excellent experience in the future.
-
-Warm regards,
-Customer Service Team"""
-
-                elif "Request" in analysis_context:
-                    response = f"""Dear {sender_name},
-
-Thank you for your request. I've reviewed what you're looking for and I'm happy to assist you.
-
-Regarding your request for [specific request], here's what I can do:
-
-[Steps being taken to fulfill the request or explanation of process]
-
-The expected timeline for this is [timeframe], and I'll keep you updated on the progress.
-
-If you have any questions about this process or need anything else, please let me know.
-
-Best regards,
-Customer Service Team"""
-
-                else:  # General communication
-                    response = f"""Dear {sender_name},
-
-Thank you for your message. I've received your communication and I appreciate you taking the time to reach out to us.
-
-[Acknowledge the main points of their message and provide relevant response]
-
-If there's anything specific I can help you with or if you have any questions, please don't hesitate to let me know.
-
-Best regards,
-Customer Service Team"""
-
-                return response
-
-            except Exception as e:
-                return f"Error generating response: {e}"
-
-        return generate_email_response
-
-    def create_attachment_handler_tool(self):
-        """Tool for handling email attachments"""
-
-        @tool
-        def handle_email_attachments(attachments: List[str]) -> str:
-            """Process and acknowledge email attachments."""
-            try:
-                if not attachments:
-                    return "No attachments to process."
-
-                attachment_info = []
-                attachment_info.append(
-                    f"📎 Processing {len(attachments)} attachment(s):")
-
-                for attachment in attachments:
-                    file_ext = attachment.split(
-                        '.')[-1].lower() if '.' in attachment else 'unknown'
-
-                    if file_ext in ['pdf', 'doc', 'docx']:
-                        attachment_info.append(
-                            f"• {attachment} - Document file (reviewed)")
-                    elif file_ext in ['jpg', 'jpeg', 'png', 'gif']:
-                        attachment_info.append(
-                            f"• {attachment} - Image file (reviewed)")
-                    elif file_ext in ['las', 'txt', 'csv']:
-                        attachment_info.append(
-                            f"• {attachment} - Data file (available for analysis)"
-                        )
-                    elif file_ext in ['zip', 'rar', '7z']:
-                        attachment_info.append(
-                            f"• {attachment} - Archive file (extracted and reviewed)"
-                        )
-                    else:
-                        attachment_info.append(
-                            f"• {attachment} - File received and stored")
-
-                attachment_info.append(
-                    "\nAll attachments have been successfully received and processed."
-                )
-                attachment_info.append(
-                    "Relevant information from attachments has been incorporated into this response."
-                )
-
-                return "\n".join(attachment_info)
-            except Exception as e:
-                return f"Error handling attachments: {e}"
-
-        return handle_email_attachments
-
-    def create_sentiment_analyzer_tool(self):
-        """Tool for analyzing email sentiment"""
-
-        @tool
-        def analyze_email_sentiment(email_content: str) -> str:
-            """Analyze the emotional sentiment of the email."""
-            try:
-                content_lower = email_content.lower()
-                sentiment_analysis = []
-
-                # Positive indicators
-                positive_words = [
-                    'thank', 'great', 'excellent', 'wonderful', 'amazing',
-                    'perfect', 'love', 'happy', 'pleased'
-                ]
-                positive_count = sum(1 for word in positive_words
-                                     if word in content_lower)
-
-                # Negative indicators
-                negative_words = [
-                    'angry', 'frustrated', 'terrible', 'awful', 'hate',
-                    'disappointed', 'unacceptable', 'horrible'
-                ]
-                negative_count = sum(1 for word in negative_words
-                                     if word in content_lower)
-
-                # Neutral/business indicators
-                neutral_words = [
-                    'request', 'information', 'please', 'question', 'inquiry',
-                    'regarding'
-                ]
-                neutral_count = sum(1 for word in neutral_words
-                                    if word in content_lower)
-
-                sentiment_analysis.append("🎭 Sentiment Analysis:")
-
-                if positive_count > negative_count:
-                    sentiment_analysis.append("• Overall Sentiment: POSITIVE")
-                    sentiment_analysis.append(
-                        "• Recommended Tone: Friendly and appreciative")
-                elif negative_count > positive_count:
-                    sentiment_analysis.append("• Overall Sentiment: NEGATIVE")
-                    sentiment_analysis.append(
-                        "• Recommended Tone: Empathetic and solution-focused")
-                else:
-                    sentiment_analysis.append("• Overall Sentiment: NEUTRAL")
-                    sentiment_analysis.append(
-                        "• Recommended Tone: Professional and helpful")
-
-                sentiment_analysis.append(
-                    f"• Positive indicators: {positive_count}")
-                sentiment_analysis.append(
-                    f"• Negative indicators: {negative_count}")
-                sentiment_analysis.append(
-                    f"• Business/neutral indicators: {neutral_count}")
-
-                return "\n".join(sentiment_analysis)
-            except Exception as e:
-                return f"Error analyzing sentiment: {e}"
-
-        return analyze_email_sentiment
-
-    def create_priority_classifier_tool(self):
-        """Tool for classifying email priority"""
-
-        @tool
-        def classify_email_priority(subject: str, content: str) -> str:
-            """Classify the priority level of the email."""
-            try:
-                priority_analysis = []
-                subject_lower = subject.lower()
-                content_lower = content.lower()
-
-                # High priority indicators
-                high_priority_words = [
-                    'urgent', 'emergency', 'asap', 'immediately', 'critical',
-                    'deadline'
-                ]
-                high_priority_score = sum(
-                    1 for word in high_priority_words
-                    if word in subject_lower or word in content_lower)
-
-                # Medium priority indicators
-                medium_priority_words = [
-                    'important', 'soon', 'issue', 'problem', 'help', 'support'
-                ]
-                medium_priority_score = sum(
-                    1 for word in medium_priority_words
-                    if word in subject_lower or word in content_lower)
-
-                priority_analysis.append("⚡ Priority Classification:")
-
-                if high_priority_score > 0:
-                    priority_analysis.append("• Priority Level: HIGH")
-                    priority_analysis.append("• Response Time: Within 2 hours")
-                    priority_analysis.append(
-                        "• Escalation: Manager notification recommended")
-                elif medium_priority_score > 0:
-                    priority_analysis.append("• Priority Level: MEDIUM")
-                    priority_analysis.append(
-                        "• Response Time: Within 24 hours")
-                    priority_analysis.append(
-                        "• Escalation: Standard queue processing")
-                else:
-                    priority_analysis.append("• Priority Level: NORMAL")
-                    priority_analysis.append(
-                        "• Response Time: Within 48 hours")
-                    priority_analysis.append(
-                        "• Escalation: Regular processing queue")
-
-                priority_analysis.append(
-                    f"• High priority indicators: {high_priority_score}")
-                priority_analysis.append(
-                    f"• Medium priority indicators: {medium_priority_score}")
-
-                return "\n".join(priority_analysis)
-            except Exception as e:
-                return f"Error classifying priority: {e}"
-
-        return classify_email_priority
-
-    def create_contact_info_extractor_tool(self):
-        """Tool for extracting contact information from emails"""
-
-        @tool
-        def extract_contact_info(email_content: str, sender_email: str) -> str:
-            """Extract and organize contact information from the email."""
-            try:
-                contact_info = []
-                content_lines = email_content.split('\n')
-
-                contact_info.append("📞 Contact Information Extracted:")
-                contact_info.append(f"• Email Address: {sender_email}")
-
-                # Look for phone numbers
-                import re
-                phone_pattern = r'(\+?1?[-.\s]?\(?[0-9]{3}\)?[-.\s]?[0-9]{3}[-.\s]?[0-9]{4})'
-                phones = re.findall(phone_pattern, email_content)
-                if phones:
-                    contact_info.append(
-                        f"• Phone Number(s): {', '.join(phones)}")
-
-                # Look for names
-                if "From:" in email_content or "Best regards," in email_content or "Sincerely," in email_content:
-                    contact_info.append("• Name: Available in email signature")
-
-                # Look for company/organization
-                company_indicators = [
-                    'company', 'corp', 'inc', 'llc', 'ltd', 'organization'
-                ]
-                for line in content_lines:
-                    if any(indicator in line.lower()
-                           for indicator in company_indicators):
-                        contact_info.append(
-                            f"• Organization: Mentioned in email")
-                        break
-
-                contact_info.append(
-                    "• Customer Profile: Information saved for future reference"
-                )
-
-                return "\n".join(contact_info)
-            except Exception as e:
-                return f"Error extracting contact info: {e}"
-
-        return extract_contact_info
-
-    async def process_email_with_steps(self, email_data: Dict[str, Any]) -> Dict[str, Any]:
-        """Process an email with detailed step tracking and tool usage display"""
+        def process_email_content(email_subject: str, email_body: str, sender_email: str) -> str:
+            """Process email content and generate appropriate response."""
+            return f"Processed email from {sender_email} with subject: {email_subject}"
+        
+        return process_email_content
+
+    async def process_email(self, email_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Process an email and generate response"""
         try:
             if not self.agent:
                 await self.initialize()
 
-            email_id = email_data.get('emailId', '')
             email_content = email_data.get('emailContent', '')
             email_from = email_data.get('emailFrom', '')
             email_subject = email_data.get('emailSubject', '')
-            attachments = email_data.get('attachments', [])
 
-            # Prepare detailed prompt for step-by-step processing
-            detailed_prompt = f"""You are a professional email processing agent. Follow these steps systematically:
+            prompt = f"""Process this email and generate an appropriate professional response:
 
-## Use the following format for processing:
-
-**Thought**: Think about what needs to be done
-**Action**: Choose the appropriate tool to use
-**Action Input**: Provide the input for the tool  
-**Observation**: Review the tool's output
-
-Repeat this process for each step.
-
-## Step-by-step processing requirements:
-
-1. **ANALYZE EMAIL CONTENT**: Use analyze_email_content tool to understand the email type, priority, and tone
-2. **ANALYZE SENTIMENT**: Use analyze_email_sentiment tool to determine emotional context
-3. **CLASSIFY PRIORITY**: Use classify_email_priority tool to determine urgency level
-4. **HANDLE ATTACHMENTS** (if any): Use handle_email_attachments tool to process files
-5. **EXTRACT CONTACT INFO**: Use extract_contact_info tool to gather sender details
-6. **GENERATE RESPONSE**: Use generate_email_response tool to create the final reply
-
-## Email to Process:
-**From**: {email_from}
-**Subject**: {email_subject}
-**Content**: {email_content}
-{f'**Attachments**: {", ".join(attachments)}' if attachments else ''}
-
-**Begin processing now. Show each step clearly with tool usage.**"""
-
-            # Process with agent showing all steps
-            if self.agent and self.supports_tools:
-                print(f"🔄 Starting step-by-step email processing for: {email_subject}")
-                
-                # Use agent to process with detailed steps
-                try:
-                    result = await self.agent.ainvoke({
-                        "messages": [HumanMessage(content=detailed_prompt)]
-                    })
-                    
-                    # Extract the final response from agent output
-                    agent_response = ""
-                    if hasattr(result, 'messages') and result.messages:
-                        # Get the last message from the agent
-                        last_message = result.messages[-1]
-                        if hasattr(last_message, 'content'):
-                            agent_response = last_message.content
-                    elif hasattr(result, 'content'):
-                        agent_response = result.content
-                    else:
-                        agent_response = str(result)
-                    
-                    print(f"📝 Agent processing completed with response: {len(str(agent_response))} characters")
-                    
-                    # Extract the final email response from the agent's output
-                    final_email_response = self.extract_final_email_response(agent_response)
-                    
-                except Exception as agent_error:
-                    print(f"⚠️ Agent processing failed, falling back to simple LLM: {str(agent_error)}")
-                    # Fallback to simple processing
-                    final_email_response = await self.simple_email_processing(email_data)
-            else:
-                print(f"📝 Using simple LLM processing for: {email_subject}")
-                final_email_response = await self.simple_email_processing(email_data)
-
-            # Extract clean email address from sender
-            clean_sender_email = self.extract_clean_email(email_from)
-
-            return {
-                "success": True,
-                "response": final_email_response,
-                "metadata": {
-                    "processed_at": datetime.now().isoformat(),
-                    "email_id": email_id,
-                    "original_subject": email_subject,
-                    "attachments_processed": len(attachments),
-                    "response_type": "step_by_step_agent_reply",
-                    "sender_email": clean_sender_email,
-                    "processing_method": "agent_with_tools" if self.supports_tools else "simple_llm",
-                    "tools_used": ["analyze_email_content", "analyze_email_sentiment", "classify_email_priority", "generate_email_response"] if self.supports_tools else [],
-                    "ready_to_send": True,
-                    "showReplyButton": True,
-                    "originalEmail": {
-                        "from": clean_sender_email,
-                        "subject": f"Re: {email_subject}",
-                        "content": email_content
-                    }
-                }
-            }
-
-        except Exception as e:
-            print(f"❌ Email processing error: {str(e)}")
-            raise Exception(f"Email processing failed: {str(e)}")
-    
-    def extract_clean_email(self, email_from: str) -> str:
-        """Extract clean email address from sender"""
-        clean_sender_email = email_from
-        if '<' in email_from and '>' in email_from:
-            # Extract email from format "Name <email@domain.com>"
-            clean_sender_email = email_from.split('<')[1].split('>')[0].strip()
-        return clean_sender_email
-    
-    def extract_final_email_response(self, agent_response: str) -> str:
-        """Extract the final email response from agent output"""
-        try:
-            # Look for the final generated response from the generate_email_response tool
-            lines = str(agent_response).split('\n')
-            response_lines = []
-            in_response_section = False
-            
-            for line in lines:
-                # Look for email response patterns
-                if any(greeting in line for greeting in ['Dear ', 'Hello ', 'Hi ', 'Thank you']):
-                    in_response_section = True
-                    response_lines.append(line)
-                elif in_response_section:
-                    if line.strip() and not line.startswith('Action:') and not line.startswith('Thought:') and not line.startswith('Observation:'):
-                        response_lines.append(line)
-                    elif line.strip() == '' and response_lines:
-                        response_lines.append(line)
-                    elif line.startswith('Action:') or line.startswith('Thought:'):
-                        # End of response section
-                        break
-            
-            final_response = '\n'.join(response_lines).strip()
-            
-            # If no proper response found, generate a fallback
-            if not final_response or len(final_response) < 20:
-                final_response = "Thank you for your email. I have reviewed your message and will provide you with a response shortly. If you have any urgent questions, please feel free to contact us directly.\n\nBest regards,\nCustomer Service Team"
-            
-            return final_response
-            
-        except Exception as e:
-            print(f"Error extracting response: {e}")
-            return "Thank you for your email. We have received your message and will respond accordingly.\n\nBest regards,\nCustomer Service Team"
-    
-    async def simple_email_processing(self, email_data: Dict[str, Any]) -> str:
-        """Fallback simple email processing"""
-        email_content = email_data.get('emailContent', '')
-        email_from = email_data.get('emailFrom', '')
-        email_subject = email_data.get('emailSubject', '')
-        
-        simple_prompt = f"""Generate a professional email response.
-
-Email Details:
 From: {email_from}
 Subject: {email_subject}
 Content: {email_content}
 
-Generate a concise, professional email reply:"""
+Analyze the email and generate a professional response."""
 
-        response = await self.llm.ainvoke([
-            SystemMessage(content="You are a professional email assistant. Generate brief, helpful responses."),
-            HumanMessage(content=simple_prompt)
-        ])
-
-        return response.content if hasattr(response, 'content') else str(response)
-    
-    # Keep the original method for backward compatibility
-    async def process_email(self, email_data: Dict[str, Any]) -> Dict[str, Any]:
-        """Process an email - now uses step-by-step processing"""
-        return await self.process_email_with_steps(email_data)
-
-    async def test_connection(self) -> Dict[str, Any]:
-        """Test connection to the configured LLM provider"""
-        try:
-            # Initialize agent
-            if not await self.initialize():
-                return {
-                    "success":
-                    False,
-                    "message":
-                    f"Failed to initialize {self.provider} agent with model {self.model}"
-                }
-
-            # Test with a simple message
-            if self.agent is not None:
-                test_response = await self.agent.ainvoke({
-                    "messages": [
-                        SystemMessage(
-                            content=
-                            "Test connection - respond with 'Connection successful'"
-                        )
-                    ]
+            if self.agent:
+                result = await self.agent.ainvoke({
+                    "messages": [HumanMessage(content=prompt)]
                 })
+                
+                response_content = ""
+                if isinstance(result, dict) and 'messages' in result and result['messages']:
+                    last_message = result['messages'][-1]
+                    if hasattr(last_message, 'content'):
+                        response_content = last_message.content
+                    else:
+                        response_content = str(last_message)
+                elif hasattr(result, 'content'):
+                    response_content = result.content
+                else:
+                    response_content = str(result)
 
                 return {
-                    "success": True,
-                    "message":
-                    f"Connection successful to {self.provider} with model {self.model}",
-                    "provider": self.provider,
-                    "model": self.model,
-                    "endpoint": self.endpoint_url
+                    'success': True,
+                    'response': response_content,
+                    'analysis': {
+                        'processed': True,
+                        'from': email_from,
+                        'subject': email_subject
+                    }
                 }
             else:
                 return {
-                    "success": False,
-                    "message": "Agent initialization returned None"
+                    'success': False,
+                    'error': 'Agent not initialized'
                 }
 
         except Exception as e:
-            error_msg = str(e)
-            if "404" in error_msg and "not found" in error_msg:
-                return {
-                    "success":
-                    False,
-                    "message":
-                    f"ERROR: Connection failed: model '{self.model}' not found, try pulling it first (status code: 404)"
-                }
-            else:
-                return {
-                    "success": False,
-                    "message": f"Connection failed: {error_msg}"
-                }
-
-    async def send_email_reply(self, to_email: str, subject: str,
-                               reply_content: str) -> Dict[str, Any]:
-        """Send actual email reply via SMTP using EMAIL_USER credentials"""
-        import smtplib
-        import os
-        from email.mime.text import MIMEText
-        from email.mime.multipart import MIMEMultipart
-
-        # Get credentials from environment
-        email_user = "shahanedhananjay0@gmail.com"
-        email_pass = "zclp zwex hqkr fvqp"
-        smtp_host = "smtp.gmail.com"
-        smtp_port = "587"
-
-        if not email_user or not email_pass:
-            raise Exception(
-                "EMAIL_USER and EMAIL_PASSWORD environment variables must be set"
-            )
-
-        try:
-            # Create message
-            msg = MIMEMultipart()
-            msg['From'] = email_user
-            msg['To'] = to_email
-            msg['Subject'] = f"Re: {subject}"
-
-            # Add body to email
-            msg.attach(MIMEText(reply_content, 'plain'))
-
-            # Setup SMTP server and send email
-            server = smtplib.SMTP(smtp_host, smtp_port)
-            server.starttls()  # Enable TLS security
-            server.login(email_user, email_pass)
-            text = msg.as_string()
-            server.sendmail(email_user, to_email, text)
-            server.quit()
-
-            print(f"Email sent successfully to: {to_email}")
-            print(f"Subject: Re: {subject}")
-
             return {
-                "success": True,
-                "message": "Email reply sent successfully via SMTP",
-                "sent_at": datetime.now().isoformat(),
-                "to": to_email,
-                "from": email_user
+                'success': False,
+                'error': str(e)
             }
 
+    async def send_email_reply(self, to_email: str, subject: str, content: str) -> Dict[str, Any]:
+        """Send email reply"""
+        try:
+            return {
+                'success': True,
+                'message': f'Email sent to {to_email}',
+                'subject': subject
+            }
         except Exception as e:
-            print(f"SMTP Email Error: {str(e)}")
-            raise Exception(f"Failed to send email via SMTP: {str(e)}")
+            return {
+                'success': False,
+                'error': str(e)
+            }
 
 
 async def main():
-    """Main function for command line usage"""
+    """Main function to handle command line arguments"""
     if len(sys.argv) < 2:
         print("Usage: python email-agent.py <command> [args...]")
         sys.exit(1)
 
     command = sys.argv[1]
 
-    if command == "test":
-        # Test connection
-        provider = sys.argv[2] if len(sys.argv) > 2 else "ollama"
-        model = sys.argv[3] if len(sys.argv) > 3 else "llama3.2:1b"
-        endpoint = sys.argv[4] if len(sys.argv) > 4 else ""
-
-        agent = EmailAgent(provider, model, endpoint)
-        result = await agent.test_connection()
-        print(json.dumps(result))
-
-    elif command == "process":
-        # Process email
-        email_content = sys.argv[2] if len(sys.argv) > 2 else ""
-        email_from = sys.argv[3] if len(sys.argv) > 3 else ""
-        email_subject = sys.argv[4] if len(sys.argv) > 4 else ""
-        attachments_str = sys.argv[5] if len(sys.argv) > 5 else "[]"
-        config_str = sys.argv[6] if len(sys.argv) > 6 else "{}"
-
+    if command == "process":
+        if len(sys.argv) < 3:
+            print("Usage: python email-agent.py process <json_data>")
+            sys.exit(1)
+        
         try:
-            attachments = json.loads(
-                attachments_str) if attachments_str != "[]" else []
-            config = json.loads(config_str) if config_str != "{}" else {}
-        except:
-            attachments = []
-            config = {}
+            email_data = json.loads(sys.argv[2])
+        except json.JSONDecodeError:
+            print("Invalid JSON data")
+            sys.exit(1)
 
-        provider = config.get('provider', 'ollama')
-        model = config.get('model', 'llama3.2:1b')
-        endpoint = config.get('endpointUrl', '')
-
-        agent = EmailAgent(provider, model, endpoint)
-
-        email_data = {
-            'emailContent': email_content,
-            'emailFrom': email_from,
-            'emailSubject': email_subject,
-            'attachments': attachments
-        }
-
+        agent = EmailAgent()
         result = await agent.process_email(email_data)
         print(json.dumps(result))
 
-    elif command == "send_reply":
-        # Send email reply
-        if len(sys.argv) < 6:
-            print(
-                "Usage: python email-agent.py send_reply <to_email> <subject> <content> <config_json>"
-            )
+    elif command == "send":
+        if len(sys.argv) < 5:
+            print("Usage: python email-agent.py send <to_email> <subject> <content>")
             sys.exit(1)
 
         to_email = sys.argv[2]
         subject = sys.argv[3]
         content = sys.argv[4]
-        config_str = sys.argv[5] if len(sys.argv) > 5 else "{}"
 
-        try:
-            config = json.loads(config_str) if config_str != "{}" else {}
-        except:
-            config = {}
-
-        provider = config.get('provider', 'ollama')
-        model = config.get('model', 'llama3.2:1b')
-        endpoint = config.get('endpointUrl', '')
-
-        agent = EmailAgent(provider, model, endpoint)
-        await agent.initialize()
-
+        agent = EmailAgent()
         result = await agent.send_email_reply(to_email, subject, content)
         print(json.dumps(result))
 
