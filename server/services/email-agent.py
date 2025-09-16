@@ -665,9 +665,9 @@ Customer Service Team"""
             if not self.agent:
                 await self.initialize()
 
-            email_content = email_data.get('emailContent', '')
-            email_from = email_data.get('emailFrom', '')
-            email_subject = email_data.get('emailSubject', '')
+            email_content = email_data.get('body', '')
+            email_from = email_data.get('from', '')
+            email_subject = email_data.get('subject', '')
 
             prompt = f"""Process this email and generate an appropriate professional response:
 
