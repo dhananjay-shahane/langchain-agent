@@ -5,6 +5,60 @@
     "size": "0.00MB",
     "source": "manual",
     "processed": false,
+    "id": "0e2bb686-de0c-48ac-82ba-3afa8e8c88f8",
+    "createdAt": "2025-09-16T11:12:28.583Z"
+  },
+  {
+    "filename": "4771-36-SESE.las",
+    "filepath": "/home/runner/workspace/data/email-attachments/4771-36-SESE.las",
+    "size": "0.02MB",
+    "source": "manual",
+    "processed": false,
+    "id": "a42473eb-610c-48d1-b8af-f0409e9c6aa4",
+    "createdAt": "2025-09-16T11:12:28.579Z"
+  },
+  {
+    "filename": "well_log_02.las",
+    "filepath": "/home/runner/workspace/data/samples/well_log_02.las",
+    "size": "0.00MB",
+    "source": "manual",
+    "processed": false,
+    "id": "640093c1-4845-4243-b941-af24393abff9",
+    "createdAt": "2025-09-16T11:12:03.529Z"
+  },
+  {
+    "filename": "sample_well_01.las",
+    "filepath": "/home/runner/workspace/data/samples/sample_well_01.las",
+    "size": "0.00MB",
+    "source": "manual",
+    "processed": false,
+    "id": "bbfd7a38-3435-467d-9d29-fcde5c490758",
+    "createdAt": "2025-09-16T11:12:03.527Z"
+  },
+  {
+    "filename": "4771-36-SESE.las",
+    "filepath": "/home/runner/workspace/data/email-attachments/4771-36-SESE.las",
+    "size": "0.02MB",
+    "source": "manual",
+    "processed": false,
+    "id": "de9838e5-f791-483a-82dd-5b1ff42bcebc",
+    "createdAt": "2025-09-16T11:12:03.524Z"
+  },
+  {
+    "filename": "well_log_02.las",
+    "filepath": "/home/runner/workspace/data/samples/well_log_02.las",
+    "size": "0.00MB",
+    "source": "manual",
+    "processed": false,
+    "id": "926d9f49-11a2-43ac-a6ba-062075880dd0",
+    "createdAt": "2025-09-16T10:58:50.293Z"
+  },
+  {
+    "filename": "sample_well_01.las",
+    "filepath": "/home/runner/workspace/data/samples/sample_well_01.las",
+    "size": "0.00MB",
+    "source": "manual",
+    "processed": false,
     "id": "b9177ef1-c12f-404b-a9be-ae10017e1142",
     "createdAt": "2025-09-16T10:58:50.292Z"
   },
@@ -779,7 +833,7 @@
     "size": "0.00MB",
     "source": "manual",
     "processed": false,
-    "id": "926d9f49-11a2-43ac-a6ba-062075880dd0",
-    "createdAt": "2025-09-16T10:58:50.293Z"
+    "id": "c87ea707-58af-4f92-9ed5-3d10b20527de",
+    "createdAt": "2025-09-16T11:12:28.584Z"
   }
 ]
