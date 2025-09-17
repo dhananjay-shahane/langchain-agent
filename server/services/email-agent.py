@@ -716,17 +716,75 @@ Analyze the email and generate a professional response."""
             }
 
     async def send_email_reply(self, to_email: str, subject: str, content: str) -> Dict[str, Any]:
-        """Send email reply"""
+        """Send email reply using SMTP"""
+        import smtplib
+        from email.mime.text import MIMEText
+        from email.mime.multipart import MIMEMultipart
+        
         try:
+            # Get email configuration from environment
+            email_user = os.getenv('EMAIL_USER')
+            email_password = os.getenv('EMAIL_PASSWORD')
+            smtp_server = os.getenv('SMTP_SERVER', 'smtp.gmail.com')
+            smtp_port = int(os.getenv('SMTP_PORT', '587'))
+            
+            if not email_user or not email_password:
+                return {
+                    'success': False,
+                    'error': 'Email credentials not configured. Please set EMAIL_USER and EMAIL_PASSWORD environment variables.'
+                }
+            
+            # Create message
+            msg = MIMEMultipart()
+            msg['From'] = email_user
+            msg['To'] = to_email
+            msg['Subject'] = subject
+            
+            # Add body to email
+            msg.attach(MIMEText(content, 'plain'))
+            
+            # Create SMTP session with appropriate security
+            if smtp_port == 465 or os.getenv('SMTP_SECURE', '').lower() == 'ssl':
+                # Use implicit SSL
+                server = smtplib.SMTP_SSL(smtp_server, smtp_port)
+            else:
+                # Use explicit TLS
+                server = smtplib.SMTP(smtp_server, smtp_port)
+                server.starttls()  # Enable TLS encryption
+                
+            server.login(email_user, email_password)
+            
+            # Send email
+            text = msg.as_string()
+            server.sendmail(email_user, to_email, text)
+            server.quit()
+            
             return {
                 'success': True,
-                'message': f'Email sent to {to_email}',
-                'subject': subject
+                'message': f'Email sent successfully to {to_email}',
+                'subject': subject,
+                'sent_at': datetime.now().isoformat()
+            }
+            
+        except smtplib.SMTPAuthenticationError:
+            return {
+                'success': False,
+                'error': 'SMTP authentication failed. Please check your email credentials.'
+            }
+        except smtplib.SMTPRecipientsRefused:
+            return {
+                'success': False,
+                'error': f'Recipient email address "{to_email}" was rejected by the server.'
+            }
+        except smtplib.SMTPException as e:
+            return {
+                'success': False,
+                'error': f'SMTP error occurred: {str(e)}'
             }
         except Exception as e:
             return {
                 'success': False,
-                'error': str(e)
+                'error': f'Failed to send email: {str(e)}'
             }
 
 
@@ -753,16 +811,26 @@ async def main():
         result = await agent.process_email(email_data)
         print(json.dumps(result))
 
-    elif command == "send":
+    elif command == "send" or command == "send_reply":
         if len(sys.argv) < 5:
-            print("Usage: python email-agent.py send <to_email> <subject> <content>")
+            print("Usage: python email-agent.py send_reply <to_email> <subject> <content> [config_json]")
             sys.exit(1)
 
         to_email = sys.argv[2]
         subject = sys.argv[3]
         content = sys.argv[4]
+        config_json = sys.argv[5] if len(sys.argv) > 5 else "{}"
+        
+        try:
+            config = json.loads(config_json)
+        except json.JSONDecodeError:
+            config = {}
 
-        agent = EmailAgent()
+        agent = EmailAgent(
+            provider=config.get('provider', 'ollama'),
+            model=config.get('model', 'llama3.2:1b'),
+            endpoint_url=config.get('endpointUrl', '')
+        )
         result = await agent.send_email_reply(to_email, subject, content)
         print(json.dumps(result))
 
