@@ -1,102 +1,21 @@
 [
   {
     "filename": "sample_well_01.las",
-    "filepath": "/home/runner/workspace/data/samples/sample_well_01.las",
+    "filepath": "C:\\Users\\Dhananjay\\Documents\\GitHub\\langchain-agent\\data\\samples\\sample_well_01.las",
     "size": "0.00MB",
     "source": "manual",
     "processed": false,
-    "id": "47a68275-c5eb-4e83-a5e8-73f522c60a54",
-    "createdAt": "2025-09-17T10:57:42.366Z"
+    "id": "22c3cc53-b28e-4b21-b78e-757de34e938e",
+    "createdAt": "2025-09-17T12:30:18.017Z"
   },
   {
     "filename": "4771-36-SESE.las",
-    "filepath": "/home/runner/workspace/data/email-attachments/4771-36-SESE.las",
+    "filepath": "C:\\Users\\Dhananjay\\Documents\\GitHub\\langchain-agent\\data\\email-attachments\\4771-36-SESE.las",
     "size": "0.02MB",
     "source": "manual",
     "processed": false,
-    "id": "79fbbe0b-802a-442f-acd8-711b2d49b27c",
-    "createdAt": "2025-09-17T10:57:42.365Z"
-  },
-  {
-    "filename": "well_log_02.las",
-    "filepath": "/home/runner/workspace/data/samples/well_log_02.las",
-    "size": "0.00MB",
-    "source": "manual",
-    "processed": false,
-    "id": "c003b5a3-843a-454a-81ec-9985ae8696e0",
-    "createdAt": "2025-09-17T10:33:18.151Z"
-  },
-  {
-    "filename": "sample_well_01.las",
-    "filepath": "/home/runner/workspace/data/samples/sample_well_01.las",
-    "size": "0.00MB",
-    "source": "manual",
-    "processed": false,
-    "id": "3d977d24-fdea-43db-be5c-75e95f8378f6",
-    "createdAt": "2025-09-17T10:33:18.150Z"
-  },
-  {
-    "filename": "4771-36-SESE.las",
-    "filepath": "/home/runner/workspace/data/email-attachments/4771-36-SESE.las",
-    "size": "0.02MB",
-    "source": "manual",
-    "processed": false,
-    "id": "1e2867f3-fc66-41bb-bbeb-ebd9fbf5c810",
-    "createdAt": "2025-09-17T10:33:18.149Z"
-  },
-  {
-    "filename": "well_log_02.las",
-    "filepath": "/home/runner/workspace/data/samples/well_log_02.las",
-    "size": "0.00MB",
-    "source": "manual",
-    "processed": false,
-    "id": "02ee08c0-6f3b-4708-a055-785b330172c9",
-    "createdAt": "2025-09-17T10:31:59.308Z"
-  },
-  {
-    "filename": "sample_well_01.las",
-    "filepath": "/home/runner/workspace/data/samples/sample_well_01.las",
-    "size": "0.00MB",
-    "source": "manual",
-    "processed": false,
-    "id": "7bacd4d3-8aa7-44eb-8505-8a6271fc9fb0",
-    "createdAt": "2025-09-17T10:31:59.307Z"
-  },
-  {
-    "filename": "4771-36-SESE.las",
-    "filepath": "/home/runner/workspace/data/email-attachments/4771-36-SESE.las",
-    "size": "0.02MB",
-    "source": "manual",
-    "processed": false,
-    "id": "05010533-1216-40de-a101-3ea1967c30ac",
-    "createdAt": "2025-09-17T10:31:59.303Z"
-  },
-  {
-    "filename": "well_log_02.las",
-    "filepath": "C:\\Users\\Dhananjay\\Documents\\GitHub\\langchain-agent\\data\\samples\\well_log_02.las",
-    "size": "0.00MB",
-    "source": "manual",
-    "processed": false,
-    "id": "a9acfda2-1184-4044-a455-989114466f0f",
-    "createdAt": "2025-09-17T03:18:29.038Z"
-  },
-  {
-    "filename": "4771-36-SESE.las",
-    "filepath": "/home/runner/workspace/data/email-attachments/4771-36-SESE.las",
-    "size": "0.02MB",
-    "source": "manual",
-    "processed": false,
-    "id": "e69e2a77-9035-47bf-9c36-f9652b59676c",
-    "createdAt": "2025-09-15T04:21:21.243Z"
-  },
-  {
-    "filename": "sample_well_01.las",
-    "filepath": "/home/runner/workspace/data/samples/sample_well_01.las",
-    "size": "0.00MB",
-    "source": "manual",
-    "processed": false,
-    "id": "eb99cb90-25c0-4a18-84db-960b961e9b7c",
-    "createdAt": "2025-09-15T04:21:21.243Z"
+    "id": "74953423-3e16-4894-91c4-032cb77d6884",
+    "createdAt": "2025-09-17T12:30:18.007Z"
   },
   {
     "filename": "well_log_02.las",

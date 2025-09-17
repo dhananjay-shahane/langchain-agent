@@ -1,6 +1,14 @@
 [
   {
     "filename": "APACHE_1H-15_gamma_20250917_112128.png",
+    "filepath": "C:\\Users\\Dhananjay\\Documents\\GitHub\\langchain-agent\\output\\APACHE_1H-15_gamma_20250917_112128.png",
+    "type": "plot",
+    "id": "ba194967-8556-4b5c-9690-ab311790b34a",
+    "createdAt": "2025-09-17T12:30:17.873Z",
+    "relatedLasFile": null
+  },
+  {
+    "filename": "APACHE_1H-15_gamma_20250917_112128.png",
     "filepath": "/home/runner/workspace/output/APACHE_1H-15_gamma_20250917_112128.png",
     "type": "plot",
     "id": "930f8dd7-5d14-4510-94ff-c9e3fc76dabd",
