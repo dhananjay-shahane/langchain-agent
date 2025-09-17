@@ -4,6 +4,7 @@ LangChain Agent with MCP Integration for LAS File Processing
 """
 import sys
 import json
+import re
 import asyncio
 import os
 from pathlib import Path
@@ -29,6 +30,63 @@ class LangChainMCPAgent:
         self.llm = None
         self.agent = None
         self.mcp_client = None
+
+    @staticmethod
+    def extract_filename_from_tool_output(tool_output: str) -> str:
+        """Extract filename from MCP tool output message.
+        
+        Args:
+            tool_output: Tool response message like "✅ Gamma Ray Plot Created: filename.png"
+            
+        Returns:
+            Extracted filename or original tool_output if parsing fails
+        """
+        try:
+            # First try to parse as JSON and look for output_file
+            try:
+                data = json.loads(tool_output)
+                if "output_file" in data:
+                    return os.path.basename(data["output_file"])
+            except json.JSONDecodeError:
+                pass
+            
+            # Use regex to extract filename pattern from common tool responses
+            filename_pattern = r'([A-Za-z0-9_./\\-]+\.(?:png|jpg|jpeg|svg|pdf|json|txt|las))'
+            matches = re.findall(filename_pattern, tool_output, re.IGNORECASE)
+            
+            if matches:
+                # Get the last match (most likely to be the actual filename)
+                filename = matches[-1]
+                return os.path.basename(filename)
+            
+            # Fallback: strip common prefixes if no filename pattern found
+            prefixes_to_strip = [
+                "✅ Gamma Ray Plot Created: ",
+                "✅ Porosity Plot Created: ",
+                "✅ Resistivity Plot Created: ",
+                "Plot saved as ",
+                "created successfully: ",
+                "SUCCESS: "
+            ]
+            
+            result = tool_output
+            for prefix in prefixes_to_strip:
+                if result.startswith(prefix):
+                    result = result[len(prefix):]
+                    break
+            
+            # Clean up any trailing description after newlines
+            result = result.split('\n')[0].strip()
+            
+            # If result looks like a filename, return basename, otherwise return original
+            if re.match(r'^[A-Za-z0-9_.-]+\.(png|jpg|jpeg|svg|pdf|json|txt|las)$', result, re.IGNORECASE):
+                return os.path.basename(result)
+                
+            return tool_output
+            
+        except Exception as e:
+            print(f"Error extracting filename from tool output: {e}")
+            return tool_output
         
     async def initialize(self):
         """Initialize the LangChain agent"""
@@ -517,6 +575,7 @@ class LangChainMCPAgent:
         # Extract thinking steps from all messages
         thinking_steps = []
         final_response = ""
+        generated_files = []
         
         messages = response.get("messages", [])
         ai_messages = []
@@ -551,11 +610,26 @@ class LangChainMCPAgent:
                             
                 elif message.type == 'tool':
                     # This is a tool response (Action Input result)
+                    tool_content = str(message.content)
                     thinking_steps.append({
                         "type": "action_result", 
-                        "content": str(message.content),
+                        "content": tool_content,
                         "tool_name": getattr(message, 'name', 'unknown_tool')
                     })
+                    
+                    # Check if this tool result contains a generated file
+                    tool_name = getattr(message, 'name', 'unknown_tool')
+                    if any(keyword in tool_name.lower() for keyword in ['plot', 'create', 'generate']) and \
+                       any(keyword in tool_content.lower() for keyword in ['created', 'saved', 'success']):
+                        extracted_filename = self.extract_filename_from_tool_output(tool_content)
+                        # Only add to generated_files if we successfully extracted a proper filename
+                        if extracted_filename != tool_content and extracted_filename.lower().endswith(('.png', '.jpg', '.jpeg', '.svg')):
+                            generated_files.append({
+                                "filename": extracted_filename,
+                                "filepath": f"output/{extracted_filename}",
+                                "type": "plot",
+                                "relatedLasFile": selected_las_file
+                            })
         
         # Find the final response - use the last AI message without tool calls
         for message in reversed(ai_messages):
@@ -569,36 +643,7 @@ class LangChainMCPAgent:
             if hasattr(last_ai_message, 'content') and last_ai_message.content:
                 final_response = str(last_ai_message.content)
         
-        # Check if any files were generated and actually create them
-        generated_files = []
-        if any(keyword in content.lower() for keyword in ['plot', 'chart', 'graph', 'visualize']):
-            # Extract plot type from content
-            plot_type = "porosity"
-            if "gamma" in content.lower():
-                plot_type = "gamma"
-            elif "resistivity" in content.lower():
-                plot_type = "resistivity"
-            elif "depth" in content.lower():
-                plot_type = "depth"
-            
-            # Call the simple plotting script to actually generate the file
-            import subprocess
-            try:
-                result = subprocess.run([
-                    "python", "scripts/simple_las_plotter.py", 
-                    selected_las_file, plot_type
-                ], capture_output=True, text=True, timeout=30)
-                
-                if result.returncode == 0 and "SUCCESS:" in result.stdout:
-                    filename = result.stdout.split("SUCCESS: ")[1].strip()
-                    generated_files.append({
-                        "filename": filename,
-                        "filepath": f"output/{filename}",
-                        "type": "plot",
-                        "relatedLasFile": selected_las_file
-                    })
-            except Exception as e:
-                print(f"Error generating plot: {e}")
+        # Note: Generated files are now detected and processed from tool responses above
         
         return {
             "content": final_response,
