@@ -490,7 +490,7 @@ class LangChainMCPAgent:
                 return {"success": False, "message": f"Connection failed: {error_msg}"}
     
     async def process_message(self, content: str, selected_las_file: str = "") -> Dict[str, Any]:
-        """Process a user message and return agent response"""
+        """Process a user message and return agent response with thinking steps"""
         if not self.agent:
             await self.initialize()
         
@@ -514,8 +514,60 @@ class LangChainMCPAgent:
             ]
         })
         
-        # Extract response content
-        agent_response = response["messages"][-1].content
+        # Extract thinking steps from all messages
+        thinking_steps = []
+        final_response = ""
+        
+        messages = response.get("messages", [])
+        ai_messages = []
+        
+        for i, message in enumerate(messages):
+            # Skip the initial system and human messages
+            if i < 2:
+                continue
+                
+            if hasattr(message, 'type'):
+                if message.type == 'ai':
+                    ai_messages.append(message)
+                    
+                    # Check if this is a thinking step (contains reasoning) or tool call
+                    if hasattr(message, 'tool_calls') and message.tool_calls:
+                        # This is an Action step
+                        for tool_call in message.tool_calls:
+                            thinking_steps.append({
+                                "type": "action",
+                                "tool_name": tool_call.get("name", "unknown_tool"),
+                                "tool_input": tool_call.get("args", {}),
+                                "content": f"Using tool: {tool_call.get('name', 'unknown_tool')}"
+                            })
+                    elif hasattr(message, 'content') and message.content and not final_response:
+                        # Check if this looks like a thought based on reasoning keywords
+                        content_text = str(message.content)
+                        if any(keyword in content_text.lower() for keyword in ['think', 'need to', 'should', 'let me', 'i will', 'analyze', 'consider', 'plan']):
+                            thinking_steps.append({
+                                "type": "thought",
+                                "content": content_text
+                            })
+                            
+                elif message.type == 'tool':
+                    # This is a tool response (Action Input result)
+                    thinking_steps.append({
+                        "type": "action_result", 
+                        "content": str(message.content),
+                        "tool_name": getattr(message, 'name', 'unknown_tool')
+                    })
+        
+        # Find the final response - use the last AI message without tool calls
+        for message in reversed(ai_messages):
+            if hasattr(message, 'content') and message.content and not (hasattr(message, 'tool_calls') and message.tool_calls):
+                final_response = str(message.content)
+                break
+        
+        # Fallback: if no final response found, use the last AI message content
+        if not final_response and ai_messages:
+            last_ai_message = ai_messages[-1]
+            if hasattr(last_ai_message, 'content') and last_ai_message.content:
+                final_response = str(last_ai_message.content)
         
         # Check if any files were generated and actually create them
         generated_files = []
@@ -549,7 +601,8 @@ class LangChainMCPAgent:
                 print(f"Error generating plot: {e}")
         
         return {
-            "content": agent_response,
+            "content": final_response,
+            "thinking_steps": thinking_steps,
             "metadata": {
                 "tool_usage": True,
                 "selected_file": selected_las_file,

@@ -353,9 +353,34 @@
     "metadata": {
       "tool_usage": true,
       "selected_file": "",
-      "processing_time": "2025-09-17T09:16:23.963746"
+      "processing_time": "2025-09-17T09:16:23.963Z"
     },
     "id": "5942bcbf-3f90-4e64-a315-f43ba8ddb060",
     "timestamp": "2025-09-17T03:46:24.661Z"
+  },
+  {
+    "role": "user",
+    "content": "hi",
+    "id": "292dae43-8582-4e52-a4b0-082c469893c8",
+    "timestamp": "2025-09-17T10:42:34.401Z",
+    "metadata": null
+  },
+  {
+    "role": "agent",
+    "content": "Processing your request...",
+    "metadata": {
+      "thinking": true
+    },
+    "id": "be548cf8-ec82-400f-9a3e-b7704d523048",
+    "timestamp": "2025-09-17T10:42:34.408Z"
+  },
+  {
+    "role": "agent",
+    "content": "Processing error: All connection attempts failed",
+    "metadata": {
+      "error": true
+    },
+    "id": "73e76d18-e00a-4e43-a661-762032bf8659",
+    "timestamp": "2025-09-17T10:42:45.523Z"
   }
 ]

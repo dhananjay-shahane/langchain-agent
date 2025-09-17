@@ -1085,11 +1085,14 @@ async function processUserMessage(content: string, selectedLasFile?: string) {
           throw new Error("Invalid response format");
         }
         
-        // Remove thinking message and add real response
+        // Remove thinking message and add real response with thinking steps
         const agentMessage = await storage.addChatMessage({
           role: "agent",
           content: response.content,
-          metadata: response.metadata || {}
+          metadata: {
+            ...(response.metadata || {}),
+            thinking_steps: response.thinking_steps || []
+          }
         });
         
         global.io?.emit("agent_response", agentMessage);
