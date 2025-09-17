@@ -6,5 +6,13 @@
     "id": "cfb429ed-4305-43f3-9827-5f5d3021a74d",
     "createdAt": "2025-09-17T10:49:03.028Z",
     "relatedLasFile": null
+  },
+  {
+    "filename": "APACHE_1H-15_porosity_20250917_104902.png",
+    "filepath": "/home/runner/workspace/output/APACHE_1H-15_porosity_20250917_104902.png",
+    "type": "plot",
+    "id": "586308d9-caca-4fa2-81c6-4ba47da15fa1",
+    "createdAt": "2025-09-17T10:57:42.358Z",
+    "relatedLasFile": null
   }
 ]
