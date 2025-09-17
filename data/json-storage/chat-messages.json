@@ -432,9 +432,25 @@
     "metadata": {
       "tool_usage": true,
       "selected_file": "",
-      "processing_time": "2025-09-17T10:51:05.941429"
+      "processing_time": "2025-09-17T10:51:05.941Z"
     },
     "id": "56565197-43e8-42c0-a3b1-316611ee0472",
     "timestamp": "2025-09-17T10:51:06.200Z"
+  },
+  {
+    "role": "user",
+    "content": "hi",
+    "id": "1d7a1417-1479-4c78-9b55-87361531b610",
+    "timestamp": "2025-09-17T11:12:01.506Z",
+    "metadata": null
+  },
+  {
+    "role": "agent",
+    "content": "Processing your request...",
+    "metadata": {
+      "thinking": true
+    },
+    "id": "68cfac89-4885-4c6e-adaa-c168d47c8d70",
+    "timestamp": "2025-09-17T11:12:01.511Z"
   }
 ]
