@@ -382,5 +382,21 @@
     },
     "id": "73e76d18-e00a-4e43-a661-762032bf8659",
     "timestamp": "2025-09-17T10:42:45.523Z"
+  },
+  {
+    "role": "user",
+    "content": "hello",
+    "id": "4cb2bf26-d017-48b3-aca8-49eedc27ef9d",
+    "timestamp": "2025-09-17T10:43:12.720Z",
+    "metadata": null
+  },
+  {
+    "role": "agent",
+    "content": "Processing your request...",
+    "metadata": {
+      "thinking": true
+    },
+    "id": "8aeeb07a-cd51-43ee-9696-2b6077dceb7c",
+    "timestamp": "2025-09-17T10:43:12.722Z"
   }
 ]
