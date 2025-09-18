@@ -367,11 +367,296 @@ def create_resistivity_plot(filename: str) -> Dict[str, Any]:
         }
 
 
+def create_density_plot(filename: str) -> Dict[str, Any]:
+    """Create a real density plot from LAS file data."""
+    try:
+        # Find and read LAS file
+        data_dir = Path("data")
+        las_path = None
+        
+        for path in data_dir.rglob(filename):
+            if path.suffix.lower() == '.las':
+                las_path = path
+                break
+        
+        if not las_path:
+            return {
+                'error': f"LAS file '{filename}' not found",
+                'success': False
+            }
+        
+        # Read LAS file
+        las = lasio.read(las_path)
+        df = las.df()
+        
+        # Find density and caliper curves
+        rhob_column = None
+        cali_column = None
+        
+        # Try different names for bulk density
+        for col in ['RHOB', 'DENSITY', 'DEN', 'RHOZ']:
+            if col in df.columns:
+                rhob_column = col
+                break
+        
+        # Try different names for caliper
+        for col in ['CALI', 'CALIPER', 'CAL', 'BS']:
+            if col in df.columns:
+                cali_column = col
+                break
+        
+        if rhob_column is None and cali_column is None:
+            return {
+                'error': f"No density or caliper curves found in {filename}",
+                'success': False
+            }
+        
+        # Create subplots
+        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 12), sharey=True)
+        
+        depth = df.index
+        plot_curves = []
+        
+        # Plot density on first subplot
+        if rhob_column:
+            rhob = df[rhob_column]
+            mask_rhob = ~(np.isnan(rhob) | np.isnan(depth))
+            if mask_rhob.any():
+                ax1.plot(rhob[mask_rhob], depth[mask_rhob], 'purple', 
+                        linewidth=1.5, label='Bulk Density', alpha=0.8)
+                plot_curves.append(f'Density ({rhob_column})')
+                
+                # Add density interpretation zones
+                ax1.axvspan(1.5, 2.2, alpha=0.1, color='blue', label='Water/Shale')
+                ax1.axvspan(2.2, 2.6, alpha=0.1, color='yellow', label='Sandstone')
+                ax1.axvspan(2.6, 2.9, alpha=0.1, color='green', label='Carbonate')
+        
+        # Plot caliper on second subplot
+        if cali_column:
+            cali = df[cali_column]
+            mask_cali = ~(np.isnan(cali) | np.isnan(depth))
+            if mask_cali.any():
+                ax2.plot(cali[mask_cali], depth[mask_cali], 'brown', 
+                        linewidth=1.5, label='Caliper', alpha=0.8)
+                ax2.fill_betweenx(depth[mask_cali], 0, cali[mask_cali], 
+                                alpha=0.3, color='brown')
+                plot_curves.append(f'Caliper ({cali_column})')
+                
+                # Add typical borehole size reference
+                bit_size = 8.5  # Typical bit size
+                ax2.axvline(bit_size, color='red', linestyle='--', 
+                           label=f'Bit Size ({bit_size}")')
+        
+        # Format density subplot
+        if rhob_column:
+            ax1.set_xlabel('Bulk Density (g/cm³)', fontsize=12)
+            ax1.set_xlim(1.5, 3.0)
+            ax1.grid(True, alpha=0.3)
+            ax1.legend(loc='lower right')
+        
+        # Format caliper subplot  
+        if cali_column:
+            ax2.set_xlabel('Caliper (inches)', fontsize=12)
+            ax2.set_xlim(6, 16)
+            ax2.grid(True, alpha=0.3)
+            ax2.legend(loc='lower right')
+        
+        # Common formatting
+        ax1.set_ylabel('Depth (ft)', fontsize=12)
+        ax1.invert_yaxis()
+        fig.suptitle(f'Density & Caliper Log\n{filename}', fontsize=14)
+        
+        # Add statistics
+        stats_lines = [f"Curves: {', '.join(plot_curves)}"]
+        if rhob_column and mask_rhob.any():
+            rhob_clean = rhob[mask_rhob]
+            stats_lines.append(f"Density: {rhob_clean.mean():.2f}±{rhob_clean.std():.2f} g/cm³")
+        if cali_column and mask_cali.any():
+            cali_clean = cali[mask_cali]
+            stats_lines.append(f"Caliper: {cali_clean.mean():.1f}±{cali_clean.std():.1f} in")
+            
+        stats_text = '\n'.join(stats_lines)
+        ax1.text(0.02, 0.98, stats_text, transform=ax1.transAxes,
+                bbox=dict(boxstyle='round', facecolor='white', alpha=0.8),
+                verticalalignment='top', fontsize=10)
+        
+        plt.tight_layout()
+        
+        # Save plot
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        well_name = filename.replace('.las', '').replace('/', '_')
+        output_filename = f"{well_name}_density_{timestamp}.png"
+        output_path = Path("output") / output_filename
+        
+        output_path.parent.mkdir(exist_ok=True)
+        plt.savefig(output_path, dpi=300, bbox_inches='tight')
+        plt.close()
+        
+        return {
+            'success': True,
+            'output_file': output_filename,
+            'curves_plotted': plot_curves,
+            'density_column': rhob_column,
+            'caliper_column': cali_column
+        }
+        
+    except Exception as e:
+        return {
+            'error': f"Error creating density plot for {filename}: {str(e)}",
+            'success': False
+        }
+
+
+def create_composite_plot(filename: str) -> Dict[str, Any]:
+    """Create a composite log plot with multiple tracks."""
+    try:
+        # Find and read LAS file
+        data_dir = Path("data")
+        las_path = None
+        
+        for path in data_dir.rglob(filename):
+            if path.suffix.lower() == '.las':
+                las_path = path
+                break
+        
+        if not las_path:
+            return {
+                'error': f"LAS file '{filename}' not found",
+                'success': False
+            }
+        
+        # Read LAS file
+        las = lasio.read(las_path)
+        df = las.df()
+        depth = df.index
+        
+        # Define available tracks
+        tracks = []
+        
+        # Track 1: Natural logs (GR, SP)
+        track1_curves = []
+        if any(col in df.columns for col in ['GR', 'GAMMA']):
+            gr_col = next((col for col in ['GR', 'GAMMA'] if col in df.columns), None)
+            track1_curves.append((gr_col, 'Gamma Ray (API)', 'green', (0, 150)))
+        if 'SP' in df.columns:
+            track1_curves.append(('SP', 'SP (mV)', 'red', (-100, 50)))
+        if track1_curves:
+            tracks.append(('Natural Logs', track1_curves))
+        
+        # Track 2: Resistivity
+        track2_curves = []
+        for col in ['RT', 'RES', 'ILD']:
+            if col in df.columns:
+                track2_curves.append((col, f'{col} (Ω.m)', 'blue', (0.1, 1000)))
+                break
+        if track2_curves:
+            tracks.append(('Resistivity', track2_curves))
+        
+        # Track 3: Porosity
+        track3_curves = []
+        if 'NPHI' in df.columns:
+            track3_curves.append(('NPHI', 'Neutron (%)', 'blue', (0, 40)))
+        if 'DPHI' in df.columns:
+            track3_curves.append(('DPHI', 'Density (%)', 'red', (0, 40)))
+        if track3_curves:
+            tracks.append(('Porosity', track3_curves))
+        
+        # Track 4: Density & Caliper
+        track4_curves = []
+        if 'RHOB' in df.columns:
+            track4_curves.append(('RHOB', 'Density (g/cm³)', 'purple', (1.5, 3.0)))
+        if 'CALI' in df.columns:
+            track4_curves.append(('CALI', 'Caliper (in)', 'brown', (6, 16)))
+        if track4_curves:
+            tracks.append(('Density/Caliper', track4_curves))
+        
+        if not tracks:
+            return {
+                'error': f"No suitable curves found for composite plot in {filename}",
+                'success': False
+            }
+        
+        # Create subplots
+        fig, axes = plt.subplots(1, len(tracks), figsize=(4 * len(tracks), 16), 
+                                sharey=True, tight_layout=True)
+        if len(tracks) == 1:
+            axes = [axes]
+        
+        plotted_curves = []
+        
+        # Plot each track
+        for i, (track_name, curves) in enumerate(tracks):
+            ax = axes[i]
+            colors = ['blue', 'red', 'green', 'orange', 'purple']
+            
+            for j, (col, label, default_color, xlim) in enumerate(curves):
+                if col in df.columns:
+                    data = df[col]
+                    mask = ~(np.isnan(data) | np.isnan(depth))
+                    
+                    if mask.any():
+                        color = colors[j % len(colors)] if j < len(colors) else default_color
+                        
+                        # Use log scale for resistivity
+                        if 'resistivity' in track_name.lower() or col in ['RT', 'RES', 'ILD']:
+                            mask = mask & (data > 0)
+                            if mask.any():
+                                ax.semilogx(data[mask], depth[mask], color=color,
+                                          linewidth=1.5, label=col, alpha=0.8)
+                        else:
+                            # Convert porosity to percentage
+                            if col in ['NPHI', 'DPHI'] and data[mask].max() <= 1:
+                                data = data * 100
+                            ax.plot(data[mask], depth[mask], color=color,
+                                  linewidth=1.5, label=col, alpha=0.8)
+                        
+                        plotted_curves.append(f"{col} ({track_name})")
+            
+            # Format subplot
+            ax.invert_yaxis()
+            ax.set_xlabel(track_name, fontsize=10)
+            if i == 0:
+                ax.set_ylabel('Depth (ft)', fontsize=12)
+            ax.grid(True, alpha=0.3)
+            ax.legend(fontsize=8, loc='lower right')
+            
+            # Set x-axis limits based on first curve
+            if curves:
+                _, _, _, xlim = curves[0]
+                ax.set_xlim(xlim)
+        
+        fig.suptitle(f'Composite Log\n{filename}', fontsize=16, fontweight='bold')
+        
+        # Save plot
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        well_name = filename.replace('.las', '').replace('/', '_')
+        output_filename = f"{well_name}_composite_{timestamp}.png"
+        output_path = Path("output") / output_filename
+        
+        output_path.parent.mkdir(exist_ok=True)
+        plt.savefig(output_path, dpi=300, bbox_inches='tight')
+        plt.close()
+        
+        return {
+            'success': True,
+            'output_file': output_filename,
+            'tracks_plotted': len(tracks),
+            'curves_plotted': plotted_curves,
+            'track_names': [track[0] for track in tracks]
+        }
+        
+    except Exception as e:
+        return {
+            'error': f"Error creating composite plot for {filename}: {str(e)}",
+            'success': False
+        }
+
+
 if __name__ == "__main__":
     # Command line interface for testing
     if len(sys.argv) < 3:
         print("Usage: python log_plotter.py <plot_type> <filename>")
-        print("Plot types: gamma, porosity, resistivity")
+        print("Plot types: gamma, porosity, resistivity, density, composite")
         sys.exit(1)
     
     plot_type = sys.argv[1]
@@ -383,6 +668,10 @@ if __name__ == "__main__":
         result = create_porosity_plot(filename)
     elif plot_type == "resistivity":
         result = create_resistivity_plot(filename)
+    elif plot_type == "density":
+        result = create_density_plot(filename)
+    elif plot_type == "composite":
+        result = create_composite_plot(filename)
     else:
         print(f"Unknown plot type: {plot_type}")
         sys.exit(1)
