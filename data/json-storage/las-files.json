@@ -5,6 +5,51 @@
     "size": "0.00MB",
     "source": "manual",
     "processed": false,
+    "id": "a3910af6-cdc1-4bdf-b31c-af8ae5a810c8",
+    "createdAt": "2025-09-18T10:12:17.386Z"
+  },
+  {
+    "filename": "4771-36-SESE.las",
+    "filepath": "C:\\Users\\Dhananjay\\Documents\\GitHub\\langchain-agent\\data\\email-attachments\\4771-36-SESE.las",
+    "size": "0.02MB",
+    "source": "manual",
+    "processed": false,
+    "id": "88920344-d6ba-4991-bb0d-a7e11b67d572",
+    "createdAt": "2025-09-18T10:12:17.381Z"
+  },
+  {
+    "filename": "well_log_02.las",
+    "filepath": "C:\\Users\\Dhananjay\\Documents\\GitHub\\langchain-agent\\data\\samples\\well_log_02.las",
+    "size": "0.00MB",
+    "source": "manual",
+    "processed": false,
+    "id": "ef4d36f7-3236-4a09-833c-e39f2813d048",
+    "createdAt": "2025-09-17T13:03:00.505Z"
+  },
+  {
+    "filename": "sample_well_01.las",
+    "filepath": "C:\\Users\\Dhananjay\\Documents\\GitHub\\langchain-agent\\data\\samples\\sample_well_01.las",
+    "size": "0.00MB",
+    "source": "manual",
+    "processed": false,
+    "id": "e07411e2-e07c-4298-99a5-cf51e4bb3eb1",
+    "createdAt": "2025-09-17T13:03:00.502Z"
+  },
+  {
+    "filename": "4771-36-SESE.las",
+    "filepath": "C:\\Users\\Dhananjay\\Documents\\GitHub\\langchain-agent\\data\\email-attachments\\4771-36-SESE.las",
+    "size": "0.02MB",
+    "source": "manual",
+    "processed": false,
+    "id": "c9273a18-65e1-4282-bc32-1db550c47322",
+    "createdAt": "2025-09-17T13:03:00.484Z"
+  },
+  {
+    "filename": "sample_well_01.las",
+    "filepath": "C:\\Users\\Dhananjay\\Documents\\GitHub\\langchain-agent\\data\\samples\\sample_well_01.las",
+    "size": "0.00MB",
+    "source": "manual",
+    "processed": false,
     "id": "22c3cc53-b28e-4b21-b78e-757de34e938e",
     "createdAt": "2025-09-17T12:30:18.017Z"
   },
@@ -25,5 +70,14 @@
     "processed": false,
     "id": "3da0df9a-91d4-48b0-b193-22bf80206d84",
     "createdAt": "2025-09-17T10:57:42.367Z"
+  },
+  {
+    "filename": "well_log_02.las",
+    "filepath": "C:\\Users\\Dhananjay\\Documents\\GitHub\\langchain-agent\\data\\samples\\well_log_02.las",
+    "size": "0.00MB",
+    "source": "manual",
+    "processed": false,
+    "id": "1b6eaa5c-1dc6-436c-9d48-d51daa3da3ee",
+    "createdAt": "2025-09-18T10:12:17.389Z"
   }
 ]

@@ -125,10 +125,8 @@ class LangChainMCPAgent:
                 self.create_file_lister_tool(),
                 self.create_las_analyzer_tool(),
                 self.create_gamma_ray_plot_tool(),
-                self.create_porosity_plot_tool(), 
                 self.create_resistivity_plot_tool(),
                 self.create_gamma_ray_tool(),
-                self.create_depth_visualization_tool(),
                 self.create_porosity_analysis_tool(),
                 self.create_resistivity_analysis_tool(),
                 self.create_neutron_analysis_tool(),
@@ -265,29 +263,6 @@ class LangChainMCPAgent:
         
         return analyze_gamma_ray
     
-    def create_depth_visualization_tool(self):
-        """Create a tool for depth-based visualization"""
-        @tool
-        def create_depth_plot(filename: str, curve_types: str = "porosity,gamma") -> str:
-            """Create depth-based visualization for multiple log curves."""
-            try:
-                curves = curve_types.split(",")
-                results = []
-                results.append(f"📊 Depth Visualization for {filename}:")
-                results.append(f"• Plotting {len(curves)} curves vs depth")
-                results.append("• Depth range: 2450-3200 ft (750 ft total)")
-                results.append("• Track 1: Gamma Ray (0-200 API)")
-                results.append("• Track 2: Porosity & Neutron (0-40%)")
-                results.append("• Track 3: Resistivity (0.1-1000 ohm.m)")
-                results.append("• Formation tops marked at key boundaries")
-                results.append("• Recommended for geological interpretation")
-                
-                return "\n".join(results)
-            except Exception as e:
-                return f"Error creating depth visualization: {e}"
-        
-        return create_depth_plot
-    
     def create_gamma_ray_plot_tool(self):
         """Create a tool specifically for gamma ray plots"""
         @tool
@@ -309,28 +284,6 @@ class LangChainMCPAgent:
                 return f"❌ Error creating gamma ray plot: {e}"
         
         return create_gamma_ray_plot
-    
-    def create_porosity_plot_tool(self):
-        """Create a tool specifically for porosity plots"""  
-        @tool
-        def create_porosity_plot(filename: str) -> str:
-            """Create a porosity log plot from LAS file data."""
-            try:
-                import subprocess
-                result = subprocess.run([
-                    "python", "scripts/simple_plotter.py", 
-                    filename, "porosity"
-                ], capture_output=True, text=True, timeout=30)
-                
-                if result.returncode == 0 and "SUCCESS:" in result.stdout:
-                    plot_filename = result.stdout.split("SUCCESS: ")[1].strip()
-                    return f"✅ Porosity Plot Created: {plot_filename}\n📊 Shows rock porosity (NPHI/DPHI) vs depth\n🎯 File: {filename}\n📈 Essential for reservoir quality assessment"
-                else:
-                    return f"❌ Error creating porosity plot: {result.stderr}"
-            except Exception as e:
-                return f"❌ Error creating porosity plot: {e}"
-        
-        return create_porosity_plot
     
     def create_resistivity_plot_tool(self):
         """Create a tool specifically for resistivity plots"""

@@ -7,6 +7,5 @@ vite.config.ts.*
 *.local
 *replit.md
 *attached_assets
-*.replit
 .venv
 .local
