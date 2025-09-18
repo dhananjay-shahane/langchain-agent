@@ -1,6 +1,22 @@
 [
   {
     "filename": "APACHE_1H-15_gamma_20250917_112128.png",
+    "filepath": "/home/runner/workspace/output/APACHE_1H-15_gamma_20250917_112128.png",
+    "type": "plot",
+    "id": "f85c72dd-2034-4c18-850b-24d443b02bca",
+    "createdAt": "2025-09-18T13:11:07.771Z",
+    "relatedLasFile": null
+  },
+  {
+    "filename": "APACHE_1H-15_porosity_20250917_104902.png",
+    "filepath": "C:\\Users\\Dhananjay\\Documents\\GitHub\\langchain-agent\\output\\APACHE_1H-15_porosity_20250917_104902.png",
+    "type": "plot",
+    "id": "3efbe32c-6e3b-401e-bae8-7e8e781e863a",
+    "createdAt": "2025-09-18T10:12:17.237Z",
+    "relatedLasFile": null
+  },
+  {
+    "filename": "APACHE_1H-15_gamma_20250917_112128.png",
     "filepath": "C:\\Users\\Dhananjay\\Documents\\GitHub\\langchain-agent\\output\\APACHE_1H-15_gamma_20250917_112128.png",
     "type": "plot",
     "id": "cb68cc87-23c5-4d92-963a-ba0d21f42a21",
@@ -49,10 +65,10 @@
   },
   {
     "filename": "APACHE_1H-15_porosity_20250917_104902.png",
-    "filepath": "C:\\Users\\Dhananjay\\Documents\\GitHub\\langchain-agent\\output\\APACHE_1H-15_porosity_20250917_104902.png",
+    "filepath": "/home/runner/workspace/output/APACHE_1H-15_porosity_20250917_104902.png",
     "type": "plot",
-    "id": "3efbe32c-6e3b-401e-bae8-7e8e781e863a",
-    "createdAt": "2025-09-18T10:12:17.237Z",
+    "id": "f7fc386e-0f6b-4d9a-a58e-2963105b6f21",
+    "createdAt": "2025-09-18T13:11:07.772Z",
     "relatedLasFile": null
   }
 ]

@@ -1,6 +1,33 @@
 [
   {
     "filename": "sample_well_01.las",
+    "filepath": "/home/runner/workspace/data/samples/sample_well_01.las",
+    "size": "0.00MB",
+    "source": "manual",
+    "processed": false,
+    "id": "7cc28475-67d2-431b-af65-d3f46f3a9094",
+    "createdAt": "2025-09-18T13:11:07.925Z"
+  },
+  {
+    "filename": "4771-36-SESE.las",
+    "filepath": "/home/runner/workspace/data/email-attachments/4771-36-SESE.las",
+    "size": "0.02MB",
+    "source": "manual",
+    "processed": false,
+    "id": "bd5580a2-1774-4879-9164-8019b2e17e19",
+    "createdAt": "2025-09-18T13:11:07.923Z"
+  },
+  {
+    "filename": "well_log_02.las",
+    "filepath": "C:\\Users\\Dhananjay\\Documents\\GitHub\\langchain-agent\\data\\samples\\well_log_02.las",
+    "size": "0.00MB",
+    "source": "manual",
+    "processed": false,
+    "id": "1b6eaa5c-1dc6-436c-9d48-d51daa3da3ee",
+    "createdAt": "2025-09-18T10:12:17.389Z"
+  },
+  {
+    "filename": "sample_well_01.las",
     "filepath": "C:\\Users\\Dhananjay\\Documents\\GitHub\\langchain-agent\\data\\samples\\sample_well_01.las",
     "size": "0.00MB",
     "source": "manual",
@@ -73,11 +100,11 @@
   },
   {
     "filename": "well_log_02.las",
-    "filepath": "C:\\Users\\Dhananjay\\Documents\\GitHub\\langchain-agent\\data\\samples\\well_log_02.las",
+    "filepath": "/home/runner/workspace/data/samples/well_log_02.las",
     "size": "0.00MB",
     "source": "manual",
     "processed": false,
-    "id": "1b6eaa5c-1dc6-436c-9d48-d51daa3da3ee",
-    "createdAt": "2025-09-18T10:12:17.389Z"
+    "id": "518159d1-8e68-4b1f-8a44-4139bc0a16bc",
+    "createdAt": "2025-09-18T13:11:07.925Z"
   }
 ]
