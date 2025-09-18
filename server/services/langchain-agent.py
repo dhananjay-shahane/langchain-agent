@@ -37,7 +37,7 @@ def create_gamma_ray_plot(las_filename: str) -> str:
     """
     try:
         result = subprocess.run([
-            'python3', 'server/services/mcp-tools/log_plotter.py', 'gamma', las_filename
+            'python3', 'server/services/mcp-tools/simple_plotter.py', 'gamma', las_filename
         ], capture_output=True, text=True, timeout=120)
         
         if result.returncode == 0:
@@ -69,7 +69,7 @@ def create_porosity_plot(las_filename: str) -> str:
     """
     try:
         result = subprocess.run([
-            'python3', 'server/services/mcp-tools/log_plotter.py', 'porosity', las_filename
+            'python3', 'server/services/mcp-tools/simple_plotter.py', 'porosity', las_filename
         ], capture_output=True, text=True, timeout=120)
         
         if result.returncode == 0:
@@ -101,7 +101,7 @@ def create_resistivity_plot(las_filename: str) -> str:
     """
     try:
         result = subprocess.run([
-            'python3', 'server/services/mcp-tools/log_plotter.py', 'resistivity', las_filename
+            'python3', 'server/services/mcp-tools/simple_plotter.py', 'resistivity', las_filename
         ], capture_output=True, text=True, timeout=120)
         
         if result.returncode == 0:
@@ -133,7 +133,7 @@ def create_density_plot(las_filename: str) -> str:
     """
     try:
         result = subprocess.run([
-            'python3', 'server/services/mcp-tools/log_plotter.py', 'density', las_filename
+            'python3', 'server/services/mcp-tools/simple_plotter.py', 'density', las_filename
         ], capture_output=True, text=True, timeout=120)
         
         if result.returncode == 0:
@@ -165,7 +165,7 @@ def create_composite_log_plot(las_filename: str) -> str:
     """
     try:
         result = subprocess.run([
-            'python3', 'server/services/mcp-tools/log_plotter.py', 'composite', las_filename
+            'python3', 'server/services/mcp-tools/simple_plotter.py', 'composite', las_filename
         ], capture_output=True, text=True, timeout=120)
         
         if result.returncode == 0:
