@@ -46,5 +46,45 @@
     "relevantChunks": [],
     "id": "9a4288f5-a4e1-49ba-9d50-a57fa216ddd9",
     "timestamp": "2025-09-19T11:29:27.276Z"
+  },
+  {
+    "sessionId": "29ea6089-a56e-4b2c-884d-d679adc65334",
+    "role": "user",
+    "content": "What is this document about?",
+    "relevantChunks": [],
+    "id": "245bef8f-de92-4707-bd0a-765cb15f0c30",
+    "timestamp": "2025-09-19T12:20:33.893Z"
+  },
+  {
+    "sessionId": "29ea6089-a56e-4b2c-884d-d679adc65334",
+    "role": "assistant",
+    "content": "Your document \"Pdf_912349810260825.pdf\" is still being processed. Please wait a moment for the text extraction and chunking to complete, then try asking your question again. You'll receive a notification when processing is finished.",
+    "relevantChunks": [],
+    "id": "cf049bca-ea0c-40a6-b7c3-c5e801d811b0",
+    "timestamp": "2025-09-19T12:20:34.403Z"
+  },
+  {
+    "sessionId": "c9fdb08f-b486-4054-a960-066c47e4549e",
+    "role": "user",
+    "content": "What is this document about? Give me a summary.",
+    "relevantChunks": [],
+    "id": "b96f92a4-6e88-45f2-91ef-4a0c5dda3761",
+    "timestamp": "2025-09-19T12:22:27.216Z"
+  },
+  {
+    "sessionId": "8f28471e-e536-451c-958c-e4c9aca16fb6",
+    "role": "user",
+    "content": "hi",
+    "relevantChunks": [],
+    "id": "9885c7be-f185-46f9-9452-9f06a14ae9c1",
+    "timestamp": "2025-09-19T12:22:54.897Z"
+  },
+  {
+    "sessionId": "8f28471e-e536-451c-958c-e4c9aca16fb6",
+    "role": "assistant",
+    "content": "Your document \"Pdf_912349810260825.pdf\" is still being processed. Please wait a moment for the text extraction and chunking to complete, then try asking your question again. You'll receive a notification when processing is finished.",
+    "relevantChunks": [],
+    "id": "659c8c12-6d0b-430e-8eeb-19418fd5c953",
+    "timestamp": "2025-09-19T12:22:55.399Z"
   }
 ]
