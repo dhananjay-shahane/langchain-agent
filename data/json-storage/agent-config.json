@@ -4,6 +4,6 @@
   "model": "llama3.2:1b",
   "endpointUrl": "http://127.0.0.1:11435",
   "isConnected": false,
-  "lastTested": "2025-09-18T10:13:39.328Z",
+  "lastTested": "2025-09-19T11:06:33.393Z",
   "createdAt": "2025-09-15T04:21:27.910Z"
 }
