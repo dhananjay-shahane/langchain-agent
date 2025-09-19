@@ -61,6 +61,42 @@ export const emailMonitorStatus = pgTable("email_monitor_status", {
   updatedAt: timestamp("updated_at").default(sql`CURRENT_TIMESTAMP`),
 });
 
+export const pdfDocuments = pgTable("pdf_documents", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  filename: text("filename").notNull(),
+  originalName: text("original_name").notNull(),
+  size: text("size").notNull(),
+  pageCount: text("page_count"),
+  processed: boolean("processed").default(false),
+  uploadedAt: timestamp("uploaded_at").default(sql`CURRENT_TIMESTAMP`),
+});
+
+export const documentChunks = pgTable("document_chunks", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  documentId: varchar("document_id").references(() => pdfDocuments.id).notNull(),
+  content: text("content").notNull(),
+  chunkIndex: text("chunk_index").notNull(),
+  embedding: text("embedding"), // JSON string of embedding vector
+  metadata: jsonb("metadata"), // Page number, section, etc.
+  createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`),
+});
+
+export const pdfChatSessions = pgTable("pdf_chat_sessions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  documentId: varchar("document_id").references(() => pdfDocuments.id).notNull(),
+  sessionName: text("session_name").default("New Chat"),
+  createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`),
+});
+
+export const pdfChatMessages = pgTable("pdf_chat_messages", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  sessionId: varchar("session_id").references(() => pdfChatSessions.id).notNull(),
+  role: text("role").notNull(), // 'user' | 'assistant'
+  content: text("content").notNull(),
+  relevantChunks: text("relevant_chunks").array().default([]), // Array of chunk IDs
+  timestamp: timestamp("timestamp").default(sql`CURRENT_TIMESTAMP`),
+});
+
 
 
 
@@ -94,6 +130,26 @@ export const insertEmailMonitorStatusSchema = createInsertSchema(emailMonitorSta
   updatedAt: true,
 });
 
+export const insertPdfDocumentSchema = createInsertSchema(pdfDocuments).omit({
+  id: true,
+  uploadedAt: true,
+});
+
+export const insertDocumentChunkSchema = createInsertSchema(documentChunks).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertPdfChatSessionSchema = createInsertSchema(pdfChatSessions).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertPdfChatMessageSchema = createInsertSchema(pdfChatMessages).omit({
+  id: true,
+  timestamp: true,
+});
+
 
 
 
@@ -103,6 +159,10 @@ export type LasFile = typeof lasFiles.$inferSelect;
 export type OutputFile = typeof outputFiles.$inferSelect;
 export type Email = typeof emails.$inferSelect;
 export type EmailMonitorStatus = typeof emailMonitorStatus.$inferSelect;
+export type PdfDocument = typeof pdfDocuments.$inferSelect;
+export type DocumentChunk = typeof documentChunks.$inferSelect;
+export type PdfChatSession = typeof pdfChatSessions.$inferSelect;
+export type PdfChatMessage = typeof pdfChatMessages.$inferSelect;
 
 export type InsertAgentConfig = z.infer<typeof insertAgentConfigSchema>;
 export type InsertChatMessage = z.infer<typeof insertChatMessageSchema>;
@@ -110,3 +170,7 @@ export type InsertLasFile = z.infer<typeof insertLasFileSchema>;
 export type InsertOutputFile = z.infer<typeof insertOutputFileSchema>;
 export type InsertEmail = z.infer<typeof insertEmailSchema>;
 export type InsertEmailMonitorStatus = z.infer<typeof insertEmailMonitorStatusSchema>;
+export type InsertPdfDocument = z.infer<typeof insertPdfDocumentSchema>;
+export type InsertDocumentChunk = z.infer<typeof insertDocumentChunkSchema>;
+export type InsertPdfChatSession = z.infer<typeof insertPdfChatSessionSchema>;
+export type InsertPdfChatMessage = z.infer<typeof insertPdfChatMessageSchema>;

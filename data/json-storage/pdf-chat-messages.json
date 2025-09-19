@@ -1,0 +1,34 @@
+[
+  {
+    "sessionId": "8f28471e-e536-451c-958c-e4c9aca16fb6",
+    "role": "user",
+    "content": "what is in this side this pdf",
+    "relevantChunks": [],
+    "id": "b339cb51-97ef-4c17-a4c7-fbaceac711e0",
+    "timestamp": "2025-09-19T11:21:25.950Z"
+  },
+  {
+    "sessionId": "8f28471e-e536-451c-958c-e4c9aca16fb6",
+    "role": "assistant",
+    "content": "PDF chat functionality is being set up. RAG processing with Ollama will be available soon.",
+    "relevantChunks": [],
+    "id": "6c399394-9acb-4015-9729-f97f533cbc1a",
+    "timestamp": "2025-09-19T11:21:26.952Z"
+  },
+  {
+    "sessionId": "8f28471e-e536-451c-958c-e4c9aca16fb6",
+    "role": "user",
+    "content": "what is in this side this pdf ",
+    "relevantChunks": [],
+    "id": "6fc395bb-fefc-4ab4-9b81-7d27c05f16d9",
+    "timestamp": "2025-09-19T11:22:15.896Z"
+  },
+  {
+    "sessionId": "8f28471e-e536-451c-958c-e4c9aca16fb6",
+    "role": "assistant",
+    "content": "PDF chat functionality is being set up. RAG processing with Ollama will be available soon.",
+    "relevantChunks": [],
+    "id": "21ae6904-b047-4680-a8ed-24eef8286150",
+    "timestamp": "2025-09-19T11:22:16.897Z"
+  }
+]

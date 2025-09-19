@@ -1,15 +1,49 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { Server as SocketIOServer } from "socket.io";
+import multer from "multer";
 import { storage } from "./storage";
-import { insertAgentConfigSchema, insertChatMessageSchema, insertLasFileSchema, insertOutputFileSchema, insertEmailSchema, insertEmailMonitorStatusSchema } from "@shared/schema";
+import { insertAgentConfigSchema, insertChatMessageSchema, insertLasFileSchema, insertOutputFileSchema, insertEmailSchema, insertEmailMonitorStatusSchema, insertPdfDocumentSchema, insertDocumentChunkSchema, insertPdfChatSessionSchema, insertPdfChatMessageSchema } from "@shared/schema";
 import { spawn, exec } from "child_process";
 import path from "path";
 import fs from "fs";
 import "./services/file-watcher";
+import { ollamaRagService } from "./services/ollama-rag";
+import { pdfProcessor } from "./services/pdf-processor";
 
 // MCP email processing will use spawn-based communication with Python
 
+// Ensure uploads directory exists
+const uploadsDir = path.join(process.cwd(), "uploads");
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir, { recursive: true });
+}
+
+// Configure multer for PDF file uploads
+const storage_multer = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, uploadsDir);
+  },
+  filename: (req, file, cb) => {
+    // Generate unique filename with timestamp
+    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1E9);
+    cb(null, uniqueSuffix + "-" + file.originalname);
+  },
+});
+
+const upload = multer({
+  storage: storage_multer,
+  limits: {
+    fileSize: 50 * 1024 * 1024, // 50MB limit
+  },
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype === "application/pdf") {
+      cb(null, true);
+    } else {
+      cb(new Error("Only PDF files are allowed"));
+    }
+  },
+});
 
 export async function registerRoutes(app: Express): Promise<Server> {
   const httpServer = createServer(app);
@@ -758,6 +792,283 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Attachment serving error:", error);
       res.status(500).json({ error: "Failed to serve attachment" });
+    }
+  });
+
+  // PDF Document Routes
+  app.get("/api/pdfs", async (req, res) => {
+    try {
+      const documents = await storage.getPdfDocuments();
+      res.json(documents);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to get PDF documents" });
+    }
+  });
+
+  app.post("/api/pdfs/upload", upload.single("pdf"), async (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ error: "No PDF file uploaded" });
+      }
+
+      const { originalname, filename, size } = req.file;
+      const filePath = path.join(uploadsDir, filename);
+
+      console.log(`Processing uploaded PDF: ${originalname} (${filename})`);
+
+      // Create document record in storage
+      const validatedPdf = insertPdfDocumentSchema.parse({
+        filename,
+        originalName: originalname,
+        size: size.toString(),
+        pageCount: null, // Will be updated after processing
+        processed: false
+      });
+      
+      const document = await storage.addPdfDocument(validatedPdf);
+      
+      // Process PDF file in background
+      setTimeout(async () => {
+        try {
+          console.log(`Starting PDF processing for document ${document.id}`);
+          
+          // Process PDF file and extract text chunks
+          const processedData = await pdfProcessor.processPdfFile(filePath, document.id);
+          
+          // Update document with processing results
+          await storage.updatePdfDocument(document.id, {
+            processed: true,
+            pageCount: processedData.pageCount?.toString() || null
+          });
+
+          console.log(`PDF processing completed for document ${document.id}, ${processedData.chunks.length} chunks created`);
+          
+          // Clear any existing vector store cache for this document to ensure fresh embeddings
+          await ollamaRagService.clearVectorStore(document.id);
+          
+          // Emit processing completion to all clients
+          io.emit("pdf_processed", { 
+            documentId: document.id, 
+            pageCount: processedData.pageCount,
+            chunksCount: processedData.chunks.length 
+          });
+          
+        } catch (processingError) {
+          console.error(`PDF processing failed for document ${document.id}:`, processingError);
+          
+          // Update document to mark processing as failed
+          await storage.updatePdfDocument(document.id, {
+            processed: false
+          });
+          
+          // Emit processing error to all clients
+          io.emit("pdf_processing_error", { 
+            documentId: document.id, 
+            error: processingError instanceof Error ? processingError.message : String(processingError)
+          });
+        }
+      }, 1000);
+      
+      // Emit new PDF document to all clients (before processing)
+      io.emit("new_pdf_document", document);
+      
+      res.json(document);
+    } catch (error) {
+      console.error("PDF upload error:", error);
+      res.status(400).json({ error: "Invalid PDF data" });
+    }
+  });
+
+  app.get("/api/pdfs/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const document = await storage.getPdfDocument(id);
+      
+      if (!document) {
+        return res.status(404).json({ error: "PDF document not found" });
+      }
+      
+      res.json(document);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to get PDF document" });
+    }
+  });
+
+  app.delete("/api/pdfs/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const success = await storage.deletePdfDocument(id);
+      
+      if (success) {
+        io.emit("pdf_document_deleted", { id });
+        res.json({ success: true });
+      } else {
+        res.status(404).json({ error: "PDF document not found" });
+      }
+    } catch (error) {
+      res.status(500).json({ error: "Failed to delete PDF document" });
+    }
+  });
+
+  // PDF Chat Session Routes
+  app.get("/api/pdfs/:documentId/sessions", async (req, res) => {
+    try {
+      const { documentId } = req.params;
+      const sessions = await storage.getPdfChatSessions(documentId);
+      res.json(sessions);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to get chat sessions" });
+    }
+  });
+
+  app.post("/api/pdfs/:documentId/sessions", async (req, res) => {
+    try {
+      const { documentId } = req.params;
+      const { sessionName } = req.body;
+      
+      const validatedSession = insertPdfChatSessionSchema.parse({
+        documentId,
+        sessionName: sessionName || "New Chat"
+      });
+      
+      const session = await storage.addPdfChatSession(validatedSession);
+      
+      io.emit("new_pdf_chat_session", session);
+      
+      res.json(session);
+    } catch (error) {
+      console.error("Chat session creation error:", error);
+      res.status(400).json({ error: "Invalid session data" });
+    }
+  });
+
+  app.delete("/api/pdfs/sessions/:sessionId", async (req, res) => {
+    try {
+      const { sessionId } = req.params;
+      const success = await storage.deletePdfChatSession(sessionId);
+      
+      if (success) {
+        io.emit("pdf_chat_session_deleted", { sessionId });
+        res.json({ success: true });
+      } else {
+        res.status(404).json({ error: "Chat session not found" });
+      }
+    } catch (error) {
+      res.status(500).json({ error: "Failed to delete chat session" });
+    }
+  });
+
+  // PDF Chat Message Routes
+  app.get("/api/pdfs/sessions/:sessionId/messages", async (req, res) => {
+    try {
+      const { sessionId } = req.params;
+      const messages = await storage.getPdfChatMessages(sessionId);
+      res.json(messages);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to get chat messages" });
+    }
+  });
+
+  app.post("/api/pdfs/sessions/:sessionId/messages", async (req, res) => {
+    try {
+      const { sessionId } = req.params;
+      const { role, content } = req.body;
+      
+      if (!role || !content) {
+        return res.status(400).json({ error: "Missing message role or content" });
+      }
+
+      const validatedMessage = insertPdfChatMessageSchema.parse({
+        sessionId,
+        role,
+        content,
+        relevantChunks: []
+      });
+      
+      const message = await storage.addPdfChatMessage(validatedMessage);
+      
+      io.emit("new_pdf_chat_message", message);
+      
+      // If it's a user message, process it with RAG
+      if (role === "user") {
+        // Process message with Ollama RAG in the background
+        setTimeout(async () => {
+          try {
+            // Get the chat session to find the document ID
+            const session = await storage.getPdfChatSession(sessionId);
+            if (!session) {
+              throw new Error("Chat session not found");
+            }
+
+            // Get the document to ensure it's processed
+            const document = await storage.getPdfDocument(session.documentId);
+            if (!document) {
+              throw new Error("Document not found");
+            }
+
+            // Check if document is processed and ready for RAG
+            if (!document.processed) {
+              // Document is still being processed, provide helpful feedback
+              const processingMessage = await storage.addPdfChatMessage({
+                sessionId,
+                role: "assistant",
+                content: `Your document "${document.originalName}" is still being processed. Please wait a moment for the text extraction and chunking to complete, then try asking your question again. You'll receive a notification when processing is finished.`,
+                relevantChunks: []
+              });
+              
+              io.emit("new_pdf_chat_message", processingMessage);
+              return;
+            }
+
+            // Use RAG service to get an intelligent response
+            const ragResponse = await ollamaRagService.chatWithDocument(
+              session.documentId,
+              content,
+              sessionId
+            );
+
+            // Store the assistant's response
+            const assistantMessage = await storage.addPdfChatMessage({
+              sessionId,
+              role: "assistant",
+              content: ragResponse.response,
+              relevantChunks: ragResponse.relevantChunks
+            });
+
+            // Emit the response to all clients
+            io.emit("new_pdf_chat_message", assistantMessage);
+
+          } catch (error) {
+            console.error("RAG processing error:", error);
+            
+            // Send an error response
+            const errorMessage = await storage.addPdfChatMessage({
+              sessionId,
+              role: "assistant",
+              content: `I encountered an error while processing your question: ${error instanceof Error ? error.message : String(error)}. Please make sure Ollama is running with the llama3.2:1b model.`,
+              relevantChunks: []
+            });
+
+            io.emit("new_pdf_chat_message", errorMessage);
+          }
+        }, 500);
+      }
+      
+      res.json(message);
+    } catch (error) {
+      console.error("Chat message error:", error);
+      res.status(400).json({ error: "Invalid message data" });
+    }
+  });
+
+  // Document Chunks Routes (for debugging and management)
+  app.get("/api/pdfs/:documentId/chunks", async (req, res) => {
+    try {
+      const { documentId } = req.params;
+      const chunks = await storage.getDocumentChunks(documentId);
+      res.json(chunks);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to get document chunks" });
     }
   });
 

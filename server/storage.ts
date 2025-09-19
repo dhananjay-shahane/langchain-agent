@@ -1,4 +1,4 @@
-import { type AgentConfig, type ChatMessage, type LasFile, type OutputFile, type Email, type EmailMonitorStatus, type InsertAgentConfig, type InsertChatMessage, type InsertLasFile, type InsertOutputFile, type InsertEmail, type InsertEmailMonitorStatus } from "@shared/schema";
+import { type AgentConfig, type ChatMessage, type LasFile, type OutputFile, type Email, type EmailMonitorStatus, type PdfDocument, type DocumentChunk, type PdfChatSession, type PdfChatMessage, type InsertAgentConfig, type InsertChatMessage, type InsertLasFile, type InsertOutputFile, type InsertEmail, type InsertEmailMonitorStatus, type InsertPdfDocument, type InsertDocumentChunk, type InsertPdfChatSession, type InsertPdfChatMessage } from "@shared/schema";
 import { randomUUID } from "crypto";
 import fs from "fs";
 import path from "path";
@@ -31,6 +31,29 @@ export interface IStorage {
   getEmailMonitorStatus(): Promise<EmailMonitorStatus | undefined>;
   updateEmailMonitorStatus(status: InsertEmailMonitorStatus): Promise<EmailMonitorStatus>;
   
+  // PDF Documents
+  getPdfDocuments(): Promise<PdfDocument[]>;
+  addPdfDocument(document: InsertPdfDocument): Promise<PdfDocument>;
+  getPdfDocument(id: string): Promise<PdfDocument | undefined>;
+  updatePdfDocument(id: string, updates: Partial<PdfDocument>): Promise<PdfDocument | undefined>;
+  deletePdfDocument(id: string): Promise<boolean>;
+  
+  // Document Chunks
+  getDocumentChunks(documentId: string): Promise<DocumentChunk[]>;
+  addDocumentChunk(chunk: InsertDocumentChunk): Promise<DocumentChunk>;
+  getDocumentChunk(id: string): Promise<DocumentChunk | undefined>;
+  searchDocumentChunks(documentId: string, query: string): Promise<DocumentChunk[]>;
+  
+  // PDF Chat Sessions
+  getPdfChatSessions(documentId: string): Promise<PdfChatSession[]>;
+  addPdfChatSession(session: InsertPdfChatSession): Promise<PdfChatSession>;
+  getPdfChatSession(id: string): Promise<PdfChatSession | undefined>;
+  deletePdfChatSession(id: string): Promise<boolean>;
+  
+  // PDF Chat Messages
+  getPdfChatMessages(sessionId: string): Promise<PdfChatMessage[]>;
+  addPdfChatMessage(message: InsertPdfChatMessage): Promise<PdfChatMessage>;
+  
 }
 
 export class MemStorage implements IStorage {
@@ -40,12 +63,20 @@ export class MemStorage implements IStorage {
   private outputFiles: Map<string, OutputFile>;
   private emails: Map<string, Email>;
   private emailMonitorStatus: EmailMonitorStatus | undefined;
+  private pdfDocuments: Map<string, PdfDocument>;
+  private documentChunks: Map<string, DocumentChunk>;
+  private pdfChatSessions: Map<string, PdfChatSession>;
+  private pdfChatMessages: Map<string, PdfChatMessage>;
 
   constructor() {
     this.chatMessages = new Map();
     this.lasFiles = new Map();
     this.outputFiles = new Map();
     this.emails = new Map();
+    this.pdfDocuments = new Map();
+    this.documentChunks = new Map();
+    this.pdfChatSessions = new Map();
+    this.pdfChatMessages = new Map();
     
     // Initialize with default config (no hardcoded credentials)
     this.agentConfig = {
@@ -194,6 +225,136 @@ export class MemStorage implements IStorage {
     return this.emailMonitorStatus;
   }
 
+  // PDF Documents methods
+  async getPdfDocuments(): Promise<PdfDocument[]> {
+    return Array.from(this.pdfDocuments.values()).sort(
+      (a, b) => b.uploadedAt!.getTime() - a.uploadedAt!.getTime()
+    );
+  }
+
+  async addPdfDocument(document: InsertPdfDocument): Promise<PdfDocument> {
+    const id = randomUUID();
+    const pdfDocument: PdfDocument = {
+      ...document,
+      id,
+      uploadedAt: new Date(),
+      processed: document.processed || false,
+      pageCount: document.pageCount || null,
+    };
+    this.pdfDocuments.set(id, pdfDocument);
+    return pdfDocument;
+  }
+
+  async getPdfDocument(id: string): Promise<PdfDocument | undefined> {
+    return this.pdfDocuments.get(id);
+  }
+
+  async updatePdfDocument(id: string, updates: Partial<PdfDocument>): Promise<PdfDocument | undefined> {
+    const existing = this.pdfDocuments.get(id);
+    if (!existing) return undefined;
+    
+    const updated = { ...existing, ...updates };
+    this.pdfDocuments.set(id, updated);
+    return updated;
+  }
+
+  async deletePdfDocument(id: string): Promise<boolean> {
+    // Also delete related chunks and chat sessions
+    const chunks = Array.from(this.documentChunks.values()).filter(chunk => chunk.documentId === id);
+    chunks.forEach(chunk => this.documentChunks.delete(chunk.id));
+    
+    const sessions = Array.from(this.pdfChatSessions.values()).filter(session => session.documentId === id);
+    sessions.forEach(session => {
+      const messages = Array.from(this.pdfChatMessages.values()).filter(msg => msg.sessionId === session.id);
+      messages.forEach(msg => this.pdfChatMessages.delete(msg.id));
+      this.pdfChatSessions.delete(session.id);
+    });
+    
+    return this.pdfDocuments.delete(id);
+  }
+
+  // Document Chunks methods
+  async getDocumentChunks(documentId: string): Promise<DocumentChunk[]> {
+    return Array.from(this.documentChunks.values())
+      .filter(chunk => chunk.documentId === documentId)
+      .sort((a, b) => parseInt(a.chunkIndex) - parseInt(b.chunkIndex));
+  }
+
+  async addDocumentChunk(chunk: InsertDocumentChunk): Promise<DocumentChunk> {
+    const id = randomUUID();
+    const documentChunk: DocumentChunk = {
+      ...chunk,
+      id,
+      createdAt: new Date(),
+      embedding: chunk.embedding || null,
+      metadata: chunk.metadata || null,
+    };
+    this.documentChunks.set(id, documentChunk);
+    return documentChunk;
+  }
+
+  async getDocumentChunk(id: string): Promise<DocumentChunk | undefined> {
+    return this.documentChunks.get(id);
+  }
+
+  async searchDocumentChunks(documentId: string, query: string): Promise<DocumentChunk[]> {
+    // Simple text search for now - in a real implementation this would use vector similarity
+    const chunks = await this.getDocumentChunks(documentId);
+    return chunks.filter(chunk => 
+      chunk.content.toLowerCase().includes(query.toLowerCase())
+    );
+  }
+
+  // PDF Chat Sessions methods
+  async getPdfChatSessions(documentId: string): Promise<PdfChatSession[]> {
+    return Array.from(this.pdfChatSessions.values())
+      .filter(session => session.documentId === documentId)
+      .sort((a, b) => b.createdAt!.getTime() - a.createdAt!.getTime());
+  }
+
+  async addPdfChatSession(session: InsertPdfChatSession): Promise<PdfChatSession> {
+    const id = randomUUID();
+    const pdfChatSession: PdfChatSession = {
+      ...session,
+      id,
+      createdAt: new Date(),
+      sessionName: session.sessionName || "New Chat",
+    };
+    this.pdfChatSessions.set(id, pdfChatSession);
+    return pdfChatSession;
+  }
+
+  async getPdfChatSession(id: string): Promise<PdfChatSession | undefined> {
+    return this.pdfChatSessions.get(id);
+  }
+
+  async deletePdfChatSession(id: string): Promise<boolean> {
+    // Also delete related messages
+    const messages = Array.from(this.pdfChatMessages.values()).filter(msg => msg.sessionId === id);
+    messages.forEach(msg => this.pdfChatMessages.delete(msg.id));
+    
+    return this.pdfChatSessions.delete(id);
+  }
+
+  // PDF Chat Messages methods
+  async getPdfChatMessages(sessionId: string): Promise<PdfChatMessage[]> {
+    return Array.from(this.pdfChatMessages.values())
+      .filter(message => message.sessionId === sessionId)
+      .sort((a, b) => a.timestamp!.getTime() - b.timestamp!.getTime());
+  }
+
+  async addPdfChatMessage(message: InsertPdfChatMessage): Promise<PdfChatMessage> {
+    const id = randomUUID();
+    const pdfChatMessage: PdfChatMessage = {
+      ...message,
+      id,
+      timestamp: new Date(),
+      relevantChunks: message.relevantChunks || [],
+    };
+    this.pdfChatMessages.set(id, pdfChatMessage);
+    return pdfChatMessage;
+  }
+
 }
 
 // JSON File Storage Implementation
@@ -205,6 +366,10 @@ export class JsonStorage implements IStorage {
   private outputFilesFile: string;
   private emailsFile: string;
   private emailMonitorStatusFile: string;
+  private pdfDocumentsFile: string;
+  private documentChunksFile: string;
+  private pdfChatSessionsFile: string;
+  private pdfChatMessagesFile: string;
 
   constructor() {
     this.dataDir = path.join(process.cwd(), "data", "json-storage");
@@ -214,6 +379,10 @@ export class JsonStorage implements IStorage {
     this.outputFilesFile = path.join(this.dataDir, "output-files.json");
     this.emailsFile = path.join(this.dataDir, "emails.json");
     this.emailMonitorStatusFile = path.join(this.dataDir, "email-monitor-status.json");
+    this.pdfDocumentsFile = path.join(this.dataDir, "pdf-documents.json");
+    this.documentChunksFile = path.join(this.dataDir, "document-chunks.json");
+    this.pdfChatSessionsFile = path.join(this.dataDir, "pdf-chat-sessions.json");
+    this.pdfChatMessagesFile = path.join(this.dataDir, "pdf-chat-messages.json");
     
     // Ensure data directory exists
     this.ensureDataDir();
@@ -416,6 +585,161 @@ export class JsonStorage implements IStorage {
     };
     this.writeJsonFile(this.emailMonitorStatusFile, updated);
     return updated;
+  }
+
+  // PDF Documents methods
+  async getPdfDocuments(): Promise<PdfDocument[]> {
+    const documents = this.readJsonFile<PdfDocument[]>(this.pdfDocumentsFile, []);
+    return documents.sort((a, b) => b.uploadedAt!.getTime() - a.uploadedAt!.getTime());
+  }
+
+  async addPdfDocument(document: InsertPdfDocument): Promise<PdfDocument> {
+    const documents = await this.getPdfDocuments();
+    const pdfDocument: PdfDocument = {
+      ...document,
+      id: randomUUID(),
+      uploadedAt: new Date(),
+      processed: document.processed || false,
+      pageCount: document.pageCount || null,
+    };
+    documents.push(pdfDocument);
+    this.writeJsonFile(this.pdfDocumentsFile, documents);
+    return pdfDocument;
+  }
+
+  async getPdfDocument(id: string): Promise<PdfDocument | undefined> {
+    const documents = await this.getPdfDocuments();
+    return documents.find(doc => doc.id === id);
+  }
+
+  async updatePdfDocument(id: string, updates: Partial<PdfDocument>): Promise<PdfDocument | undefined> {
+    const documents = await this.getPdfDocuments();
+    const index = documents.findIndex(doc => doc.id === id);
+    if (index === -1) return undefined;
+    
+    documents[index] = { ...documents[index], ...updates };
+    this.writeJsonFile(this.pdfDocumentsFile, documents);
+    return documents[index];
+  }
+
+  async deletePdfDocument(id: string): Promise<boolean> {
+    const documents = await this.getPdfDocuments();
+    const index = documents.findIndex(doc => doc.id === id);
+    if (index === -1) return false;
+    
+    // Delete related chunks
+    const chunks = await this.getDocumentChunks(id);
+    const allChunks = this.readJsonFile<DocumentChunk[]>(this.documentChunksFile, []);
+    const filteredChunks = allChunks.filter(chunk => chunk.documentId !== id);
+    this.writeJsonFile(this.documentChunksFile, filteredChunks);
+    
+    // Delete related sessions and messages
+    const sessions = await this.getPdfChatSessions(id);
+    for (const session of sessions) {
+      await this.deletePdfChatSession(session.id);
+    }
+    
+    // Delete the document
+    documents.splice(index, 1);
+    this.writeJsonFile(this.pdfDocumentsFile, documents);
+    return true;
+  }
+
+  // Document Chunks methods
+  async getDocumentChunks(documentId: string): Promise<DocumentChunk[]> {
+    const chunks = this.readJsonFile<DocumentChunk[]>(this.documentChunksFile, []);
+    return chunks
+      .filter(chunk => chunk.documentId === documentId)
+      .sort((a, b) => parseInt(a.chunkIndex) - parseInt(b.chunkIndex));
+  }
+
+  async addDocumentChunk(chunk: InsertDocumentChunk): Promise<DocumentChunk> {
+    const chunks = this.readJsonFile<DocumentChunk[]>(this.documentChunksFile, []);
+    const documentChunk: DocumentChunk = {
+      ...chunk,
+      id: randomUUID(),
+      createdAt: new Date(),
+      embedding: chunk.embedding || null,
+      metadata: chunk.metadata || null,
+    };
+    chunks.push(documentChunk);
+    this.writeJsonFile(this.documentChunksFile, chunks);
+    return documentChunk;
+  }
+
+  async getDocumentChunk(id: string): Promise<DocumentChunk | undefined> {
+    const chunks = this.readJsonFile<DocumentChunk[]>(this.documentChunksFile, []);
+    return chunks.find(chunk => chunk.id === id);
+  }
+
+  async searchDocumentChunks(documentId: string, query: string): Promise<DocumentChunk[]> {
+    const chunks = await this.getDocumentChunks(documentId);
+    return chunks.filter(chunk => 
+      chunk.content.toLowerCase().includes(query.toLowerCase())
+    );
+  }
+
+  // PDF Chat Sessions methods
+  async getPdfChatSessions(documentId: string): Promise<PdfChatSession[]> {
+    const sessions = this.readJsonFile<PdfChatSession[]>(this.pdfChatSessionsFile, []);
+    return sessions
+      .filter(session => session.documentId === documentId)
+      .sort((a, b) => b.createdAt!.getTime() - a.createdAt!.getTime());
+  }
+
+  async addPdfChatSession(session: InsertPdfChatSession): Promise<PdfChatSession> {
+    const sessions = this.readJsonFile<PdfChatSession[]>(this.pdfChatSessionsFile, []);
+    const pdfChatSession: PdfChatSession = {
+      ...session,
+      id: randomUUID(),
+      createdAt: new Date(),
+      sessionName: session.sessionName || "New Chat",
+    };
+    sessions.push(pdfChatSession);
+    this.writeJsonFile(this.pdfChatSessionsFile, sessions);
+    return pdfChatSession;
+  }
+
+  async getPdfChatSession(id: string): Promise<PdfChatSession | undefined> {
+    const sessions = this.readJsonFile<PdfChatSession[]>(this.pdfChatSessionsFile, []);
+    return sessions.find(session => session.id === id);
+  }
+
+  async deletePdfChatSession(id: string): Promise<boolean> {
+    const sessions = this.readJsonFile<PdfChatSession[]>(this.pdfChatSessionsFile, []);
+    const index = sessions.findIndex(session => session.id === id);
+    if (index === -1) return false;
+    
+    // Delete related messages
+    const messages = this.readJsonFile<PdfChatMessage[]>(this.pdfChatMessagesFile, []);
+    const filteredMessages = messages.filter(msg => msg.sessionId !== id);
+    this.writeJsonFile(this.pdfChatMessagesFile, filteredMessages);
+    
+    // Delete the session
+    sessions.splice(index, 1);
+    this.writeJsonFile(this.pdfChatSessionsFile, sessions);
+    return true;
+  }
+
+  // PDF Chat Messages methods
+  async getPdfChatMessages(sessionId: string): Promise<PdfChatMessage[]> {
+    const messages = this.readJsonFile<PdfChatMessage[]>(this.pdfChatMessagesFile, []);
+    return messages
+      .filter(message => message.sessionId === sessionId)
+      .sort((a, b) => a.timestamp!.getTime() - b.timestamp!.getTime());
+  }
+
+  async addPdfChatMessage(message: InsertPdfChatMessage): Promise<PdfChatMessage> {
+    const messages = this.readJsonFile<PdfChatMessage[]>(this.pdfChatMessagesFile, []);
+    const pdfChatMessage: PdfChatMessage = {
+      ...message,
+      id: randomUUID(),
+      timestamp: new Date(),
+      relevantChunks: message.relevantChunks || [],
+    };
+    messages.push(pdfChatMessage);
+    this.writeJsonFile(this.pdfChatMessagesFile, messages);
+    return pdfChatMessage;
   }
 }
 

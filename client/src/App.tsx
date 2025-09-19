@@ -4,10 +4,11 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
-import { MessageSquare, Mail, Bot } from "lucide-react";
+import { MessageSquare, Mail, Bot, FileText } from "lucide-react";
 import Home from "@/pages/home";
 import Emails from "@/pages/emails";
 import EmailAgent from "@/pages/email-agent";
+import PdfChat from "@/pages/pdf-chat";
 import NotFound from "@/pages/not-found";
 
 function Navigation() {
@@ -55,6 +56,18 @@ function Navigation() {
                 Email Agent Chat
               </Link>
             </Button>
+            
+            <Button
+              variant={location === "/pdf-chat" ? "default" : "ghost"}
+              size="sm"
+              asChild
+              data-testid="nav-pdf-chat"
+            >
+              <Link href="/pdf-chat">
+                <FileText className="w-4 h-4 mr-2" />
+                PDF Chat
+              </Link>
+            </Button>
           </div>
         </div>
       </div>
@@ -71,6 +84,7 @@ function Router() {
           <Route path="/" component={Home} />
           <Route path="/emails" component={Emails} />
           <Route path="/email-agent" component={EmailAgent} />
+          <Route path="/pdf-chat" component={PdfChat} />
           <Route component={NotFound} />
         </Switch>
       </div>

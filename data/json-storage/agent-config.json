@@ -2,8 +2,8 @@
   "id": "2c6142e6-10d9-4561-8fdc-c403c06aad59",
   "provider": "ollama",
   "model": "llama3.2:1b",
-  "endpointUrl": "http://127.0.0.1:11435",
+  "endpointUrl": "https://0cbede116e5b.ngrok-free.app",
   "isConnected": false,
-  "lastTested": "2025-09-19T11:06:33.393Z",
+  "lastTested": "2025-09-19T11:21:45.573Z",
   "createdAt": "2025-09-15T04:21:27.910Z"
 }
