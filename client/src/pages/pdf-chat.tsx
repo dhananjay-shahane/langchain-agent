@@ -38,20 +38,28 @@ interface ChatMessage {
 }
 
 export default function PdfChat() {
-  const [selectedDocument, setSelectedDocument] = useState<PdfDocument | null>(null);
-  const [selectedSession, setSelectedSession] = useState<ChatSession | null>(null);
+  const [selectedDocument, setSelectedDocument] = useState<PdfDocument | null>(
+    null,
+  );
+  const [selectedSession, setSelectedSession] = useState<ChatSession | null>(
+    null,
+  );
   const [messageInput, setMessageInput] = useState("");
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
   // Fetch chat sessions for selected document
-  const { data: sessions = [], isLoading: loadingSessions } = useQuery<ChatSession[]>({
+  const { data: sessions = [], isLoading: loadingSessions } = useQuery<
+    ChatSession[]
+  >({
     queryKey: ["/api/pdfs", selectedDocument?.id, "sessions"],
     enabled: !!selectedDocument,
   });
 
   // Fetch messages for selected session
-  const { data: messages = [], isLoading: loadingMessages } = useQuery<ChatMessage[]>({
+  const { data: messages = [], isLoading: loadingMessages } = useQuery<
+    ChatMessage[]
+  >({
     queryKey: ["/api/pdfs/sessions", selectedSession?.id, "messages"],
     enabled: !!selectedSession,
   });
@@ -60,12 +68,18 @@ export default function PdfChat() {
   const createSessionMutation = useMutation({
     mutationFn: async (sessionName: string) => {
       if (!selectedDocument) throw new Error("No document selected");
-      
-      const response = await apiRequest("POST", `/api/pdfs/${selectedDocument.id}/sessions`, { sessionName });
+
+      const response = await apiRequest(
+        "POST",
+        `/api/pdfs/${selectedDocument.id}/sessions`,
+        { sessionName },
+      );
       return await response.json();
     },
     onSuccess: (newSession) => {
-      queryClient.invalidateQueries({ queryKey: ["/api/pdfs", selectedDocument?.id, "sessions"] });
+      queryClient.invalidateQueries({
+        queryKey: ["/api/pdfs", selectedDocument?.id, "sessions"],
+      });
       setSelectedSession(newSession);
       toast({
         title: "Chat Session Created",
@@ -85,13 +99,17 @@ export default function PdfChat() {
   const sendMessageMutation = useMutation({
     mutationFn: async (content: string) => {
       if (!selectedSession) throw new Error("No session selected");
-      
-      const response = await apiRequest("POST", `/api/pdfs/sessions/${selectedSession.id}/messages`, { role: "user", content });
+
+      const response = await apiRequest(
+        "POST",
+        `/api/pdfs/sessions/${selectedSession.id}/messages`,
+        { role: "user", content },
+      );
       return await response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ 
-        queryKey: ["/api/pdfs/sessions", selectedSession?.id, "messages"] 
+      queryClient.invalidateQueries({
+        queryKey: ["/api/pdfs/sessions", selectedSession?.id, "messages"],
       });
       setMessageInput("");
     },
@@ -112,7 +130,7 @@ export default function PdfChat() {
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!messageInput.trim() || !selectedSession) return;
-    
+
     sendMessageMutation.mutate(messageInput);
   };
 
@@ -122,9 +140,9 @@ export default function PdfChat() {
   };
 
   const formatTime = (timestamp: string) => {
-    return new Date(timestamp).toLocaleTimeString([], { 
-      hour: '2-digit', 
-      minute: '2-digit' 
+    return new Date(timestamp).toLocaleTimeString([], {
+      hour: "2-digit",
+      minute: "2-digit",
     });
   };
 
@@ -138,7 +156,7 @@ export default function PdfChat() {
           </p>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 h-[calc(100vh-200px)]">
+        <div className="grid grid-cols-1 lg:grid-cols-1 gap-6 h-[calc(100vh-200px)]">
           {/* Left Panel - Document List & Upload */}
           <div className="lg:col-span-1 space-y-4">
             <Card className="h-full">
@@ -147,8 +165,8 @@ export default function PdfChat() {
               </CardHeader>
               <CardContent className="p-0">
                 <ScrollArea className="h-[calc(100%-80px)] px-6">
-                  <PdfUpload 
-                    onDocumentSelect={handleDocumentSelect} 
+                  <PdfUpload
+                    onDocumentSelect={handleDocumentSelect}
                     selectedDocumentId={selectedDocument?.id}
                   />
                 </ScrollArea>
@@ -165,7 +183,9 @@ export default function PdfChat() {
                   <Button
                     size="sm"
                     onClick={handleCreateNewSession}
-                    disabled={!selectedDocument || createSessionMutation.isPending}
+                    disabled={
+                      !selectedDocument || createSessionMutation.isPending
+                    }
                     data-testid="create-session-button"
                   >
                     <Plus className="h-4 w-4" />
@@ -174,7 +194,9 @@ export default function PdfChat() {
                 {selectedDocument && (
                   <div className="flex items-center gap-2 text-sm text-muted-foreground">
                     <FileText className="h-4 w-4" />
-                    <span className="truncate">{selectedDocument.originalName}</span>
+                    <span className="truncate">
+                      {selectedDocument.originalName}
+                    </span>
                   </div>
                 )}
               </CardHeader>
@@ -184,12 +206,17 @@ export default function PdfChat() {
                     {!selectedDocument ? (
                       <div className="text-center py-8 text-muted-foreground">
                         <MessageSquare className="mx-auto h-12 w-12 mb-4 opacity-50" />
-                        <p className="text-sm">Select a document to view chat sessions</p>
+                        <p className="text-sm">
+                          Select a document to view chat sessions
+                        </p>
                       </div>
                     ) : loadingSessions ? (
                       <div className="space-y-2">
                         {[1, 2, 3].map((i) => (
-                          <div key={i} className="animate-pulse p-3 rounded-lg bg-muted"></div>
+                          <div
+                            key={i}
+                            className="animate-pulse p-3 rounded-lg bg-muted"
+                          ></div>
                         ))}
                       </div>
                     ) : sessions.length === 0 ? (
@@ -210,7 +237,9 @@ export default function PdfChat() {
                           onClick={() => setSelectedSession(session)}
                           data-testid={`session-${session.id}`}
                         >
-                          <p className="font-medium text-sm truncate">{session.sessionName}</p>
+                          <p className="font-medium text-sm truncate">
+                            {session.sessionName}
+                          </p>
                           <p className="text-xs opacity-70">
                             {new Date(session.createdAt).toLocaleDateString()}
                           </p>
@@ -228,7 +257,9 @@ export default function PdfChat() {
             <Card className="h-full">
               <CardHeader className="pb-4">
                 <CardTitle className="text-lg">
-                  {selectedSession ? selectedSession.sessionName : "Select a Chat Session"}
+                  {selectedSession
+                    ? selectedSession.sessionName
+                    : "Select a Chat Session"}
                 </CardTitle>
                 {selectedSession && (
                   <p className="text-sm text-muted-foreground">
@@ -243,9 +274,12 @@ export default function PdfChat() {
                     {!selectedSession ? (
                       <div className="text-center py-12 text-muted-foreground">
                         <Bot className="mx-auto h-16 w-16 mb-4 opacity-50" />
-                        <p className="text-lg mb-2">Ready to Chat with Your PDFs</p>
+                        <p className="text-lg mb-2">
+                          Ready to Chat with Your PDFs
+                        </p>
                         <p className="text-sm">
-                          Upload a document and create a chat session to get started
+                          Upload a document and create a chat session to get
+                          started
                         </p>
                       </div>
                     ) : loadingMessages ? (
@@ -289,7 +323,9 @@ export default function PdfChat() {
                                 : "bg-muted"
                             }`}
                           >
-                            <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+                            <p className="text-sm whitespace-pre-wrap">
+                              {message.content}
+                            </p>
                             <div className="flex items-center justify-between mt-2">
                               <span className="text-xs opacity-70">
                                 {formatTime(message.timestamp)}
@@ -328,7 +364,10 @@ export default function PdfChat() {
                         />
                         <Button
                           type="submit"
-                          disabled={!messageInput.trim() || sendMessageMutation.isPending}
+                          disabled={
+                            !messageInput.trim() ||
+                            sendMessageMutation.isPending
+                          }
                           data-testid="send-message-button"
                         >
                           <Send className="h-4 w-4" />

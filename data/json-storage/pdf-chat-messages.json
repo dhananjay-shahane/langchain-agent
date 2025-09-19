@@ -64,14 +64,6 @@
     "timestamp": "2025-09-19T12:20:34.403Z"
   },
   {
-    "sessionId": "c9fdb08f-b486-4054-a960-066c47e4549e",
-    "role": "user",
-    "content": "What is this document about? Give me a summary.",
-    "relevantChunks": [],
-    "id": "b96f92a4-6e88-45f2-91ef-4a0c5dda3761",
-    "timestamp": "2025-09-19T12:22:27.216Z"
-  },
-  {
     "sessionId": "8f28471e-e536-451c-958c-e4c9aca16fb6",
     "role": "user",
     "content": "hi",
@@ -88,27 +80,80 @@
     "timestamp": "2025-09-19T12:22:55.399Z"
   },
   {
-    "sessionId": "c9fdb08f-b486-4054-a960-066c47e4549e",
+    "sessionId": "29ea6089-a56e-4b2c-884d-d679adc65334",
     "role": "user",
-    "content": "What is this document about? Give me a summary.",
+    "content": "here show me data",
     "relevantChunks": [],
-    "id": "3fbf5067-b7d1-4039-89b6-e0f09324fc7c",
-    "timestamp": "2025-09-19T12:24:08.621Z"
+    "id": "3de85ac2-e7a5-4a2c-ae50-1a83aa01d148",
+    "timestamp": "2025-09-19T12:36:46.406Z"
+  },
+  {
+    "sessionId": "29ea6089-a56e-4b2c-884d-d679adc65334",
+    "role": "assistant",
+    "content": "Your document \"Pdf_912349810260825.pdf\" is still being processed. Please wait a moment for the text extraction and chunking to complete, then try asking your question again. You'll receive a notification when processing is finished.",
+    "relevantChunks": [],
+    "id": "02ad0ea1-6fbe-4c79-91ca-65d7cda2d2a7",
+    "timestamp": "2025-09-19T12:36:46.908Z"
+  },
+  {
+    "sessionId": "29ea6089-a56e-4b2c-884d-d679adc65334",
+    "role": "user",
+    "content": "what is data in side document ",
+    "relevantChunks": [],
+    "id": "2ffe7e85-d1b7-45e0-8e5f-55bfa3f1040b",
+    "timestamp": "2025-09-19T12:41:43.453Z"
+  },
+  {
+    "sessionId": "29ea6089-a56e-4b2c-884d-d679adc65334",
+    "role": "assistant",
+    "content": "Your document \"Pdf_912349810260825.pdf\" is still being processed. Please wait a moment for the text extraction and chunking to complete, then try asking your question again. You'll receive a notification when processing is finished.",
+    "relevantChunks": [],
+    "id": "2261de5e-ff7e-42bf-9091-b00f7a88fdce",
+    "timestamp": "2025-09-19T12:41:43.955Z"
   },
   {
     "sessionId": "c9fdb08f-b486-4054-a960-066c47e4549e",
     "role": "assistant",
-    "content": "I encountered an error while processing your question. Please make sure the document is properly uploaded and processed, and that Ollama is running with the required models (llama3.2:1b and nomic-embed-text).",
-    "relevantChunks": [],
-    "id": "ce3d7a94-9057-44b4-a02d-bac48bfdd909",
-    "timestamp": "2025-09-19T12:24:14.771Z"
+    "content": "Based on the provided context, I can answer your question about the \"hello\" program.\n\nThe \"hello\" program is a simple C program that prints \"Hello, World!\" to the console. According to Section 1 of the document, JavaScript is used for this purpose since it's an accessible and popular language for small scripts as well as complex applications.\n\nSection 3 of the document provides specific instructions for compiling and optimizing the \"hello\" program using LIR (Low-Level Intermediate Representation). The instructions include:\n\n- `mov edx, ebx(748)`: loads primes from the trace activation record\n- `mov edi(0), edx`: stores primes to interpreter stack\n- `mov esi, ebx(764)`: loads k from the trace activation record\n- `mov edi(8), esi`: stores k to interpreter stack\n- `mov edi(16), 0`: stores false to interpreter stack\n\nThese instructions are compiled into x86 code using TraceMonkey's LIR. The \"hello\" program is optimized for performance, with a single x86 instruction generating 100+ instructions compared to the interpreter executing them.\n\nTherefore, based on the provided context and Section 3 of the document, I can conclude that the \"hello\" program is compiled into x86 code using TraceMonkey's LIR.",
+    "relevantChunks": [
+      "6c718bf5-a78d-4d78-991c-0d8da52215e7",
+      "8229cb04-7fb1-41c7-b31b-efb1cdc1f54f",
+      "83442c70-a336-41c1-acf1-27e3b7333b36",
+      "8e6b5a3c-d673-4c89-98a2-3f9e5a68557f"
+    ],
+    "id": "47b41908-0e92-41b6-81cb-98f4ff837cb3",
+    "timestamp": "2025-09-19T12:42:35.348Z"
   },
   {
-    "sessionId": "c9fdb08f-b486-4054-a960-066c47e4549e",
-    "role": "assistant",
-    "content": "I encountered an error while processing your question. Please make sure the document is properly uploaded and processed, and that Ollama is running with the required models (llama3.2:1b and nomic-embed-text).",
+    "sessionId": "29ea6089-a56e-4b2c-884d-d679adc65334",
+    "role": "user",
+    "content": "here show data ",
     "relevantChunks": [],
-    "id": "45c95f11-6db4-4ada-9b0d-ec3fc061c496",
-    "timestamp": "2025-09-19T12:25:45.024Z"
+    "id": "388316c7-a1e2-45bb-8958-2bb0cf301615",
+    "timestamp": "2025-09-19T12:43:27.807Z"
+  },
+  {
+    "sessionId": "29ea6089-a56e-4b2c-884d-d679adc65334",
+    "role": "assistant",
+    "content": "Your document \"Pdf_912349810260825.pdf\" is still being processed. Please wait a moment for the text extraction and chunking to complete, then try asking your question again. You'll receive a notification when processing is finished.",
+    "relevantChunks": [],
+    "id": "b8dddd14-94ba-4bfe-8928-c46cd0bd1138",
+    "timestamp": "2025-09-19T12:43:28.308Z"
+  },
+  {
+    "sessionId": "b6497c71-07a9-4686-beb0-8b8903edd264",
+    "role": "user",
+    "content": "here show data",
+    "relevantChunks": [],
+    "id": "d6712876-398a-43e8-a90a-ebb60d3d2469",
+    "timestamp": "2025-09-19T12:46:56.017Z"
+  },
+  {
+    "sessionId": "b6497c71-07a9-4686-beb0-8b8903edd264",
+    "role": "assistant",
+    "content": "Your document \"Pdf_912349810260825.pdf\" is still being processed. Please wait a moment for the text extraction and chunking to complete, then try asking your question again. You'll receive a notification when processing is finished.",
+    "relevantChunks": [],
+    "id": "fd4d4014-17ef-49e2-9bd3-bcd0cab32c88",
+    "timestamp": "2025-09-19T12:46:56.518Z"
   }
 ]
