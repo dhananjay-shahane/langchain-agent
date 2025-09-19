@@ -3,7 +3,63 @@
     "filename": "sample_well_01_porosity_simple_20250918_133742.png",
     "filepath": "/home/runner/workspace/output/sample_well_01_porosity_simple_20250918_133742.png",
     "type": "plot",
+    "id": "55b08403-29c1-4c04-bff2-0c63e9735c4f",
+    "createdAt": "2025-09-19T11:04:35.747Z",
+    "relatedLasFile": null
+  },
+  {
+    "filename": "sample_well_01_gamma_simple_20250918_133622.png",
+    "filepath": "/home/runner/workspace/output/sample_well_01_gamma_simple_20250918_133622.png",
+    "type": "plot",
+    "id": "b2110a2d-bb27-48f4-b1ba-7174d0a8f4e5",
+    "createdAt": "2025-09-19T11:04:35.745Z",
+    "relatedLasFile": null
+  },
+  {
+    "filename": "sample_well_01_density_simple_20250918_133743.png",
+    "filepath": "/home/runner/workspace/output/sample_well_01_density_simple_20250918_133743.png",
+    "type": "plot",
+    "id": "ca13cdf2-e361-4e00-9021-65af3c17eb96",
+    "createdAt": "2025-09-19T11:04:35.744Z",
+    "relatedLasFile": null
+  },
+  {
+    "filename": "APACHE_1H-15_porosity_20250917_104902.png",
+    "filepath": "/home/runner/workspace/output/APACHE_1H-15_porosity_20250917_104902.png",
+    "type": "plot",
+    "id": "a6b764ae-160b-47a9-9e61-80663345e8c0",
+    "createdAt": "2025-09-19T11:04:35.743Z",
+    "relatedLasFile": null
+  },
+  {
+    "filename": "sample_well_01_composite_simple_20250918_133744.png",
+    "filepath": "/home/runner/workspace/output/sample_well_01_composite_simple_20250918_133744.png",
+    "type": "plot",
+    "id": "10e9afd6-eab4-4692-b1cf-714ba3e94577",
+    "createdAt": "2025-09-19T11:04:35.743Z",
+    "relatedLasFile": null
+  },
+  {
+    "filename": "APACHE_1H-15_gamma_20250917_112128.png",
+    "filepath": "/home/runner/workspace/output/APACHE_1H-15_gamma_20250917_112128.png",
+    "type": "plot",
+    "id": "d9cfd78a-f13a-4c2c-9a82-4847aa5f629c",
+    "createdAt": "2025-09-19T11:04:35.742Z",
+    "relatedLasFile": null
+  },
+  {
+    "filename": "sample_well_01_porosity_simple_20250918_133742.png",
+    "filepath": "/home/runner/workspace/output/sample_well_01_porosity_simple_20250918_133742.png",
+    "type": "plot",
     "id": "b0925f8d-d63c-464c-8d8c-a84740a1c042",
+    "createdAt": "2025-09-19T11:04:05.328Z",
+    "relatedLasFile": null
+  },
+  {
+    "filename": "sample_well_01_resistivity_simple_20250918_133743.png",
+    "filepath": "/home/runner/workspace/output/sample_well_01_resistivity_simple_20250918_133743.png",
+    "type": "plot",
+    "id": "0263b14d-f265-4bc0-8280-5e631328dd4c",
     "createdAt": "2025-09-19T11:04:05.328Z",
     "relatedLasFile": null
   },
@@ -179,8 +235,8 @@
     "filename": "sample_well_01_resistivity_simple_20250918_133743.png",
     "filepath": "/home/runner/workspace/output/sample_well_01_resistivity_simple_20250918_133743.png",
     "type": "plot",
-    "id": "0263b14d-f265-4bc0-8280-5e631328dd4c",
-    "createdAt": "2025-09-19T11:04:05.328Z",
+    "id": "80e84acb-87c6-47d0-8255-f2bc24cae921",
+    "createdAt": "2025-09-19T11:04:35.748Z",
     "relatedLasFile": null
   }
 ]
