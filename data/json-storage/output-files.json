@@ -3,6 +3,70 @@
     "filename": "sample_well_01_porosity_simple_20250919_124611.png",
     "filepath": "/home/runner/workspace/output/sample_well_01_porosity_simple_20250919_124611.png",
     "type": "plot",
+    "id": "c91b61fd-eaf1-4b45-adb1-aa03a21b6461",
+    "createdAt": "2025-09-19T13:34:29.042Z",
+    "relatedLasFile": null
+  },
+  {
+    "filename": "sample_well_01_porosity_simple_20250918_133742.png",
+    "filepath": "/home/runner/workspace/output/sample_well_01_porosity_simple_20250918_133742.png",
+    "type": "plot",
+    "id": "0b9d1db0-e045-468c-a464-44206cbbf480",
+    "createdAt": "2025-09-19T13:34:29.040Z",
+    "relatedLasFile": null
+  },
+  {
+    "filename": "sample_well_01_density_simple_20250918_133743.png",
+    "filepath": "/home/runner/workspace/output/sample_well_01_density_simple_20250918_133743.png",
+    "type": "plot",
+    "id": "8b249bbe-d6a8-45fa-94bc-10830d6a3eb4",
+    "createdAt": "2025-09-19T13:34:29.037Z",
+    "relatedLasFile": null
+  },
+  {
+    "filename": "sample_well_01_gamma_simple_20250918_133622.png",
+    "filepath": "/home/runner/workspace/output/sample_well_01_gamma_simple_20250918_133622.png",
+    "type": "plot",
+    "id": "52de885d-65f5-4726-88a2-be541bf53632",
+    "createdAt": "2025-09-19T13:34:29.037Z",
+    "relatedLasFile": null
+  },
+  {
+    "filename": "sample_well_01_composite_simple_20250918_133744.png",
+    "filepath": "/home/runner/workspace/output/sample_well_01_composite_simple_20250918_133744.png",
+    "type": "plot",
+    "id": "6104bea4-089c-446e-a715-6137b768c33c",
+    "createdAt": "2025-09-19T13:34:29.035Z",
+    "relatedLasFile": null
+  },
+  {
+    "filename": "APACHE_1H-15_porosity_20250917_104902.png",
+    "filepath": "/home/runner/workspace/output/APACHE_1H-15_porosity_20250917_104902.png",
+    "type": "plot",
+    "id": "9b44e1d6-c477-4631-a413-7cf5046b7d02",
+    "createdAt": "2025-09-19T13:34:29.029Z",
+    "relatedLasFile": null
+  },
+  {
+    "filename": "APACHE_1H-15_gamma_20250917_112128.png",
+    "filepath": "/home/runner/workspace/output/APACHE_1H-15_gamma_20250917_112128.png",
+    "type": "plot",
+    "id": "133dae9b-44d5-4ea0-81d8-0765fc3034a7",
+    "createdAt": "2025-09-19T13:34:29.026Z",
+    "relatedLasFile": null
+  },
+  {
+    "filename": "sample_well_01_porosity_simple_20250919_124611.png",
+    "filepath": "output/sample_well_01_porosity_simple_20250919_124611.png",
+    "type": "plot",
+    "relatedLasFile": "sample_well_01.las",
+    "id": "33e2bcf7-94a4-43e1-89b3-eabea07c015d",
+    "createdAt": "2025-09-19T12:46:23.684Z"
+  },
+  {
+    "filename": "sample_well_01_porosity_simple_20250919_124611.png",
+    "filepath": "/home/runner/workspace/output/sample_well_01_porosity_simple_20250919_124611.png",
+    "type": "plot",
     "id": "a0f6ca31-e253-476b-8f18-f4c370a78ec3",
     "createdAt": "2025-09-19T12:46:11.260Z",
     "relatedLasFile": null
@@ -360,11 +424,11 @@
     "relatedLasFile": null
   },
   {
-    "filename": "sample_well_01_porosity_simple_20250919_124611.png",
-    "filepath": "output/sample_well_01_porosity_simple_20250919_124611.png",
+    "filename": "sample_well_01_resistivity_simple_20250918_133743.png",
+    "filepath": "/home/runner/workspace/output/sample_well_01_resistivity_simple_20250918_133743.png",
     "type": "plot",
-    "relatedLasFile": "sample_well_01.las",
-    "id": "33e2bcf7-94a4-43e1-89b3-eabea07c015d",
-    "createdAt": "2025-09-19T12:46:23.684Z"
+    "id": "58e78830-2e42-4bfb-b4ca-1dc8176199ef",
+    "createdAt": "2025-09-19T13:34:29.043Z",
+    "relatedLasFile": null
   }
 ]
