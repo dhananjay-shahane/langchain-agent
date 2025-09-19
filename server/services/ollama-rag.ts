@@ -36,8 +36,12 @@ export class OllamaRagService {
     try {
       const config = await storage.getAgentConfig();
       
-      // Use config endpoint URL if available, otherwise fallback to localhost
-      const baseUrl = config.endpointUrl || "http://localhost:11434";
+      if (!config) {
+        throw new Error("No agent configuration found");
+      }
+      
+      // Use the configured endpoint URL
+      const baseUrl = config.endpointUrl || "https://0cbede116e5b.ngrok-free.app";
       
       // Update LLM configuration
       this.llm = new ChatOllama({
@@ -55,14 +59,20 @@ export class OllamaRagService {
       console.log(`Updated Ollama config: baseUrl=${baseUrl}, model=${config.model || "llama3.2:1b"}`);
       
     } catch (error) {
-      console.warn("Failed to update from config, using defaults:", error);
+      console.error("Failed to update from config:", error);
+      throw new Error("Agent configuration is required for RAG functionality");
     }
   }
 
   async isOllamaAvailable(): Promise<boolean> {
     try {
       const config = await storage.getAgentConfig();
-      const baseUrl = config.endpointUrl || "http://localhost:11434";
+      
+      if (!config) {
+        return false;
+      }
+      
+      const baseUrl = config.endpointUrl || "https://0cbede116e5b.ngrok-free.app";
       
       // Try to make a simple request to check if Ollama is running
       const response = await fetch(`${baseUrl}/api/version`);
@@ -99,35 +109,13 @@ export class OllamaRagService {
 
     console.log(`Creating embeddings for ${documents.length} chunks`);
     
-    try {
-      // Create vector store with embeddings
-      const vectorStore = await MemoryVectorStore.fromDocuments(documents, this.embeddings);
-      
-      // Cache the vector store
-      this.vectorStores.set(documentId, vectorStore);
-      
-      return vectorStore;
-    } catch (embeddingError) {
-      console.warn("Failed to create embeddings, falling back to simple text matching:", embeddingError);
-      
-      // Fallback: create a simple vector store without semantic embeddings
-      // This will use basic text similarity instead
-      const vectorStore = new MemoryVectorStore();
-      // Use a simple embedding function for fallback
-      const simpleEmbeddings = {
-        embedDocuments: async (docs: string[]) => {
-          return docs.map(() => new Array(384).fill(0).map(() => Math.random()));
-        },
-        embedQuery: async (query: string) => {
-          return new Array(384).fill(0).map(() => Math.random());
-        }
-      };
-      
-      await vectorStore.addDocuments(documents, simpleEmbeddings as any);
-      
-      this.vectorStores.set(documentId, vectorStore);
-      return vectorStore;
-    }
+    // Create vector store with embeddings - no fallback
+    const vectorStore = await MemoryVectorStore.fromDocuments(documents, this.embeddings);
+    
+    // Cache the vector store
+    this.vectorStores.set(documentId, vectorStore);
+    
+    return vectorStore;
   }
 
   async chatWithDocument(documentId: string, question: string, sessionId: string): Promise<RagResponse> {
@@ -145,15 +133,8 @@ export class OllamaRagService {
         };
       }
 
-      // Try to get or create vector store for the document
-      let vectorStore;
-      try {
-        vectorStore = await this.ensureVectorStore(documentId);
-      } catch (embeddingError) {
-        console.warn("Vector store creation failed, falling back to simple text search:", embeddingError);
-        // Fallback to simple text search if embeddings fail
-        return await this.simpleTextSearch(documentId, question, sessionId);
-      }
+      // Get or create vector store for the document
+      const vectorStore = await this.ensureVectorStore(documentId);
       
       // Create retriever
       const retriever = vectorStore.asRetriever({
@@ -212,21 +193,6 @@ Answer:`);
     } catch (error) {
       console.error("RAG processing error:", error);
       
-      // Fallback to simple text search if vector search fails
-      try {
-        const simpleChunks = await storage.searchDocumentChunks(documentId, question);
-        const context = simpleChunks.slice(0, 3).map(chunk => chunk.content).join("\n\n");
-        
-        if (context.length > 0) {
-          return {
-            response: `Based on the document content, I found the following relevant information:\n\n${context}\n\nNote: This is a simplified search result. For better AI-powered responses, please ensure Ollama is running with the llama3.2:1b model.`,
-            relevantChunks: simpleChunks.map(chunk => chunk.id),
-          };
-        }
-      } catch (fallbackError) {
-        console.error("Fallback search also failed:", fallbackError);
-      }
-
       return {
         response: "I encountered an error while processing your question. Please make sure the document is properly uploaded and processed, and that Ollama is running with the required models (llama3.2:1b and nomic-embed-text).",
         relevantChunks: [],
@@ -240,64 +206,19 @@ Answer:`);
     console.log(`Cleared vector store for document ${documentId}`);
   }
 
-  async simpleTextSearch(documentId: string, question: string, sessionId: string): Promise<RagResponse> {
-    try {
-      console.log(`Using simple text search fallback for document ${documentId}`);
-      
-      // Get document chunks using simple text search
-      const chunks = await storage.searchDocumentChunks(documentId, question);
-      
-      if (chunks.length === 0) {
-        return {
-          response: "I couldn't find any relevant information in the document to answer your question.",
-          relevantChunks: [],
-        };
-      }
-
-      // Take the top 4 most relevant chunks
-      const relevantChunks = chunks.slice(0, 4);
-      const context = relevantChunks.map((chunk, i) => `Section ${i + 1}: ${chunk.content}`).join("\n\n");
-      
-      // Create a simple prompt for the LLM
-      const prompt = `You are a helpful AI assistant that answers questions about PDF documents. Use the provided context to answer the user's question accurately and concisely.
-
-Context from the document:
-${context}
-
-Question: ${question}
-
-Instructions:
-- Answer based only on the provided context
-- If the context doesn't contain enough information to answer the question, say so
-- Be specific and cite relevant information from the context
-- Keep your answer concise but comprehensive
-
-Answer:`;
-
-      // Generate response using Ollama
-      const response = await this.llm.invoke(prompt);
-      const responseText = typeof response.content === 'string' ? response.content : String(response.content);
-
-      console.log(`Generated simple text search response: ${responseText.substring(0, 100)}...`);
-
-      return {
-        response: responseText,
-        relevantChunks: relevantChunks.map(chunk => chunk.id),
-      };
-    } catch (error) {
-      console.error("Simple text search failed:", error);
-      return {
-        response: "I encountered an error while processing your question. Please try again or make sure the document is properly processed.",
-        relevantChunks: [],
-        error: error instanceof Error ? error.message : String(error),
-      };
-    }
-  }
 
   async getModelInfo(): Promise<any> {
     try {
       const config = await storage.getAgentConfig();
-      const baseUrl = config.endpointUrl || "http://localhost:11434";
+      
+      if (!config) {
+        return {
+          available: false,
+          message: "No agent configuration found",
+        };
+      }
+      
+      const baseUrl = config.endpointUrl || "https://0cbede116e5b.ngrok-free.app";
       
       const isAvailable = await this.isOllamaAvailable();
       if (!isAvailable) {
