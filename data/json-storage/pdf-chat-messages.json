@@ -86,5 +86,21 @@
     "relevantChunks": [],
     "id": "659c8c12-6d0b-430e-8eeb-19418fd5c953",
     "timestamp": "2025-09-19T12:22:55.399Z"
+  },
+  {
+    "sessionId": "c9fdb08f-b486-4054-a960-066c47e4549e",
+    "role": "user",
+    "content": "What is this document about? Give me a summary.",
+    "relevantChunks": [],
+    "id": "3fbf5067-b7d1-4039-89b6-e0f09324fc7c",
+    "timestamp": "2025-09-19T12:24:08.621Z"
+  },
+  {
+    "sessionId": "c9fdb08f-b486-4054-a960-066c47e4549e",
+    "role": "assistant",
+    "content": "I encountered an error while processing your question. Please make sure the document is properly uploaded and processed, and that Ollama is running with the required models (llama3.2:1b and nomic-embed-text).",
+    "relevantChunks": [],
+    "id": "ce3d7a94-9057-44b4-a02d-bac48bfdd909",
+    "timestamp": "2025-09-19T12:24:14.771Z"
   }
 ]
