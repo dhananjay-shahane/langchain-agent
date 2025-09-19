@@ -145,8 +145,15 @@ export class OllamaRagService {
         };
       }
 
-      // Get or create vector store for the document
-      const vectorStore = await this.ensureVectorStore(documentId);
+      // Try to get or create vector store for the document
+      let vectorStore;
+      try {
+        vectorStore = await this.ensureVectorStore(documentId);
+      } catch (embeddingError) {
+        console.warn("Vector store creation failed, falling back to simple text search:", embeddingError);
+        // Fallback to simple text search if embeddings fail
+        return await this.simpleTextSearch(documentId, question, sessionId);
+      }
       
       // Create retriever
       const retriever = vectorStore.asRetriever({
@@ -231,6 +238,60 @@ Answer:`);
   async clearVectorStore(documentId: string): Promise<void> {
     this.vectorStores.delete(documentId);
     console.log(`Cleared vector store for document ${documentId}`);
+  }
+
+  async simpleTextSearch(documentId: string, question: string, sessionId: string): Promise<RagResponse> {
+    try {
+      console.log(`Using simple text search fallback for document ${documentId}`);
+      
+      // Get document chunks using simple text search
+      const chunks = await storage.searchDocumentChunks(documentId, question);
+      
+      if (chunks.length === 0) {
+        return {
+          response: "I couldn't find any relevant information in the document to answer your question.",
+          relevantChunks: [],
+        };
+      }
+
+      // Take the top 4 most relevant chunks
+      const relevantChunks = chunks.slice(0, 4);
+      const context = relevantChunks.map((chunk, i) => `Section ${i + 1}: ${chunk.content}`).join("\n\n");
+      
+      // Create a simple prompt for the LLM
+      const prompt = `You are a helpful AI assistant that answers questions about PDF documents. Use the provided context to answer the user's question accurately and concisely.
+
+Context from the document:
+${context}
+
+Question: ${question}
+
+Instructions:
+- Answer based only on the provided context
+- If the context doesn't contain enough information to answer the question, say so
+- Be specific and cite relevant information from the context
+- Keep your answer concise but comprehensive
+
+Answer:`;
+
+      // Generate response using Ollama
+      const response = await this.llm.invoke(prompt);
+      const responseText = typeof response.content === 'string' ? response.content : String(response.content);
+
+      console.log(`Generated simple text search response: ${responseText.substring(0, 100)}...`);
+
+      return {
+        response: responseText,
+        relevantChunks: relevantChunks.map(chunk => chunk.id),
+      };
+    } catch (error) {
+      console.error("Simple text search failed:", error);
+      return {
+        response: "I encountered an error while processing your question. Please try again or make sure the document is properly processed.",
+        relevantChunks: [],
+        error: error instanceof Error ? error.message : String(error),
+      };
+    }
   }
 
   async getModelInfo(): Promise<any> {

@@ -102,5 +102,13 @@
     "relevantChunks": [],
     "id": "ce3d7a94-9057-44b4-a02d-bac48bfdd909",
     "timestamp": "2025-09-19T12:24:14.771Z"
+  },
+  {
+    "sessionId": "c9fdb08f-b486-4054-a960-066c47e4549e",
+    "role": "assistant",
+    "content": "I encountered an error while processing your question. Please make sure the document is properly uploaded and processed, and that Ollama is running with the required models (llama3.2:1b and nomic-embed-text).",
+    "relevantChunks": [],
+    "id": "45c95f11-6db4-4ada-9b0d-ec3fc061c496",
+    "timestamp": "2025-09-19T12:25:45.024Z"
   }
 ]
