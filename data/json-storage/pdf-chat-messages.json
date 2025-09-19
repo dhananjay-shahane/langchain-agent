@@ -155,5 +155,21 @@
     "relevantChunks": [],
     "id": "fd4d4014-17ef-49e2-9bd3-bcd0cab32c88",
     "timestamp": "2025-09-19T12:46:56.518Z"
+  },
+  {
+    "sessionId": "b6497c71-07a9-4686-beb0-8b8903edd264",
+    "role": "user",
+    "content": "What is this document about?",
+    "relevantChunks": [],
+    "id": "4966b3c6-1df2-4a4a-ac14-71644027f1a9",
+    "timestamp": "2025-09-19T13:42:49.306Z"
+  },
+  {
+    "sessionId": "b6497c71-07a9-4686-beb0-8b8903edd264",
+    "role": "assistant",
+    "content": "Your document \"Pdf_912349810260825.pdf\" is still being processed. Please wait a moment for the text extraction and chunking to complete, then try asking your question again. You'll receive a notification when processing is finished.",
+    "relevantChunks": [],
+    "id": "1cda3cda-ee96-4e2a-8385-db997128e6c9",
+    "timestamp": "2025-09-19T13:42:49.809Z"
   }
 ]
