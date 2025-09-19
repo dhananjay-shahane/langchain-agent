@@ -30,5 +30,21 @@
     "relevantChunks": [],
     "id": "21ae6904-b047-4680-a8ed-24eef8286150",
     "timestamp": "2025-09-19T11:22:16.897Z"
+  },
+  {
+    "sessionId": "8f28471e-e536-451c-958c-e4c9aca16fb6",
+    "role": "user",
+    "content": "hi",
+    "relevantChunks": [],
+    "id": "48f1edba-b26a-45ac-a7cf-838bef265bf8",
+    "timestamp": "2025-09-19T11:29:26.275Z"
+  },
+  {
+    "sessionId": "8f28471e-e536-451c-958c-e4c9aca16fb6",
+    "role": "assistant",
+    "content": "PDF chat functionality is being set up. RAG processing with Ollama will be available soon.",
+    "relevantChunks": [],
+    "id": "9a4288f5-a4e1-49ba-9d50-a57fa216ddd9",
+    "timestamp": "2025-09-19T11:29:27.276Z"
   }
 ]
