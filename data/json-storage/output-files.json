@@ -1,0 +1,18 @@
+[
+  {
+    "filename": "well_log_02_gamma_20250919_102806.png",
+    "filepath": "C:\\Users\\Dhananjay\\Documents\\GitHub\\langchain-agent\\output\\well_log_02_gamma_20250919_102806.png",
+    "type": "plot",
+    "id": "fa770f3e-3ed8-47ce-8c94-d126e91fbe11",
+    "createdAt": "2025-09-19T04:58:06.260Z",
+    "relatedLasFile": null
+  },
+  {
+    "filename": "well_log_02_gamma_20250919_102806.png",
+    "filepath": "output/well_log_02_gamma_20250919_102806.png",
+    "type": "plot",
+    "relatedLasFile": "well_log_02.las",
+    "id": "e08a3932-d730-4c0a-a481-8a2f4c2ab864",
+    "createdAt": "2025-09-19T04:58:19.824Z"
+  }
+]

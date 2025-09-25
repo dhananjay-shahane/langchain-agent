@@ -1,0 +1,32 @@
+[
+  {
+    "uid": "164",
+    "from": "Dhananjay Shahane <dhanushahane01@gmail.com>",
+    "subject": "hello",
+    "body": "create gamma ray plot",
+    "attachments": [],
+    "replyStatus": "pending",
+    "id": "629bb9ae-f928-4014-bd2d-3708bddf00f7",
+    "createdAt": "2025-09-15T09:29:13.275Z"
+  },
+  {
+    "uid": "163",
+    "from": "Dhananjay Shahane <dhanushahane01@gmail.com>",
+    "subject": "hello",
+    "body": "hello can you help me",
+    "attachments": [],
+    "replyStatus": "completed",
+    "id": "d465b9ae-19ff-46ba-b0ac-dd90c51f011b",
+    "createdAt": "2025-09-15T09:21:15.611Z"
+  },
+  {
+    "uid": "162",
+    "from": "Dhananjay Shahane <dhanushahane01@gmail.com>",
+    "subject": "test",
+    "body": "sfdfds",
+    "attachments": [],
+    "replyStatus": "completed",
+    "id": "b9a2b5ff-f8a1-4169-bb5f-d8180e436b3d",
+    "createdAt": "2025-09-15T09:19:10.186Z"
+  }
+]

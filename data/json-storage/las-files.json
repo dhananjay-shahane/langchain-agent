@@ -1,0 +1,20 @@
+[
+  {
+    "filename": "well_log_02.las",
+    "filepath": "C:\\Users\\Dhananjay\\Documents\\GitHub\\langchain-agent\\data\\samples\\well_log_02.las",
+    "size": "0.00MB",
+    "source": "manual",
+    "processed": false,
+    "id": "fa91573b-bf94-4052-aec0-0ad1a958299d",
+    "createdAt": "2025-09-19T02:47:24.690Z"
+  },
+  {
+    "filename": "sample_well_01.las",
+    "filepath": "C:\\Users\\Dhananjay\\Documents\\GitHub\\langchain-agent\\data\\samples\\sample_well_01.las",
+    "size": "0.00MB",
+    "source": "manual",
+    "processed": false,
+    "id": "829784e2-d1d2-4da0-bfdb-7fd58d562ba2",
+    "createdAt": "2025-09-19T02:47:24.684Z"
+  }
+]

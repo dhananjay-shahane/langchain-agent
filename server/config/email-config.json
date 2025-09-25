@@ -1,0 +1,24 @@
+{
+  "smtp": {
+    "host": "smtp.gmail.com",
+    "port": 587,
+    "secure": false,
+    "requireAuth": true
+  },
+  "templates": {
+    "professional": {
+      "signature": "Best regards,\nCustomer Service Team",
+      "greeting": "Dear {name},"
+    },
+    "casual": {
+      "signature": "Thanks!\nThe Team",
+      "greeting": "Hi {name},"
+    }
+  },
+  "settings": {
+    "autoSend": false,
+    "defaultTemplate": "professional",
+    "maxRetries": 3,
+    "timeout": 30000
+  }
+}
